@@ -136,10 +136,11 @@ type row struct {
 	depth int
 }
 
-// visible lists the rows shown with expanded open, in pre-order.
-func (f *forest) visible(expanded map[string]bool) []row {
+// visible lists the rows shown with expanded open, in pre-order. A non-nil
+// keep limits the rows to the issues it holds.
+func (f *forest) visible(expanded, keep map[string]bool) []row {
 	var out []row
-	stack := slices.Clone(f.roots)
+	stack := kept(f.roots, keep)
 	slices.Reverse(stack)
 	for len(stack) > 0 {
 		id := stack[len(stack)-1]
@@ -147,10 +148,41 @@ func (f *forest) visible(expanded map[string]bool) []row {
 		n := f.nodes[id]
 		out = append(out, row{id: id, depth: n.depth})
 		if expanded[id] {
-			for i := len(n.children) - 1; i >= 0; i-- {
-				stack = append(stack, n.children[i])
+			kids := kept(n.children, keep)
+			for i := len(kids) - 1; i >= 0; i-- {
+				stack = append(stack, kids[i])
 			}
 		}
 	}
 	return out
+}
+
+// kept returns the ids keep holds, in order; a nil keep holds every issue.
+func kept(ids []string, keep map[string]bool) []string {
+	if keep == nil {
+		return slices.Clone(ids)
+	}
+	var out []string
+	for _, id := range ids {
+		if keep[id] {
+			out = append(out, id)
+		}
+	}
+	return out
+}
+
+// filter returns the issues match accepts (hits) and those to show: the hits
+// and every ancestor of a hit (keep).
+func (f *forest) filter(match func(protocol.IssueSummary) bool) (hits, keep map[string]bool) {
+	hits, keep = map[string]bool{}, map[string]bool{}
+	for id, n := range f.nodes {
+		if !match(n.issue) {
+			continue
+		}
+		hits[id] = true
+		for cur := id; cur != "" && !keep[cur]; cur = f.nodes[cur].parent {
+			keep[cur] = true
+		}
+	}
+	return hits, keep
 }
