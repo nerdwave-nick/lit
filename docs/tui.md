@@ -99,7 +99,25 @@ to the tree. On narrower terminals the tree and the detail are separate views:
 Enter opens the detail full screen, and Escape returns to the tree with the
 same selection. The detail shows the issue's title, state, labels, assignee,
 claim (owner name and kind, and lease end), parent, children, links and last
-update.
+update, then its rendered body and its comments, oldest first, each headed by
+its author and time (and `edited` with the time of the last edit). Comments
+are read-only.
+
+The body and comments load when the detail is shown: as soon as an issue is
+selected on a wide terminal, and when the detail opens on a narrow one, so
+moving through the tree on a narrow terminal reads nothing. Until they arrive,
+the detail says `Loading the body and comments…`. Choosing another issue
+cancels a load that is still running, and a late answer for an issue that is
+no longer selected is ignored. Every refresh also reloads the body and
+comments of the shown issue, keeping the scroll position. Comments come in
+one bounded read when they fit, with their count (`Comments (3)`); otherwise
+they are read page by page, the count is left out, and a note says they may
+have changed between pages. If loading fails, the detail names the error and
+keeps whatever was read; `r` tries again.
+
+Bodies and comments are sanitized before rendering, like every title: escape
+sequences, other control characters and bidi overrides show as visible markers
+(`␛[2J`, `␇`, `⟨U+202E⟩`) and never reach the terminal.
 
 `action_menu` (`m`) lists the commands of the current view with their keys
 (open or back, refresh, switch project, help and quit); Enter runs one, Escape
