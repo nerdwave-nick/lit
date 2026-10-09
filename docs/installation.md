@@ -49,6 +49,12 @@ directly; on Windows, `lit` runs it as a child process on the same console and
 waits for it. `lit-tui` can also be run directly; its endpoint is `--endpoint`,
 then `LIT_ENDPOINT`, then `http://127.0.0.1:7411`.
 
+Theme, mouse and keymap preferences live in
+`${XDG_CONFIG_HOME:-$HOME/.config}/lit/tui.json`, with `LIT_TUI_*` environment
+variables and `lit-tui` flags taking precedence. `lit tui` passes only
+`--endpoint` through. See [docs/tui.md](tui.md) for the file format
+and the default keymap.
+
 Outside a terminal, bare `lit` is unchanged: it exits with status 2 and the
 `invalid_arguments` error `a subcommand is required for lit`, so scripts and
 agents are unaffected. `lit tui` itself always hands over to `lit-tui`, which

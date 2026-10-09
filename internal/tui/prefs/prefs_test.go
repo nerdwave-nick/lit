@@ -152,7 +152,7 @@ func TestExplicitConfigFileSelectionAndExistence(t *testing.T) {
 	if _, err := Load(Flags{Config: str("")}); err == nil || !strings.Contains(err.Error(), "config: ") {
 		t.Errorf("empty --config must not fall back to the default file: %v", err)
 	}
-	if _, err := Load(Flags{Config: &missing});err == nil || !strings.Contains(err.Error(), "config: open "+missing) {
+	if _, err := Load(Flags{Config: &missing}); err == nil || !strings.Contains(err.Error(), "config: open "+missing) {
 		t.Errorf("missing --config: %v", err)
 	}
 	if err := os.Remove(def); err != nil {
