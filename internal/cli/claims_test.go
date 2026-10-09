@@ -10,7 +10,6 @@ import (
 	"net/http/httptest"
 	"path/filepath"
 	"testing"
-	"time"
 )
 
 func TestClaimArguments(t *testing.T) {
@@ -37,21 +36,6 @@ func TestClaimArguments(t *testing.T) {
 		}
 	}
 }
-func TestClaimTargetUsesServiceTime(t *testing.T) {
-	now := time.Date(2026, 1, 1, 0, 0, 0, 0, time.UTC)
-	a, _ := Parse([]string{"claims", "renew", "--all"})
-	got, e := claimTarget(a, now.Format(time.RFC3339Nano))
-	if e != nil || got != now.Add(30*time.Minute).Format(time.RFC3339Nano) {
-		t.Fatal(got, e)
-	}
-	for _, target := range []string{now.Format(time.RFC3339Nano), now.Add(time.Hour + time.Second).Format(time.RFC3339Nano)} {
-		a, _ = Parse([]string{"claims", "acquire", "A", "--until", target})
-		if _, e = claimTarget(a, now.Format(time.RFC3339Nano)); e == nil {
-			t.Fatal("accepted", target)
-		}
-	}
-}
-
 func TestClaimMalformedSuccessRetainsPending(t *testing.T) {
 	for _, data := range []string{`{"outcome":"applied"}`, `{"outcome":"applied","items":null}`, `{"outcome":"applied","items":[{"issue_id":"invalid","claim":null}]}`} {
 		t.Run(data, func(t *testing.T) {

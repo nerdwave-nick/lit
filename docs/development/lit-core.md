@@ -55,6 +55,22 @@ Deferred archives, editing windows, drafts, and saved plans have no routes.
   sending. Uncertain transport or response results retain pending evidence (the
   CLI exits 4) and are reconciled read-only, never blindly replayed. A `Session`
   is not safe for concurrent use.
+- Typed operations on `Session` take a per-operation `context.Context` and
+  return `*protocol.Error` values; `litclient.Code(err)` exposes the stable
+  code, so callers never branch on HTTP status. `Get`/`List` read snapshot
+  targets and typed `Query` pages (cursors, limits, `All`). `Prepare` returns
+  an opaque `Prepared` and `Commit` sends exactly that preview with the claim
+  tokens of the `RequiredClaims` the client owned; a `Prepared` is bound to
+  its client and submitted at most once, so a commit refused because any
+  affected record (including mirrors and guards) changed is never prepared
+  again. Request builders cover issue, comment, project and milestone
+  mutations. `AcquireClaims`/`RenewClaims`/`ReleaseClaims` follow the CLI
+  (renewing an absent or expired claim is `claim_expired` and never
+  reacquires). `TransactionStatus` reconciles retained requests read-only and
+  never replays, moves or deletes evidence. `Connect` registers a fresh client
+  for a locked, unmapped session and saves its mapping; `Disconnect` releases
+  the client's claims. The CLI uses Prepare/Commit, the claim operations and
+  Disconnect; its connect and `transactions status` stay in `internal/cli`.
 - `internal/cli.App` embeds that session and adds arguments and output
   preference; it passes its stderr as the warning writer.
 - Resource CLI verbs should live in separate files, expanding argument validation
