@@ -150,7 +150,7 @@ func (m Model) View() tea.View {
 		content = m.chooserView()
 	case m.help:
 		content = strings.Join(km.Help(m.view()), "\n") + "\n\n" + km.Hint(keys.Menu, keys.Cancel)
-	case m.ms.view != nil:
+	case m.milestonesOpen():
 		content = m.milestonesView()
 	case m.doc != nil:
 		content = cells.Clip(cells.Default, "lit-tui · "+m.endpoint, m.width, "…") + "\n" + m.detail.View() + "\n" +

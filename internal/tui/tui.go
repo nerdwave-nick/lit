@@ -106,7 +106,7 @@ func (m Model) Init() tea.Cmd {
 // context is the keymap context of the focused view.
 func (m Model) context() keys.Context {
 	if m.help || m.b != nil && (m.b.menu != nil || m.b.filt.panel != nil || m.b.qa.m != nil) || m.ed != nil && m.ed.modal() ||
-		m.dv != nil && (m.dv.view != nil || m.dv.prompt != nil) || m.ms.view != nil {
+		m.dv != nil && (m.dv.view != nil || m.dv.prompt != nil) || m.milestonesOpen() {
 		return keys.Menu
 	}
 	return m.view()

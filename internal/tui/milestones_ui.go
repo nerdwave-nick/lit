@@ -44,6 +44,9 @@ func (m Model) milestonesAction(a keys.Action) (Model, tea.Cmd) {
 	}
 	b.menu, m.help = nil, false
 	if a == keys.Milestones {
+		if m.ms == nil {
+			return m, nil
+		}
 		view, cmd := milestones.New(milestones.Env{Gate: b.src, Project: b.project.ID, ProjectTitle: b.project.Title, Issues: b.last.Items})
 		m.ms.view = view
 		return m, cmd
@@ -60,14 +63,17 @@ func (m Model) milestonesAction(a keys.Action) (Model, tea.Cmd) {
 	}
 }
 
+// milestonesOpen reports that the Milestones view is open.
+func (m Model) milestonesOpen() bool { return m.ms != nil && m.ms.view != nil }
+
 // milestonesWatch notes, without consuming the message, what changes the
 // open view shows: a reloaded tree names the members, and an applied or
 // discarded description draft reloads the milestones.
 func (m Model) milestonesWatch(msg tea.Msg) tea.Cmd {
-	v := m.ms.view
-	if v == nil {
+	if !m.milestonesOpen() {
 		return nil
 	}
+	v := m.ms.view
 	switch msg := msg.(type) {
 	case issuesMsg:
 		if msg.issues.Err == nil {
@@ -92,10 +98,10 @@ func (m Model) milestonesUpdate(msg tea.Msg) (tea.Cmd, bool) {
 	if got, ok := msg.(membershipMsg); ok {
 		return m.membership(got), true
 	}
-	v := m.ms.view
-	if v == nil {
+	if !m.milestonesOpen() {
 		return nil, false
 	}
+	v := m.ms.view
 	switch msg := msg.(type) {
 	case tea.KeyPressMsg:
 		if keys.IsShutdown(msg.Key()) || m.help {
@@ -144,8 +150,8 @@ func (m Model) milestonesResult(r milestones.Result) tea.Cmd {
 // membership opens set_milestones on the issue with the loaded milestones.
 func (m Model) membership(got membershipMsg) tea.Cmd {
 	b := m.b
-	if b == nil || b.project == nil || b.project.ID != got.project {
-		return nil
+	if b == nil || b.project == nil || b.project.ID != got.project || b.qa.m != nil {
+		return nil // switched away, or another quick action opened meanwhile
 	}
 	b.qa.note = ""
 	if got.l.Err != nil {
@@ -190,7 +196,7 @@ func onIssue(k drafts.Kind) string {
 // milestoneName names a milestone record by its title when the open view
 // knows it.
 func (m Model) milestoneName(id string) string {
-	if m.ms.view != nil {
+	if m.milestonesOpen() {
 		if title, ok := m.ms.view.Title(id); ok {
 			return "milestone " + titled(title)
 		}
