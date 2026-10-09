@@ -20,6 +20,11 @@ const (
 	SetParent
 	AddLink
 	RemoveLink
+	// Milestones (internal/tui/quick/milestones.go): the selected issue's
+	// explicit membership, and a milestone's creation and title.
+	SetMilestones
+	NewMilestone
+	RenameMilestone
 )
 
 // Env is what an action needs from the browser: the gate, the project's
@@ -31,6 +36,10 @@ type Env struct {
 	ProjectTitle string
 	Issue        protocol.IssueSummary
 	Issues       []protocol.IssueSummary
+	// Milestones are the project's milestones as last loaded (SetMilestones
+	// fences each at its loaded revision); Milestone is the one to rename.
+	Milestones []protocol.Milestone
+	Milestone  protocol.Milestone
 }
 
 type stage int
@@ -100,6 +109,8 @@ func Start(k Kind, env Env) *Model {
 		if len(m.pick.options) == 0 {
 			m.note = quoted(i.Title) + " has no links."
 		}
+	default:
+		m.startMilestone()
 	}
 	return m
 }
@@ -173,11 +184,13 @@ func (m *Model) choose(k tea.KeyPressMsg, km keys.Keymap) Result {
 			return Result{Closed: true}
 		case !submit:
 			return Result{}
-		case m.field.value() == m.env.Issue.Title:
-			m.note = "The title is unchanged."
+		}
+		c, note := m.titleChange(m.field.value())
+		if note != "" {
+			m.note = note
 			return Result{}
 		}
-		return m.prepare(Title(m.env.Project, m.env.Issue, m.field.value()))
+		return m.prepare(c)
 	}
 	chosen, cancel := m.pick.key(k, km)
 	switch {
@@ -228,6 +241,8 @@ func (m *Model) chosen(o option) Result {
 	case RemoveLink:
 		relation, id, _ := strings.Cut(o.value, " ")
 		return m.prepare(Unlink(p, i, relation, id, m.titleText(id)))
+	case SetMilestones:
+		return m.chosenMilestone(o)
 	}
 	return Result{}
 }
@@ -269,6 +284,7 @@ func (m *Model) Update(msg tea.Msg) (Result, bool) {
 				m.preview.Affected[n].Title = m.env.ProjectTitle
 			}
 		}
+		m.nameMilestones()
 		// A stale or refused preview may mean the tree is out of date.
 		return Result{Reload: msg.p.Err != nil}, true
 	case commitMsg:
