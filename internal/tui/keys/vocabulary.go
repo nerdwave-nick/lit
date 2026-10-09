@@ -49,6 +49,14 @@ const (
 	ClearFilters  Action = "clear_filters"
 	Claim         Action = "claim"
 	Release       Action = "release"
+	// Quick actions: one previewed transaction each.
+	EditTitle   Action = "edit_title"
+	SetState    Action = "set_state"
+	SetLabels   Action = "set_labels"
+	SetAssignee Action = "set_assignee"
+	SetParent   Action = "set_parent"
+	Link        Action = "link"
+	Unlink      Action = "unlink"
 	// UncertainRequests opens the read-only view of retained requests whose
 	// outcome is not established.
 	UncertainRequests Action = "uncertain_requests"
@@ -96,6 +104,13 @@ var vocabulary = map[Context][]entry{
 		{ClearFilters, "clear the filters and the search", []string{"F"}},
 		{Claim, "claim the issue, or reacquire a lost claim", []string{"c"}},
 		{Release, "release the issue's claim", []string{"u"}},
+		{EditTitle, "edit the title", []string{"t"}},
+		{SetState, "close or reopen the issue", []string{"s"}},
+		{SetLabels, "change the labels", []string{"#"}},
+		{SetAssignee, "change the assignee", []string{"A"}},
+		{SetParent, "change the parent", []string{"P"}},
+		{Link, "add a link: blocker, blocked or related issue", []string{"b"}},
+		{Unlink, "remove a link", []string{"B"}},
 	},
 	Detail: {
 		{Up, "scroll up", []string{"up", "k"}},
@@ -111,6 +126,13 @@ var vocabulary = map[Context][]entry{
 		{Bottom, "go to the bottom", []string{"end", "G"}},
 		{Claim, "claim the issue, or reacquire a lost claim", []string{"c"}},
 		{Release, "release the issue's claim", []string{"u"}},
+		{EditTitle, "edit the title", []string{"t"}},
+		{SetState, "close or reopen the issue", []string{"s"}},
+		{SetLabels, "change the labels", []string{"#"}},
+		{SetAssignee, "change the assignee", []string{"A"}},
+		{SetParent, "change the parent", []string{"P"}},
+		{Link, "add a link: blocker, blocked or related issue", []string{"b"}},
+		{Unlink, "remove a link", []string{"B"}},
 	},
 	Menu: {
 		{Up, "previous item", []string{"up", "k"}},
