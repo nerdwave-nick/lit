@@ -63,6 +63,10 @@ const (
 	// UncertainRequests opens the read-only view of retained requests whose
 	// outcome is not established.
 	UncertainRequests Action = "uncertain_requests"
+	// Edit edits the selected issue's body in the editor (suspending the
+	// TUI); EditDetached shows the draft's path for any editor and watches it.
+	Edit         Action = "edit"
+	EditDetached Action = "edit_detached"
 )
 
 // Required actions must keep at least one key, so the way out, help and
@@ -115,6 +119,8 @@ var vocabulary = map[Context][]entry{
 		{SetParent, "change the parent", []string{"P"}},
 		{Link, "add a link: blocker, blocked or related issue", []string{"b"}},
 		{Unlink, "remove a link", []string{"B"}},
+		{Edit, "edit the body, or resume, apply or discard its draft", []string{"e"}},
+		{EditDetached, "edit the body in any editor (shows the draft path)", []string{"E"}},
 	},
 	Detail: {
 		{Up, "scroll up", []string{"up", "k"}},
@@ -138,6 +144,8 @@ var vocabulary = map[Context][]entry{
 		{SetParent, "change the parent", []string{"P"}},
 		{Link, "add a link: blocker, blocked or related issue", []string{"b"}},
 		{Unlink, "remove a link", []string{"B"}},
+		{Edit, "edit the body, or resume, apply or discard its draft", []string{"e"}},
+		{EditDetached, "edit the body in any editor (shows the draft path)", []string{"E"}},
 	},
 	Menu: {
 		{Up, "previous item", []string{"up", "k"}},

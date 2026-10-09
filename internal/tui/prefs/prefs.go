@@ -31,6 +31,8 @@ const (
 	EnvMouse  = "LIT_TUI_MOUSE"
 	// EnvClaimIdle sets ClaimIdle, as a Go duration such as 30m.
 	EnvClaimIdle = "LIT_TUI_CLAIM_IDLE"
+	// EnvClaimLease sets ClaimLease, as a Go duration such as 15m.
+	EnvClaimLease = "LIT_TUI_CLAIM_LEASE"
 )
 
 // DefaultClaimIdle is how long claims are renewed without input or a draft
@@ -39,6 +41,15 @@ const (
 const (
 	DefaultClaimIdle = 30 * time.Minute
 	MinClaimIdle     = time.Second
+)
+
+// DefaultClaimLease is how long each claim the TUI takes or renews lasts
+// (Proposal); it is renewed after two thirds of it. A claim lasts at least
+// MinClaimLease and at most the service's MaxClaimLease.
+const (
+	DefaultClaimLease = 15 * time.Minute
+	MinClaimLease     = time.Second
+	MaxClaimLease     = time.Hour
 )
 
 // Prefs are the effective preferences.
@@ -50,17 +61,19 @@ type Prefs struct {
 	// ClaimIdle is how long held claims are renewed without activity before
 	// renewal pauses and the TUI asks whether to keep holding them.
 	ClaimIdle time.Duration
+	// ClaimLease is the lease of each claim taken or renewed.
+	ClaimLease time.Duration
 }
 
 // Default returns the preferences used without flags, environment or file.
 func Default() Prefs {
-	return Prefs{Theme: ThemeAuto, Keymap: keys.Default(), ClaimIdle: DefaultClaimIdle}
+	return Prefs{Theme: ThemeAuto, Keymap: keys.Default(), ClaimIdle: DefaultClaimIdle, ClaimLease: DefaultClaimLease}
 }
 
 // Flags are lit-tui's preference flags; nil means not given.
 type Flags struct {
-	Config, Theme, Mouse *string
-	ClaimIdle            *string
+	Config, Theme, Mouse  *string
+	ClaimIdle, ClaimLease *string
 }
 
 // file is the schema_version 1 config file.
@@ -70,6 +83,7 @@ type file struct {
 	Mouse         *bool                          `json:"mouse"`
 	Keymap        map[string]map[string][]string `json:"keymap"`
 	ClaimIdle     *string                        `json:"claim_idle"`
+	ClaimLease    *string                        `json:"claim_lease"`
 }
 
 // DefaultPath returns ${XDG_CONFIG_HOME:-$HOME/.config}/lit/tui.json. A
@@ -118,6 +132,14 @@ func Load(f Flags) (Prefs, error) {
 			return p, err
 		}
 	}
+	for _, src := range []struct {
+		name  string
+		value *string
+	}{{EnvClaimLease, env(EnvClaimLease)}, {"--claim-lease", f.ClaimLease}} {
+		if err := p.applyClaimLease(src.name, src.value); err != nil {
+			return p, err
+		}
+	}
 	return p, nil
 }
 
@@ -158,6 +180,9 @@ func (p *Prefs) readFile(path string, explicit bool) error {
 	if err := p.applyClaimIdle("claim_idle", c.ClaimIdle); err != nil {
 		return fail(err)
 	}
+	if err := p.applyClaimLease("claim_lease", c.ClaimLease); err != nil {
+		return fail(err)
+	}
 	k, err := keys.New(c.Keymap)
 	if err != nil {
 		return fail(err)
@@ -190,6 +215,17 @@ func (p *Prefs) apply(themeSource string, theme *string, mouseSource string, mou
 // applyClaimIdle overrides ClaimIdle from one source, named in errors; nil
 // means not given.
 func (p *Prefs) applyClaimIdle(source string, value *string) error {
+	return duration(source, value, MinClaimIdle, 0, &p.ClaimIdle)
+}
+
+// applyClaimLease overrides ClaimLease from one source.
+func (p *Prefs) applyClaimLease(source string, value *string) error {
+	return duration(source, value, MinClaimLease, MaxClaimLease, &p.ClaimLease)
+}
+
+// duration parses a Go duration of at least least and, unless most is 0,
+// at most most into dst; nil means not given.
+func duration(source string, value *string, least, most time.Duration, dst *time.Duration) error {
 	if value == nil {
 		return nil
 	}
@@ -197,10 +233,12 @@ func (p *Prefs) applyClaimIdle(source string, value *string) error {
 	switch {
 	case err != nil:
 		return fmt.Errorf("%s: invalid duration %q (want a Go duration such as 30m or 1h)", source, *value)
-	case d < MinClaimIdle:
-		return fmt.Errorf("%s: %s is shorter than %s", source, *value, MinClaimIdle)
+	case d < least:
+		return fmt.Errorf("%s: %s is shorter than %s", source, *value, least)
+	case most > 0 && d > most:
+		return fmt.Errorf("%s: %s is longer than %s", source, *value, most)
 	}
-	p.ClaimIdle = d
+	*dst = d
 	return nil
 }
 

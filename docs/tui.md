@@ -17,6 +17,7 @@ defaults, the same order `lit-server` uses.
 | Mouse | `--mouse true\|false` | `LIT_TUI_MOUSE` | `mouse` | `false` |
 | Keymap | | | `keymap` | the default keymap below |
 | Claim idle period | `--claim-idle DURATION` | `LIT_TUI_CLAIM_IDLE` | `claim_idle` | `30m` |
+| Claim lease | `--claim-lease DURATION` | `LIT_TUI_CLAIM_LEASE` | `claim_lease` | `15m` |
 
 An empty environment variable counts as unset. A relative `XDG_CONFIG_HOME` is
 ignored. The default config file may be missing. A file selected explicitly with
@@ -40,7 +41,8 @@ keys and trailing data are rejected:
     "global": {"quit": ["q", "Q"]},
     "tree": {"expand": ["right", "l", "space"], "collapse": ["left", "h"]}
   },
-  "claim_idle": "45m"
+  "claim_idle": "45m",
+  "claim_lease": "15m"
 }
 ```
 
@@ -54,6 +56,9 @@ keys and trailing data are rejected:
 - **`claim_idle`**: how long claims are renewed without input or a draft change
   before renewal pauses and `lit-tui` asks whether to keep holding them (see
   [claims](#claims)). A Go duration such as `30m`, `1h` or `90s`, at least `1s`.
+- **`claim_lease`**: how long each claim `lit-tui` takes or renews lasts; it is
+  renewed after two thirds of it. A Go duration from `1s` to `1h` (the service's
+  maximum). A shorter lease ends a crashed instance's claims sooner.
 
 Invalid preferences stop `lit-tui` before it takes over the terminal. It prints
 one `lit-tui:` line per problem, naming the file or variable, and exits with
@@ -127,7 +132,7 @@ sequences, other control characters and bidi overrides show as visible markers
 `action_menu` (`m`) lists the commands of the current view with their keys
 (open or back, refresh, switch project, uncertain requests, search, filter,
 clear filters, claim or release, the [quick actions](#quick-actions), help,
-quit and history); Enter runs one, Escape
+quit, history, edit and edit detached); Enter runs one, Escape
 closes the menu. With the `mouse` preference on, a click selects a row, a click
 on the selected row expands or collapses it, a click on the detail pane focuses
 it, and the wheel moves the selection or scrolls the detail.
@@ -245,7 +250,8 @@ example `Cannot claim “Fix the parser”: claimed by Claude (agent) until …`
 row shows `⚑` and your name.
 
 While `lit-tui` holds a claim, it renews it in the background. Each claim is
-taken for 15 minutes and renewed after 10 (two thirds of the lease), one request
+taken for 15 minutes (`claim_lease`) and renewed after 10 (two thirds of the
+lease), one request
 at a time. Renewal does not depend on the screen: it goes on while the screen is
 busy or suspended for an editor. The footer counts the claims, for example
 `Claims: 2 held · 1 lost`.
@@ -330,6 +336,76 @@ A refusal is shown with its error code, and nothing is written:
   recovery and never replayed; the [uncertain-requests view](#uncertain-requests)
   lists it.
 
+## Editing issue bodies
+
+`edit` (`e`) edits the selected issue's body in your editor, in the tree or the
+detail. `lit-tui` claims the issue first (claim-on-edit). If another client holds
+the claim, the edit does not start and the note names the owner, for example
+`Cannot edit “Fix the parser”: claimed by Claude (agent) until …`. Otherwise it
+writes a **draft**: a file holding exactly the body, with nothing added, and
+suspends into the editor. The editor is `$VISUAL`, then `$EDITOR`, then `vi`
+(`notepad` on Windows). Its value is split into arguments like a shell would
+split words, with `'…'` and `"…"` quoting and `\` escapes, but no shell runs
+it: variables, pipes and `;` are not interpreted. Quote an editor path that
+contains spaces, for example `EDITOR='"/opt/My Editor/bin/nvim" --clean'`; a
+value that names an existing file as a whole also works unquoted. The draft's
+path is passed as one more argument.
+
+`edit_detached` (`E`) starts the same edit without suspending: the footer shows
+the draft's path (`Draft open: “Fix the parser” · e applies it`) and `lit-tui`
+keeps running. Edit the file in any editor. `lit-tui` checks it twice a second
+and shows when it last changed. A change counts as activity for the claim's
+idle period, in both kinds of edit.
+
+**Applying.** When the editor exits, or when you choose to apply a detached
+draft, `lit-tui` reads the draft and previews the change. The panel shows the
+claim (held; or, when it was lost or released, a warning that the apply is
+optimistic), the affected records with the revisions they are fenced at (the
+issue, changed, and its project, read), and the diff against the revision the
+draft was started from. `Apply this change` commits exactly that preview, at
+that revision. On success the draft is removed and the edit claim is released.
+A claim you had taken yourself before the edit (with `claim`) is kept. A
+preview taken while the claim was held is shown again, with the warning, if the
+claim was lost since.
+
+Nothing is ever overwritten silently. The draft is kept, and the panel says why,
+when:
+
+- the issue changed since the draft was started (`changed since the draft was
+  started: revision 3 → 4`): `Diff against the current body` shows what applying
+  would replace, and `Reload` records the current revision while keeping your
+  text, so the next preview applies it over the new revision;
+- another client holds a claim on the issue: nothing is written and the owner
+  is named;
+- the outcome is uncertain: the request ID and evidence are shown, nothing is
+  replayed, and the claim stays (see [uncertain requests](#uncertain-requests)).
+
+After a claim is lost, for example when renewal paused for idleness and the
+lease ended, the draft stays and applying is optimistic: fenced by the draft's
+revision only, and refused by a revision change or another client's claim.
+
+**Existing drafts.** `e` on an issue that already has a draft never starts a new
+one. It offers the draft instead: resume it in the editor or detached (claiming
+the issue again if this session does not hold the claim), preview and apply it,
+diff it against the current body, or discard it. `Keep the draft for later`
+(or Escape) closes the panel; an edit claim stays held while its draft is open.
+Discarding asks first, deletes the draft and releases the edit claim. Drafts
+are removed only by a successful apply or a discard.
+
+Drafts live in the client state directory, one directory per project:
+
+```text
+<state>/tui/drafts/<project-id>/<title-slug>--<id8>.md         exactly the body
+<state>/tui/drafts/<project-id>/.lit/issue_body-<issue-id>.json  the sidecar
+```
+
+The sidecar records the issue, its title, the revision the draft applies at and
+the body at that revision, and whether the claim belongs to the edit. Only
+sidecars identify drafts, so editor swap and backup files in the directory
+(`.name.md.swp`, `name.md~`, …) are ignored; discarding or applying a draft
+removes its own. The title part of the name is cosmetic: a renamed issue keeps
+its draft. Drafts are TUI drafts only: lit-server knows nothing about them.
+
 ## Keymap
 
 Every binding belongs to a **context**:
@@ -403,6 +479,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | tree | `set_parent` | `P` | change the parent |
 | tree | `link` | `b` | add a link: blocker, blocked or related issue |
 | tree | `unlink` | `B` | remove a link |
+| tree | `edit` | `e` | edit the body, or resume, apply or discard its draft |
+| tree | `edit_detached` | `E` | edit the body in any editor (shows the draft path) |
 | detail | `up` | `up`, `k` | scroll up |
 | detail | `down` | `down`, `j` | scroll down |
 | detail | `left` | `left`, `h` | scroll a wide block left |
@@ -424,6 +502,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | detail | `set_parent` | `P` | change the parent |
 | detail | `link` | `b` | add a link: blocker, blocked or related issue |
 | detail | `unlink` | `B` | remove a link |
+| detail | `edit` | `e` | edit the body, or resume, apply or discard its draft |
+| detail | `edit_detached` | `E` | edit the body in any editor (shows the draft path) |
 | menu | `up` | `up`, `k` | previous item |
 | menu | `down` | `down`, `j` | next item |
 | menu | `open` | `enter` | choose the item |

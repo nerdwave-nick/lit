@@ -19,7 +19,7 @@ func isolate(t *testing.T) string {
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("XDG_CONFIG_HOME", xdg)
-	for _, v := range []string{EnvConfig, EnvTheme, EnvMouse, EnvClaimIdle} {
+	for _, v := range []string{EnvConfig, EnvTheme, EnvMouse, EnvClaimIdle, EnvClaimLease} {
 		t.Setenv(v, "")
 	}
 	return filepath.Join(xdg, "lit", "tui.json")
@@ -277,5 +277,40 @@ func TestClaimIdlePrecedenceAndValidation(t *testing.T) {
 	t.Setenv(EnvClaimIdle, "forever")
 	if _, err := Load(Flags{}); err == nil || !strings.Contains(err.Error(), EnvClaimIdle+": invalid duration") {
 		t.Errorf("environment: %v", err)
+	}
+}
+
+// claim_lease defaults to 15 minutes, follows the usual precedence and must
+// be between 1s and the service's one-hour maximum.
+func TestClaimLeasePrecedenceAndValidation(t *testing.T) {
+	path := isolate(t)
+	if p := mustLoad(t, Flags{}); p.ClaimLease != 15*time.Minute || Default().ClaimLease != DefaultClaimLease {
+		t.Fatalf("default claim lease %v", p.ClaimLease)
+	}
+	write(t, path, `{"schema_version": 1, "claim_lease": "20m"}`)
+	if p := mustLoad(t, Flags{}); p.ClaimLease != 20*time.Minute {
+		t.Errorf("config: %v", p.ClaimLease)
+	}
+	t.Setenv(EnvClaimLease, "5m")
+	if p := mustLoad(t, Flags{}); p.ClaimLease != 5*time.Minute {
+		t.Errorf("environment over config: %v", p.ClaimLease)
+	}
+	if p := mustLoad(t, Flags{ClaimLease: str("1h")}); p.ClaimLease != time.Hour {
+		t.Errorf("flag over environment: %v", p.ClaimLease)
+	}
+	t.Setenv(EnvClaimLease, "")
+	for _, c := range []struct {
+		file string
+		f    Flags
+		want string
+	}{
+		{`{"schema_version": 1, "claim_lease": "soon"}`, Flags{}, "config " + path + ": claim_lease: invalid duration \"soon\""},
+		{`{"schema_version": 1, "claim_lease": "500ms"}`, Flags{}, "claim_lease: 500ms is shorter than 1s"},
+		{`{"schema_version": 1}`, Flags{ClaimLease: str("61m")}, "--claim-lease: 61m is longer than 1h0m0s"},
+	} {
+		write(t, path, c.file)
+		if _, err := Load(c.f); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s %+v: error %v, want %q", c.file, c.f, err, c.want)
+		}
 	}
 }

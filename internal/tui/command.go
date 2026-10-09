@@ -37,6 +37,7 @@ Quit with q (rebindable) or Ctrl-C, which is reserved and cannot be rebound.`,
 		{Name: "mouse", Usage: "Optional `BOOL`: true enables click-to-select and wheel scrolling (or " + prefs.EnvMouse + "; default false)",
 			Value: nwcli.Value{Kind: nwcli.Choice, Choices: []string{"true", "false"}}},
 		{Name: "claim-idle", Usage: "Optional `DURATION` without input or draft changes before claim renewal pauses and asks (or " + prefs.EnvClaimIdle + "; default 30m)"},
+		{Name: "claim-lease", Usage: "Optional `DURATION` of each claim taken or renewed, renewed after two thirds of it (or " + prefs.EnvClaimLease + "; default 15m, at most 1h)"},
 		{Name: "version", Short: "v", Switch: true, Usage: "version for lit-tui"},
 	},
 }
@@ -66,7 +67,8 @@ func Main(args []string, stdin, stdout *os.File, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "lit-tui: invalid endpoint:", err)
 		return 2
 	}
-	pref, err := prefs.Load(prefs.Flags{Config: one(p.Flags["config"]), Theme: one(p.Flags["theme"]), Mouse: one(p.Flags["mouse"]), ClaimIdle: one(p.Flags["claim-idle"])})
+	pref, err := prefs.Load(prefs.Flags{Config: one(p.Flags["config"]), Theme: one(p.Flags["theme"]), Mouse: one(p.Flags["mouse"]), ClaimIdle: one(p.Flags["claim-idle"]),
+		ClaimLease: one(p.Flags["claim-lease"])})
 	if err != nil {
 		for _, line := range strings.Split(err.Error(), "\n") {
 			fmt.Fprintln(stderr, "lit-tui:", line)

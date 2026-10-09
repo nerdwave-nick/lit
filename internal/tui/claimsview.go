@@ -36,9 +36,9 @@ func (m Model) WithClaims(h *claims.Holder) Model {
 	return m
 }
 
-// wireClaims connects the browser (recreated by WithPrefs) to the claims.
-// Without a holder the menu offers no claim actions.
-func (m Model) wireClaims() {
+// wireClaimItems connects the browser (recreated by WithPrefs) to the
+// claims. Without a holder the menu offers no claim actions.
+func (m Model) wireClaimItems() {
 	switch {
 	case m.b == nil:
 		return

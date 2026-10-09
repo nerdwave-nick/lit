@@ -57,7 +57,18 @@ instance itself, checking that the evidence stays byte-identical.
 `integration/tui_claims_test.go` claims an issue, sees an agent's claim attempt
 refused and an agent-held issue refused with its owner named, waits for the idle
 question after a short `claim_idle`, keeps the claim (renewed at once) and checks
-that quitting releases it. `integration/tui_history_test.go` opens the history
+that quitting releases it. `integration/tui_edit_test.go` edits a body with
+`nvim --clean` and `vim -u NONE -N` as `EDITOR` (subtests skip without them):
+the claim is taken before the editor opens and renews while it is open (a
+short `claim_lease`), an agent's claim attempt is refused, and the apply
+commits at the recorded revision and releases the claim. With a short
+`claim_idle` the claim lapses unanswered, and the later optimistic apply
+conflicts on an agent's revision, reloads, and is refused by the agent's claim
+with the draft kept. A detached edit is applied after another program saves
+the file. `internal/tui/editing_test.go` covers the same flows in the model,
+with the editor simulated, and `internal/tui/edit` and `internal/tui/drafts`
+test the claim-on-edit flow and the draft store against a temporary service.
+`integration/tui_history_test.go` opens the history
 view of an issue edited a few times (title, a body with an escape sequence, a
 label, the state) and of a comment edited by another client, from the tree and
 from the detail's chooser: it checks the actors, field changes, the body diff

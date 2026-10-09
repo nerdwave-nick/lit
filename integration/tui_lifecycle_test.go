@@ -59,6 +59,7 @@ type tuiEnv struct {
 	root     string
 	state    string
 	socket   string
+	env      []string // extra environment for lit-tui, such as EDITOR
 }
 
 func newTUIEnv(t *testing.T) *tuiEnv {
@@ -123,7 +124,8 @@ func (e *tuiEnv) launch(name string) *pane {
 	home := filepath.Join(e.root, "home")
 	env := []string{"env", "-i", "HOME=" + home, "USER=tester", "PATH=" + os.Getenv("PATH"), "TERM=xterm-256color",
 		"XDG_CONFIG_HOME=" + filepath.Join(home, "config"), "XDG_STATE_HOME=" + filepath.Join(home, "xdg-state"),
-		"LIT_STATE_DIR=" + e.state, "LIT_ENDPOINT=" + e.endpoint, "GORACE=atexit_sleep_ms=0", e.bin}
+		"LIT_STATE_DIR=" + e.state, "LIT_ENDPOINT=" + e.endpoint, "GORACE=atexit_sleep_ms=0"}
+	env = append(append(env, e.env...), e.bin)
 	script := strings.Join(quoteAll(env), " ") + "; echo EXIT=$? > " + quoteAll([]string{filepath.Join(e.root, name+".exit")})[0] + "; exec sleep 600"
 	e.tmux("new-session", "-d", "-s", name, "-x", "200", "-y", "50", "sh -c "+quoteAll([]string{script})[0])
 	p := &pane{e: e, name: name}
