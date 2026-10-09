@@ -1,6 +1,7 @@
 package quick
 
 import (
+	"errors"
 	"strconv"
 	"strings"
 	"time"
@@ -103,6 +104,8 @@ func (m *Model) previewLines() []string {
 		}
 		switch {
 		case a.Claim == nil:
+		case a.Mine && a.Self && p.Change.Request.Operation == "issue.close":
+			line += " · claimed by you: closing ends your claim"
 		case a.Mine:
 			line += " · claimed by you: your claim is passed on"
 		default:
@@ -168,15 +171,17 @@ func first(km keys.Keymap, a keys.Action) string {
 	return string(a)
 }
 
-// name is an affected record's quoted title, or its type and short UUID.
+// name is an affected issue's quoted title; other records and unknown
+// issues are named with their type.
 func (a Affected) name() string {
+	kind := strings.TrimSuffix(sanitize.Title(a.Type), "s")
 	switch {
-	case a.Title != "":
+	case a.Title != "" && a.Type == "issues":
 		return quoted(a.Title)
-	case a.Type == "issues":
-		return "issue " + short(a.ID)
+	case a.Title != "":
+		return kind + " " + quoted(a.Title)
 	}
-	return strings.TrimSuffix(sanitize.Title(a.Type), "s") + " " + short(a.ID)
+	return kind + " " + short(a.ID)
 }
 
 // claimOwner names a claim's owner by actor ("Claude (agent)") and when
@@ -207,7 +212,16 @@ func failure(err error, owners []Affected) string {
 	case "revision_conflict":
 		return "Refused (revision_conflict): an affected record changed since it was shown. Nothing was written; the tree reloads, try again."
 	case "outcome_uncertain":
-		return "Outcome uncertain (outcome_uncertain): " + sanitize.Title(err.Error()) + ". The request is kept for recovery and never replayed; the uncertain-requests view lists it."
+		id := "The request"
+		var pe *protocol.Error
+		if errors.As(err, &pe) {
+			if d, ok := pe.Details.(map[string]any); ok {
+				if v, ok := d["request_id"].(string); ok && protocol.ValidUUID(v) {
+					id = "Request " + v
+				}
+			}
+		}
+		return "Outcome uncertain (outcome_uncertain): " + sanitize.Title(err.Error()) + ". " + id + " is kept for recovery and never replayed; the uncertain-requests view lists it."
 	case "shutting_down":
 		return "Not applied (shutting_down): lit-tui is shutting down."
 	}

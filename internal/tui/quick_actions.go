@@ -37,7 +37,7 @@ func (b *browser) quickAction(action keys.Action) (tea.Cmd, bool) {
 		return nil, true
 	}
 	b.menu, b.qa.note = nil, ""
-	b.qa.m = quick.Start(kind, quick.Env{Gate: b.src, Project: b.project.ID, Issue: sel, Issues: b.last.Items})
+	b.qa.m = quick.Start(kind, quick.Env{Gate: b.src, Project: b.project.ID, ProjectTitle: b.project.Title, Issue: sel, Issues: b.last.Items})
 	return nil, true
 }
 

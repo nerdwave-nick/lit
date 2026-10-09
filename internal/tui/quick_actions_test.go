@@ -2,10 +2,12 @@ package tui
 
 import (
 	"context"
+	"net/http"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
@@ -204,4 +206,36 @@ func (b *browsing) selectedID() string {
 		b.t.Fatal("nothing selected")
 	}
 	return sel.ID
+}
+
+// A commit whose answer is lost is shown as uncertain with its request ID
+// and is never sent again.
+func TestAnUncertainCommitIsShownAndNeverReplayed(t *testing.T) {
+	srv := tuitest.Service(t)
+	seed(t, srv, "test/one")
+	b := startBrowsing(t, srv, 120, 30, false)
+	b.selectRoot("Second root")
+	b.press("s", "enter")
+	b.expect("the close preview", b.line("Close “Second root”") != "" && b.line("enter apply") != "")
+	// The commit's answer is lost and so is every read after it, so
+	// reconciliation cannot establish the outcome.
+	var lost atomic.Bool
+	srv.Intercept(func(w http.ResponseWriter, r *http.Request) bool {
+		if r.URL.Path == "/v1/transactions" {
+			lost.Store(true)
+		}
+		if lost.Load() {
+			tuitest.HangUp(w)
+			return true
+		}
+		return false
+	})
+	commits := srv.Count("POST /v1/transactions")
+	b.press("enter")
+	b.expect("uncertain, with its request", b.line("Outcome uncertain (outcome_uncertain)") != "" && b.line("never replayed") != "" &&
+		strings.Contains(b.view(), "Request "))
+	b.press("enter", "s", "esc")
+	if got := srv.Count("POST /v1/transactions") - commits; got != 1 {
+		t.Fatalf("%d commits sent, want exactly 1", got)
+	}
 }

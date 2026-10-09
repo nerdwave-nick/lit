@@ -26,10 +26,11 @@ const (
 // UUID, the issue as last loaded and the loaded issues (for pickers and
 // titles).
 type Env struct {
-	Gate    Gate
-	Project string
-	Issue   protocol.IssueSummary
-	Issues  []protocol.IssueSummary
+	Gate         Gate
+	Project      string // the project's UUID
+	ProjectTitle string
+	Issue        protocol.IssueSummary
+	Issues       []protocol.IssueSummary
 }
 
 type stage int
@@ -263,6 +264,11 @@ func (m *Model) Update(msg tea.Msg) (Result, bool) {
 			return Result{}, msg.m == m
 		}
 		m.stage, m.preview = previewed, msg.p
+		for n, a := range m.preview.Affected {
+			if a.Type == "projects" && a.ID == m.env.Project {
+				m.preview.Affected[n].Title = m.env.ProjectTitle
+			}
+		}
 		// A stale or refused preview may mean the tree is out of date.
 		return Result{Reload: msg.p.Err != nil}, true
 	case commitMsg:
