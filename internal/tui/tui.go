@@ -36,11 +36,14 @@ type Model struct {
 	cl            *claimsView      // held claims and the idle question; nil without a holder
 	ed            *editing         // body drafts and the draft panel; nil without an editor
 	dv            *draftsState     // the Drafts view, launch banner and quit prompt; nil without an editor
+	ms            *milestonesState // the Milestones view, when open
 }
 
 // NewModel returns the root model for the service at endpoint, with the
 // default preferences.
-func NewModel(endpoint string) Model { return Model{endpoint: endpoint}.WithPrefs(prefs.Default()) }
+func NewModel(endpoint string) Model {
+	return Model{endpoint: endpoint, ms: &milestonesState{}}.WithPrefs(prefs.Default())
+}
 
 // WithPrefs returns m using the effective preferences p.
 func (m Model) WithPrefs(p prefs.Prefs) Model {
@@ -103,7 +106,7 @@ func (m Model) Init() tea.Cmd {
 // context is the keymap context of the focused view.
 func (m Model) context() keys.Context {
 	if m.help || m.b != nil && (m.b.menu != nil || m.b.filt.panel != nil || m.b.qa.m != nil) || m.ed != nil && m.ed.modal() ||
-		m.dv != nil && (m.dv.view != nil || m.dv.prompt != nil) {
+		m.dv != nil && (m.dv.view != nil || m.dv.prompt != nil) || m.ms.view != nil {
 		return keys.Menu
 	}
 	return m.view()
@@ -135,7 +138,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.setStyle())
 	}
 	m.touchClaims(msg)
-	cmds = append(cmds, m.draftsWatch(msg))
+	cmds = append(cmds, m.draftsWatch(msg), m.milestonesWatch(msg))
 	m, cmd, handled := m.uncertainKey(msg)
 	if handled {
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
@@ -157,6 +160,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
 	if cmd, handled := m.draftsUpdate(msg); handled {
+		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
+	}
+	if cmd, handled := m.milestonesUpdate(msg); handled {
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
 	switch msg := msg.(type) {
@@ -255,6 +261,8 @@ func (m Model) dispatch(action keys.Action, msg tea.Msg) (Model, tea.Cmd) {
 		return m.openDraftsView()
 	case m.ed != nil && (action == keys.NewComment || action == keys.EditComment):
 		return m, m.commentAction(action)
+	case action == keys.Milestones || action == keys.SetMilestones:
+		return m.milestonesAction(action)
 	case m.b != nil:
 		return m, m.b.dispatch(m.view(), action, msg, m.detail)
 	case msg != nil:

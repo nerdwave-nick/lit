@@ -539,6 +539,7 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | global | `action_menu` | `m` | open the action menu |
 | global | `uncertain_requests` | `U` | show uncertain requests |
 | global | `drafts` | `D` | show the unapplied drafts |
+| global | `milestones` | `M` | show the project's milestones |
 | tree | `up` | `up`, `k` | select the previous issue |
 | tree | `down` | `down`, `j` | select the next issue |
 | tree | `collapse` | `left`, `h` | collapse |
@@ -565,6 +566,7 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | tree | `edit_detached` | `E` | edit the body in any editor (shows the draft path) |
 | tree | `new_comment` | `a` | add a comment, or resume its draft |
 | tree | `edit_comment` | `o` | edit one of the issue's comments |
+| tree | `set_milestones` | `W` | add to or remove from a milestone |
 | detail | `up` | `up`, `k` | scroll up |
 | detail | `down` | `down`, `j` | scroll down |
 | detail | `left` | `left`, `h` | scroll a wide block left |
@@ -590,6 +592,7 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | detail | `edit_detached` | `E` | edit the body in any editor (shows the draft path) |
 | detail | `new_comment` | `a` | add a comment, or resume its draft |
 | detail | `edit_comment` | `o` | edit one of the issue's comments |
+| detail | `set_milestones` | `W` | add to or remove from a milestone |
 | menu | `up` | `up`, `k` | previous item |
 | menu | `down` | `down`, `j` | next item |
 | menu | `open` | `enter` | choose the item |

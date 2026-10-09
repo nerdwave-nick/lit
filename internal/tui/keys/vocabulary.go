@@ -74,6 +74,11 @@ const (
 	// EditComment chooses one of its comments and edits it.
 	NewComment  Action = "new_comment"
 	EditComment Action = "edit_comment"
+	// Milestones opens the Milestones view of the project: progress,
+	// creation, titles and descriptions. SetMilestones adds the selected
+	// issue to a milestone or removes it.
+	Milestones    Action = "milestones"
+	SetMilestones Action = "set_milestones"
 )
 
 // Required actions must keep at least one key, so the way out, help and
@@ -103,6 +108,7 @@ var vocabulary = map[Context][]entry{
 		{ActionMenu, "open the action menu", []string{"m"}},
 		{UncertainRequests, "show uncertain requests", []string{"U"}},
 		{Drafts, "show the unapplied drafts", []string{"D"}},
+		{Milestones, "show the project's milestones", []string{"M"}},
 	},
 	Tree: {
 		{Up, "select the previous issue", []string{"up", "k"}},
@@ -131,6 +137,7 @@ var vocabulary = map[Context][]entry{
 		{EditDetached, "edit the body in any editor (shows the draft path)", []string{"E"}},
 		{NewComment, "add a comment, or resume its draft", []string{"a"}},
 		{EditComment, "edit one of the issue's comments", []string{"o"}},
+		{SetMilestones, "add to or remove from a milestone", []string{"W"}},
 	},
 	Detail: {
 		{Up, "scroll up", []string{"up", "k"}},
@@ -158,6 +165,7 @@ var vocabulary = map[Context][]entry{
 		{EditDetached, "edit the body in any editor (shows the draft path)", []string{"E"}},
 		{NewComment, "add a comment, or resume its draft", []string{"a"}},
 		{EditComment, "edit one of the issue's comments", []string{"o"}},
+		{SetMilestones, "add to or remove from a milestone", []string{"W"}},
 	},
 	Menu: {
 		{Up, "previous item", []string{"up", "k"}},

@@ -139,6 +139,8 @@ func (m Model) recordName(r protocol.ObjectRef) string {
 		return "new comment"
 	case r.Type == "comments":
 		return "comment " + short(r.ID)
+	case r.Type == "milestones":
+		return m.milestoneName(r.ID)
 	}
 	return sanitize.Title(r.Type) + " " + short(r.ID)
 }
