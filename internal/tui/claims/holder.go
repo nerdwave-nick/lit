@@ -8,6 +8,7 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/sanitize"
 )
 
 // entry is a hold and when it is next renewed. Renewals compare entries by
@@ -244,14 +245,15 @@ func (h *Holder) Release(ctx context.Context, id string) Result {
 }
 
 // Held names the claims the instance still holds (holding or paused), for
-// shutdown's status line and exit reports.
+// shutdown's status line and exit reports; titles are sanitized for the
+// terminal.
 func (h *Holder) Held() []string {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	var out []string
 	for _, id := range h.order {
 		if e := h.holds[id]; e != nil && e.State != Lost {
-			out = append(out, "“"+e.Title+"” ("+short(id)+")")
+			out = append(out, "“"+sanitize.Title(e.Title)+"” ("+short(id)+")")
 		}
 	}
 	return out

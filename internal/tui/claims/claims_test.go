@@ -392,3 +392,16 @@ func TestShutdownStopsTheHolderAndReleasesItsClaims(t *testing.T) {
 		t.Fatal("the renewer kept sending after shutdown")
 	}
 }
+
+// Held names claims for exit reports printed to the terminal, so tracker
+// titles are sanitized there: a bidi override becomes a visible marker.
+func TestHeldSanitizesTitles(t *testing.T) {
+	f := setup(t)
+	id := tuitest.CreateIssues(t, f.agent, project, "", "Evil \u202etitle")[0]
+	h := claims.Start(f.l, claims.Config{})
+	mustClaim(t, h, id, "ignored")
+	got := h.Held()
+	if len(got) != 1 || strings.ContainsRune(got[0], '\u202e') || !strings.Contains(got[0], "Evil") {
+		t.Fatalf("held: %q", got)
+	}
+}
