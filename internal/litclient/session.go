@@ -35,7 +35,8 @@ type Session struct {
 	Client     protocol.Client
 	ServerTime string
 
-	unlock func()
+	unlock      func()
+	mappingPath string
 }
 
 // OpenOptions select the endpoint and which session states Open accepts.
@@ -67,7 +68,7 @@ func (s *Session) Lock(name string, deadline time.Time) error {
 		unlock()
 		return protocol.E(500, "invalid_local_state", e.Error())
 	}
-	s.Mapping, s.unlock = m, unlock
+	s.Mapping, s.unlock, s.mappingPath = m, unlock, path
 	return nil
 }
 

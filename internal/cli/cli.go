@@ -341,15 +341,11 @@ func (a *App) dispatch() (Result, error) {
 	case "issues", "comments", "milestones":
 		return a.records()
 	case "disconnect":
-		var v struct {
-			Client  protocol.Client `json:"client"`
-			Outcome string          `json:"outcome"`
-		}
-		if e := a.Call("POST", "/v1/disconnect", map[string]any{}, h, &v, true); e != nil {
+		outcome, e := a.Disconnect(a.Context)
+		if e != nil {
 			return Result{}, e
 		}
-		a.Client = v.Client
-		return Result{Items: []any{a.clientItem(nil)}, Outcome: v.Outcome}, nil
+		return Result{Items: []any{a.clientItem(nil)}, Outcome: outcome}, nil
 	case "session":
 		if a.Args.Verb != "get" {
 			if e := a.Call("PATCH", "/v1/clients/"+a.Client.ClientID, a.patch(a.Args.Verb == "unset"), h, &a.Client, true); e != nil {
