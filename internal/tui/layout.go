@@ -146,6 +146,8 @@ func (m Model) View() tea.View {
 		content = m.draftPanelView()
 	case m.dv != nil && m.dv.view != nil:
 		content = m.draftsView()
+	case m.ed != nil && m.ed.chooser != nil:
+		content = m.chooserView()
 	case m.help:
 		content = strings.Join(km.Help(m.view()), "\n") + "\n\n" + km.Hint(keys.Menu, keys.Cancel)
 	case m.doc != nil:

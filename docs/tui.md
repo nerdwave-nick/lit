@@ -111,7 +111,7 @@ same selection. The detail shows the issue's title, state, labels, assignee,
 claim (owner name and kind, and lease end), parent, children, links and last
 update, then its rendered body and its comments, oldest first, each headed by
 its author and time (and `edited` with the time of the last edit). Comments
-are read-only.
+are added and edited through drafts (see [Comments](#comments)).
 
 The body and comments load when the detail is shown: as soon as an issue is
 selected on a wide terminal, and when the detail opens on a narrow one, so
@@ -132,7 +132,8 @@ sequences, other control characters and bidi overrides show as visible markers
 `action_menu` (`m`) lists the commands of the current view with their keys
 (open or back, refresh, switch project, uncertain requests, search, filter,
 clear filters, claim or release, the [quick actions](#quick-actions), help,
-quit, history, edit and edit detached); Enter runs one, Escape
+quit, history, edit and edit detached, new comment and edit comment); Enter
+runs one, Escape
 closes the menu. With the `mouse` preference on, a click selects a row, a click
 on the selected row expands or collapses it, a click on the detail pane focuses
 it, and the wheel moves the selection or scrolls the detail.
@@ -417,10 +418,12 @@ recovery never removes one; only a successful apply or a discard does.
 project, for example `1 unapplied draft · D opens the Drafts view`. `drafts`
 (`D`, also in the action menu) opens the **Drafts view** at any time; opening
 it ends the banner. It lists every draft, the current project's first, with
-its kind (`issue body`; later kinds such as comments are listed the same way),
+its kind (`issue body`, `new comment` or `comment`; later kinds are listed the
+same way),
 title, project, recorded revision and start time; the selected draft's file
-is shown below. Enter opens the selected draft: an issue body is compared with
-its issue first, and opens as a conflict when the issue's revision changed
+is shown below. Enter opens the selected draft: it is compared with its own
+record first (an issue body with its issue, a comment draft with the comment),
+and opens as a conflict when that record's revision changed
 (`changed: revision 3 → 4, opens as a conflict` in the list); otherwise it is
 offered as with `e`: resume it in the editor or detached, preview and apply,
 diff against the current body, or discard. A kind this version cannot resume
@@ -428,8 +431,9 @@ can still be kept or discarded. Escape or `D` closes the view. Drafts of
 another lit service sharing the state directory are not listed.
 
 In the tree, an issue with a draft is marked `draft`, or `draft: changed` when
-the issue changed since; other kinds are marked by kind, for example
-`comment draft`.
+the issue changed since; other kinds are marked by kind on their issue, for
+example `comment draft` or `new comment draft`. Drafts without an owning issue
+are not marked in the tree.
 
 **Quitting with open drafts.** Drafts started or resumed in this session that
 are still unapplied make `quit` ask once:
@@ -444,6 +448,44 @@ are still unapplied make `quit` ask once:
 `Quit` (or `q` again) quits: the drafts stay, and the disconnect releases the
 claims, edit claims included. `Cancel` (Escape) keeps running. Ctrl-C and
 signals never ask.
+
+## Comments
+
+`new_comment` (`a`) writes a new comment on the selected issue, in the tree or
+the detail. It suspends into the editor on an empty draft
+(`comment-<issue-slug>--<id8>.md`); when the editor exits, the panel previews
+the comment (`Apply the new comment on “Fix the parser”?`) with its text and
+the affected records, and `Apply this change` posts exactly that preview. A
+new comment takes **no claim**: lit-server lets anyone append a comment, so
+another client's claim on the issue never blocks it (the panel says `New
+comments take no claim`). An empty draft has nothing to post. `a` on an issue
+that already has an unposted new comment offers that draft (resume, preview
+and apply, discard) instead of starting another.
+
+The draft's ID becomes the comment's ID, so a draft is posted at most once.
+If an apply's outcome is uncertain, the draft is kept; a later preview finds
+the comment if the apply went through (`was posted already`) and only offers
+to discard the draft.
+
+`edit_comment` (`o`) loads the selected issue's comments and lists them
+(`comment by Claude · <time> · <first line>`); Enter edits the chosen one. Like
+a body edit, this claims the issue first (claim-on-edit): another client's
+claim refuses it and is named (`Cannot edit the comment on “Fix the parser”:
+claimed by Claude (agent) until …`). The draft holds exactly the comment's
+text, and applying commits the previewed update fenced at the comment's
+revision, then releases the edit claim; a claim you held explicitly is kept.
+A body draft and comment drafts of one issue share its edit claim, which is
+released when the last of them is applied or discarded. A revision change of
+the comment or another client's claim keeps the draft, with `Diff against the
+current comment` and `Reload`, exactly as for bodies.
+
+Comment drafts sit beside body drafts, with sidecars
+`.lit/comment_new-<draft-id>.json` (owned by the issue; the draft ID is the
+future comment's) and `.lit/comment_body-<comment-id>.json`. They are listed
+in the Drafts view (`new comment`, `comment`) and open there as from `a` and
+`o`: a new comment is offered, or shown as posted already; a comment draft
+whose comment changed opens as a conflict. A comment draft started or
+resumed in this session makes quit ask, and `Apply now` previews it.
 
 ## Keymap
 
@@ -521,6 +563,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | tree | `unlink` | `B` | remove a link |
 | tree | `edit` | `e` | edit the body, or resume, apply or discard its draft |
 | tree | `edit_detached` | `E` | edit the body in any editor (shows the draft path) |
+| tree | `new_comment` | `a` | add a comment, or resume its draft |
+| tree | `edit_comment` | `o` | edit one of the issue's comments |
 | detail | `up` | `up`, `k` | scroll up |
 | detail | `down` | `down`, `j` | scroll down |
 | detail | `left` | `left`, `h` | scroll a wide block left |
@@ -544,6 +588,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | detail | `unlink` | `B` | remove a link |
 | detail | `edit` | `e` | edit the body, or resume, apply or discard its draft |
 | detail | `edit_detached` | `E` | edit the body in any editor (shows the draft path) |
+| detail | `new_comment` | `a` | add a comment, or resume its draft |
+| detail | `edit_comment` | `o` | edit one of the issue's comments |
 | menu | `up` | `up`, `k` | previous item |
 | menu | `down` | `down`, `j` | next item |
 | menu | `open` | `enter` | choose the item |

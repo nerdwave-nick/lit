@@ -1,6 +1,8 @@
-// Package edit runs lit-tui's body edits: the external editor command, the
+// Package edit runs lit-tui's draft edits: the external editor command, the
 // draft file watcher, and the tracker side of an edit (claim-on-edit, the
 // exact preview, apply at the recorded revision, reload, diff and discard).
+// It edits issue bodies itself; other draft kinds plug in with
+// Editor.Register (kinds.go), for example comments (internal/tui/comments).
 package edit
 
 import (

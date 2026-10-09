@@ -73,16 +73,22 @@ func Banner(n int) string {
 	return fmt.Sprintf("%d unapplied drafts", n)
 }
 
-// KindLabel names a draft kind for people: "issue body" for issue_body.
+// KindLabel names a draft kind for people: "issue body" for issue_body,
+// "new comment" and "comment" for the comment kinds.
 func KindLabel(k drafts.Kind) string {
-	if k == "" {
+	switch k {
+	case "":
 		return "draft"
+	case drafts.CommentNew:
+		return "new comment"
+	case drafts.CommentBody:
+		return "comment"
 	}
 	return strings.ReplaceAll(string(k), "_", " ")
 }
 
-// Key identifies a draft: its kind and record.
-func Key(d drafts.Draft) string { return string(d.Kind) + "-" + d.RecordID }
+// Key identifies a draft: its kind and record (drafts.Draft.Key).
+func Key(d drafts.Draft) string { return d.Key() }
 
 // Revision is an issue's current revision, if known (from the tree).
 type Revision func(issue string) (int64, bool)

@@ -45,10 +45,14 @@ type (
 
 // draftOpeners open a draft of their kind, chosen in the Drafts view or by
 // Apply now in the quit prompt. Kinds without an opener get a panel that
-// can discard or keep them. Later draft kinds (comments, new issues,
-// specifications, milestone descriptions) add theirs.
+// can discard or keep them. Kinds the editor edits (edit.Editor.Register)
+// open through openBodyDraft, which compares the draft with its own record
+// first; later kinds (new issues, specifications, milestone descriptions)
+// add theirs once registered.
 var draftOpeners = map[drafts.Kind]func(Model, drafts.Draft) tea.Cmd{
-	drafts.IssueBody: Model.openBodyDraft,
+	drafts.IssueBody:   Model.openBodyDraft,
+	drafts.CommentNew:  Model.openBodyDraft,
+	drafts.CommentBody: Model.openBodyDraft,
 }
 
 func newDraftsState(e *edit.Editor, g draftsview.Gate) *draftsState {
@@ -213,22 +217,24 @@ func (m Model) openDraft(d drafts.Draft) tea.Cmd {
 	return nil
 }
 
-// openBodyDraft compares an issue-body draft with its issue first: when the
-// issue's revision changed, the draft opens as a conflict (diff, reload,
-// resume, keep or discard); otherwise it is offered (resume, diff, apply,
-// discard).
+// openBodyDraft compares a draft with its record first (an issue body with
+// its issue, a comment with the comment): when the record's revision
+// changed, the draft opens as a conflict (diff, reload, resume, keep or
+// discard); otherwise it is offered (resume, diff, apply, discard). A new
+// comment whose comment exists already opens as posted.
 func (m Model) openBodyDraft(d drafts.Draft) tea.Cmd {
 	e := m.ed
 	if e.busy {
 		e.note = "Wait for the running edit action to finish."
 		return nil
 	}
-	e.busy, e.note = true, "Checking the draft of "+titled(d.Title)+"…"
+	e.busy, e.note = true, "Checking "+draftOf(d.Kind, d.Title)+"…"
 	ed := e.ed
 	return func() tea.Msg { return draftCheckedMsg{ed.DiffCurrent(context.Background(), d)} }
 }
 
-// checkedPanel is the panel of a draft compared with its issue.
+// checkedPanel is the panel of a draft compared with its own record:
+// revisions are compared per kind (a comment draft records the comment's).
 func (m Model) checkedPanel(c edit.Compared) *draftPanel {
 	d := c.Draft
 	m.ed.note = ""
@@ -237,9 +243,13 @@ func (m Model) checkedPanel(c edit.Compared) *draftPanel {
 		p := m.offerPanel(d)
 		p.text = append(p.text, "Cannot read the current revision: "+describe(c.Err)+".")
 		return p
-	case c.Current.Revision != d.Revision:
-		p := edit.Preview{Draft: d, Current: c.Current, Conflict: true}
-		p.Hold, p.Held = m.ed.ed.Hold(d.IssueID)
+	case d.Kind.New() && c.Record.Exists:
+		return m.previewPanel(edit.Preview{Draft: d, Record: c.Record, Exempt: !d.Kind.Claims(), Created: true})
+	case !d.Kind.New() && c.Record.Revision != d.Revision:
+		p := edit.Preview{Draft: d, Record: c.Record, Current: c.Current, Exempt: !d.Kind.Claims(), Conflict: true}
+		if !p.Exempt {
+			p.Hold, p.Held = m.ed.ed.Hold(d.IssueID)
+		}
 		return m.previewPanel(p)
 	}
 	return m.offerPanel(d)

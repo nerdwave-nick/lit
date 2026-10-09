@@ -79,6 +79,20 @@ drafts surviving a crash in the model, and `internal/tui/draftsview` tests the
 listing, marks and prompt. `internal/tui/editing_test.go` covers the same flows in the model,
 with the editor simulated, and `internal/tui/edit` and `internal/tui/drafts`
 test the claim-on-edit flow and the draft store against a temporary service.
+`integration/tui_comments_test.go` adds and edits comments with the same
+editors: a new comment (`a`) is posted while an agent holds the issue's claim,
+which stays the agent's; editing a comment (`o`, then the chooser) claims the
+issue before the editor opens, refuses the agent's claim attempt, applies at
+the comment's revision and releases the claim; and after the claim is released
+and the agent edits the comment, the preview is a revision conflict that keeps
+the draft byte-exact and diffs it against the current comment.
+`internal/tui/comments_ui_test.go` covers these flows in the model, and
+`internal/tui/comments` tests the comment kinds (claim-exempt appends created
+at most once under the draft's ID; claim-on-edit at the comment's revision;
+shared edit claims) against a temporary service. `internal/tui/drafts`
+also tests the draft kinds (new records under generated draft IDs, kinds
+without an owning issue), and `internal/tui/edit` a registered kind without
+an owner (a project specification) through the generic editor.
 `integration/tui_history_test.go` opens the history
 view of an issue edited a few times (title, a body with an escape sequence, a
 label, the state) and of a comment edited by another client, from the tree and

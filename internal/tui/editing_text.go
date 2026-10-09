@@ -16,9 +16,15 @@ import (
 
 // offerPanel offers an existing draft instead of starting a new one.
 func (m Model) offerPanel(d drafts.Draft) *draftPanel {
-	return &draftPanel{d: d, heading: titled(d.Title) + " has a draft",
+	started := d.Created().Local().Format("2006-01-02 15:04")
+	if d.Kind.New() {
+		return &draftPanel{d: d, heading: titled(d.Title) + " has an unposted new " + noun(d.Kind),
+			text:    []string{"Started " + started + ": " + path(d), "A draft is never overwritten: resume, apply or discard it."},
+			choices: choices(chEdit, chDetached, chPreview, chDiscard, chKeep)}
+	}
+	return &draftPanel{d: d, heading: upper(nameOf(d.Kind, d.Title)) + " has a draft",
 		text: []string{
-			fmt.Sprintf("Started %s at revision %d: %s", d.Created().Local().Format("2006-01-02 15:04"), d.Revision, path(d)),
+			fmt.Sprintf("Started %s at revision %d: %s", started, d.Revision, path(d)),
 			"A draft is never overwritten: resume, diff, apply or discard it.",
 		},
 		choices: choices(chEdit, chDetached, chPreview, chDiff, chDiscard, chKeep)}
@@ -28,32 +34,44 @@ func (m Model) offerPanel(d drafts.Draft) *draftPanel {
 // or why there is nothing to apply. The draft is kept in every case.
 func (m Model) previewPanel(p edit.Preview) *draftPanel {
 	d := p.Draft
-	t := titled(d.Title)
+	t, of := titled(d.Title), draftOf(d.Kind, d.Title)
 	panel := &draftPanel{d: d}
 	kept := "Nothing was written; the draft is kept: " + path(d) + "."
 	switch {
 	case p.Err != nil:
-		panel.heading = "Cannot preview the draft of " + t
+		panel.heading = "Cannot preview " + of
 		panel.text = []string{describe(p.Err) + ".", kept}
 		panel.choices = choices(chPreview, chEdit, chDiff, chKeep, chDiscard)
+	case p.Created:
+		panel.heading = upper(of) + " was posted already"
+		panel.text = []string{"A " + noun(d.Kind) + " with this draft's ID exists: an earlier apply went through. Nothing was written; discard the draft: " + path(d) + "."}
+		panel.choices = choices(chDiscardNow, chKeep)
 	case p.Conflict:
-		panel.heading = fmt.Sprintf("%s changed since the draft was started: revision %d → %d", t, d.Revision, p.Current.Revision)
-		panel.text = append(m.claimText(p), kept, "Diff it against the current body, or reload to apply it over the new revision.")
+		panel.heading = fmt.Sprintf("%s changed since the draft was started: revision %d → %d", upper(nameOf(d.Kind, d.Title)), d.Revision, p.Record.Revision)
+		panel.text = append(m.claimText(p), kept, "Diff it against the current "+noun(d.Kind)+", or reload to apply it over the new revision.")
 		panel.choices = choices(chDiff, chReload, chEdit, chKeep, chDiscard)
+	case p.Unchanged && d.Kind.New():
+		panel.heading = upper(of) + " is empty"
+		panel.text = []string{"Write it in the editor, or discard it."}
+		panel.choices = choices(chEdit, chDetached, chKeep, chDiscardNow)
 	case p.Unchanged:
-		panel.heading = "The draft of " + t + " has no changes"
+		panel.heading = upper(of) + " has no changes"
 		panel.text = []string{fmt.Sprintf("It matches revision %d. Discarding it ends the edit and releases an edit claim.", d.Revision)}
 		panel.choices = choices(chDiscardNow, chEdit, chKeep)
 	case p.Foreign != nil:
-		panel.heading = "Cannot apply the draft of " + t
+		panel.heading = "Cannot apply " + of
 		panel.text = []string{t + " is claimed by " + owner(p.Foreign) + ".", kept}
 		panel.choices = choices(chDiff, chReload, chKeep, chDiscard)
 	default:
-		panel.heading = "Apply the draft of " + t + "?"
+		panel.heading = "Apply " + of + "?"
 		panel.preview = &p
 		panel.text = append(m.claimText(p), "Affected records:")
 		panel.text = append(panel.text, m.affected(p)...)
-		panel.text = append(panel.text, fmt.Sprintf("Diff against revision %d:", d.Revision))
+		if d.Kind.New() {
+			panel.text = append(panel.text, "Its text:")
+		} else {
+			panel.text = append(panel.text, fmt.Sprintf("Diff against revision %d:", d.Revision))
+		}
 		panel.diff = p.Diff()
 		panel.choices = m.previewChoices(panel)
 	}
@@ -72,7 +90,14 @@ func (m Model) previewChoices(p *draftPanel) []choice {
 func (m Model) claimText(p edit.Preview) []string {
 	t := titled(p.Draft.Title)
 	optimistic := fmt.Sprintf("Applying is optimistic: it is refused if the issue changed after revision %d or another client claims it.", p.Draft.Revision)
+	if p.Draft.Kind != drafts.IssueBody {
+		optimistic = fmt.Sprintf("Applying is optimistic: it is refused if %s changed after revision %d or another client claims %s.", nameOf(p.Draft.Kind, p.Draft.Title), p.Draft.Revision, t)
+	}
 	switch {
+	case p.Exempt && p.Draft.Kind == drafts.CommentNew:
+		return []string{"New comments take no claim: another client's claim on " + t + " does not block them."}
+	case p.Exempt:
+		return []string{fmt.Sprintf("Applying is optimistic: it is refused if %s changed after revision %d.", nameOf(p.Draft.Kind, p.Draft.Title), p.Draft.Revision)}
 	case !p.Held:
 		return []string{"Warning: this session holds no claim on " + t + " (it was lost or released). " + optimistic}
 	case p.Hold.State == claims.Lost:
@@ -110,6 +135,10 @@ func (m Model) recordName(r protocol.ObjectRef) string {
 		}
 	case r.Type == "projects" && m.b != nil && m.b.project != nil && m.b.project.ID == r.ID:
 		return "project " + titled(m.b.project.Title)
+	case r.Type == "comments" && r.ExpectedRevision == nil:
+		return "new comment"
+	case r.Type == "comments":
+		return "comment " + short(r.ID)
 	}
 	return sanitize.Title(r.Type) + " " + short(r.ID)
 }
@@ -117,20 +146,26 @@ func (m Model) recordName(r protocol.ObjectRef) string {
 // failedPanel says why an apply failed; the draft is kept.
 func (m Model) failedPanel(a edit.Applied) *draftPanel {
 	d := a.Draft
-	t := titled(d.Title)
-	panel := &draftPanel{d: d, heading: "Cannot apply the draft of " + t, choices: choices(chDiff, chReload, chKeep, chDiscard)}
+	t, of := titled(d.Title), draftOf(d.Kind, d.Title)
+	panel := &draftPanel{d: d, heading: "Cannot apply " + of, choices: choices(chDiff, chReload, chKeep, chDiscard)}
+	if d.Kind.New() {
+		panel.choices = choices(chPreview, chKeep, chDiscard)
+	}
 	kept := "Nothing was written; the draft is kept: " + path(d) + "."
 	switch code := litclient.Code(a.Err); {
 	case a.Uncertain != nil:
-		panel.heading = "The outcome of applying the draft of " + t + " is uncertain"
+		panel.heading = "The outcome of applying " + of + " is uncertain"
 		panel.text = []string{"Request " + a.Uncertain.ID + ", evidence " + sanitize.Title(a.Uncertain.Path) + ".",
 			"It is never replayed. Check it with " + firstKey(m, keys.Global, keys.UncertainRequests) + " (uncertain requests) or lit transactions status.",
 			"The draft and the claim are kept: " + path(d) + "."}
+		if !d.Kind.Claims() {
+			panel.text[2] = "The draft is kept: " + path(d) + ". A later preview shows whether the apply went through."
+		}
 		panel.choices = choices(chDiff, chKeep)
 	case code == "claim_conflict" && a.Owner != nil:
 		panel.text = []string{t + " is claimed by " + owner(a.Owner) + ".", kept}
 	case code == "revision_conflict":
-		panel.text = []string{t + " changed after the preview.", kept}
+		panel.text = []string{upper(nameOf(d.Kind, d.Title)) + " changed after the preview.", kept}
 	default:
 		panel.text = []string{describe(a.Err) + ".", kept}
 	}
@@ -140,16 +175,18 @@ func (m Model) failedPanel(a edit.Applied) *draftPanel {
 // diffPanel compares the draft with the issue's current body.
 func (m Model) diffPanel(c edit.Compared) *draftPanel {
 	d := c.Draft
-	panel := &draftPanel{d: d, heading: "The draft of " + titled(d.Title) + " against the current body",
+	panel := &draftPanel{d: d, heading: upper(draftOf(d.Kind, d.Title)) + " against the current " + noun(d.Kind),
 		choices: choices(chPreview, chEdit, chKeep, chDiscard)}
 	switch {
 	case c.Err != nil:
 		panel.text = []string{"Cannot compare: " + describe(c.Err) + ".", "The draft is kept: " + path(d) + "."}
-	case c.Current.Revision != d.Revision:
-		panel.text = []string{fmt.Sprintf("Current revision %d; the draft records revision %d.", c.Current.Revision, d.Revision)}
+	case d.Kind.New():
+		panel.text = []string{"A new " + noun(d.Kind) + ": its whole text is added."}
+	case c.Record.Revision != d.Revision:
+		panel.text = []string{fmt.Sprintf("Current revision %d; the draft records revision %d.", c.Record.Revision, d.Revision)}
 		panel.choices = choices(chReload, chEdit, chKeep, chDiscard)
 	default:
-		panel.text = []string{fmt.Sprintf("Current revision %d, as the draft records.", c.Current.Revision)}
+		panel.text = []string{fmt.Sprintf("Current revision %d, as the draft records.", c.Record.Revision)}
 	}
 	if panel.diff = c.Diff; c.Err == nil && len(c.Diff) == 0 {
 		panel.text = append(panel.text, "No differences.")
@@ -158,15 +195,19 @@ func (m Model) diffPanel(c edit.Compared) *draftPanel {
 }
 
 func (m Model) confirmPanel(d drafts.Draft) *draftPanel {
-	return &draftPanel{d: d, heading: "Discard the draft of " + titled(d.Title) + "?",
+	return &draftPanel{d: d, heading: "Discard " + draftOf(d.Kind, d.Title) + "?",
 		text:    []string{"Its text is deleted: " + path(d) + ".", "An edit claim is released; a claim you took yourself is kept."},
 		choices: []choice{{chDiscardNow, "Discard"}, {chKeep, "Keep the draft"}}}
 }
 
 func appliedNote(a edit.Applied) string {
-	note := "Applied the draft of " + titled(a.Draft.Title)
+	d := a.Draft
+	note := "Applied " + draftOf(d.Kind, d.Title)
+	if d.Kind == drafts.CommentNew {
+		note = "Posted " + draftOf(d.Kind, d.Title)
+	}
 	for _, it := range a.Result.Items {
-		if it.Type == "issues" && it.ID == a.Draft.IssueID {
+		if it.ID == d.RecordID && !d.Kind.New() {
 			note += fmt.Sprintf(": revision %d → %d", it.BeforeRevision, it.Revision)
 		}
 	}
@@ -182,9 +223,9 @@ func appliedNote(a edit.Applied) string {
 
 func discardNote(d drafts.Draft, r edit.Discarded) string {
 	if r.Err != nil {
-		return "Cannot discard the draft of " + titled(d.Title) + ": " + describe(r.Err) + "."
+		return "Cannot discard " + draftOf(d.Kind, d.Title) + ": " + describe(r.Err) + "."
 	}
-	note := "Discarded the draft of " + titled(d.Title) + "."
+	note := "Discarded " + draftOf(d.Kind, d.Title) + "."
 	if r.Released {
 		note += " Released the edit claim."
 	}
@@ -206,11 +247,11 @@ func (m Model) editLines() []string {
 	}
 	sort.Slice(open, func(i, j int) bool { return open[i].d.CreatedAt < open[j].d.CreatedAt })
 	for _, o := range open {
-		line := "Draft open: " + titled(o.d.Title)
+		line := "Draft open: " + nameOf(o.d.Kind, o.d.Title)
 		if !o.changed.IsZero() {
 			line += " · changed " + o.changed.Format("15:04:05")
 		}
-		out = append(out, line+" · "+m.editKey()+" applies it", "  "+path(o.d))
+		out = append(out, line+" · "+m.keyFor(o.d.Kind)+" applies it", "  "+path(o.d))
 	}
 	if e.note != "" {
 		out = append(out, e.note)

@@ -32,16 +32,6 @@ func (s Store) sidecar(project string, kind Kind, record string) string {
 	return filepath.Join(s.Dir(project), sidecars, string(kind)+"-"+record+".json")
 }
 
-func valid(d Draft) error {
-	switch {
-	case d.Kind == "" || strings.ContainsAny(string(d.Kind), `/\.`):
-		return protocol.E(400, "invalid_arguments", "a draft needs a kind")
-	case !protocol.ValidUUID(d.ProjectID) || !protocol.ValidUUID(d.RecordID) || !protocol.ValidUUID(d.IssueID):
-		return protocol.E(400, "invalid_arguments", "a draft needs project, record and issue UUIDs")
-	}
-	return nil
-}
-
 func localError(what string, err error) error {
 	return protocol.E(500, "local_state_error", what+": "+err.Error())
 }
@@ -60,7 +50,7 @@ func (s Store) Create(d Draft, content string) (Draft, error) {
 	if err := os.MkdirAll(filepath.Join(d.dir, sidecars), 0o700); err != nil {
 		return d, localError("cannot create the drafts directory", err)
 	}
-	base := Slug(d.Title) + "--"
+	base := Slug(strings.TrimSpace(kinds[d.Kind].prefix+" "+d.Title)) + "--"
 	d.File = base + d.RecordID[:8] + ".md"
 	if _, err := os.Lstat(d.Path()); err == nil {
 		d.File = base + d.RecordID + ".md"
@@ -103,7 +93,7 @@ func writeNew(path string, v any) error {
 
 // Find returns the draft of kind for record in project.
 func (s Store) Find(project string, kind Kind, record string) (Draft, bool, error) {
-	if err := valid(Draft{Kind: kind, ProjectID: project, RecordID: record, IssueID: record}); err != nil {
+	if err := validKey(kind, project, record); err != nil {
 		return Draft{}, false, err
 	}
 	d, err := s.read(s.sidecar(project, kind, record))
@@ -114,6 +104,22 @@ func (s Store) Find(project string, kind Kind, record string) (Draft, bool, erro
 		return Draft{}, false, err
 	}
 	return d, true, nil
+}
+
+// FindOwned returns the oldest draft of kind owned by issue in project: how
+// a new-record draft (whose generated ID the caller does not know) is
+// found again, for example an unapplied new comment on an issue.
+func (s Store) FindOwned(project string, kind Kind, issue string) (Draft, bool, error) {
+	if err := validKey(kind, project, issue); err != nil {
+		return Draft{}, false, err
+	}
+	all, err := s.List(project)
+	for _, d := range all {
+		if d.Kind == kind && d.IssueID == issue {
+			return d, true, nil
+		}
+	}
+	return Draft{}, false, err
 }
 
 func (s Store) read(path string) (Draft, error) {
@@ -166,7 +172,7 @@ func (s Store) List(project string) ([]Draft, error) {
 		if out[i].CreatedAt != out[j].CreatedAt {
 			return out[i].CreatedAt < out[j].CreatedAt
 		}
-		return out[i].key() < out[j].key()
+		return out[i].Key() < out[j].Key()
 	})
 	return out, errors.Join(problems...)
 }

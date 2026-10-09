@@ -2,6 +2,7 @@ package edit
 
 import (
 	"context"
+	"strings"
 	"unicode/utf8"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
@@ -11,12 +12,14 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
 )
 
-// Preview is an apply's preview: the draft's content, the issue now, and the
-// exact transaction that Apply commits.
+// Preview is an apply's preview: the draft's content, the record now, and
+// the exact transaction that Apply commits.
 type Preview struct {
 	Draft   drafts.Draft
 	Content string
-	// Current is the issue as read for the preview.
+	// Record is the draft's record as read for the preview; Current is the
+	// issue read for an issue body draft.
+	Record  Record
 	Current *protocol.Issue
 	// Prepared is the previewed update of the body at the draft's recorded
 	// revision; Affected lists every record it changes (targets) and reads
@@ -24,13 +27,19 @@ type Preview struct {
 	Prepared *litclient.Prepared
 	Affected []protocol.ObjectRef
 	// Hold is the edit claim's state now; Held is false when this session
-	// holds no claim on the issue.
-	Hold claims.Hold
-	Held bool
-	// Unchanged: the draft equals the recorded content; nothing to apply.
+	// holds no claim on the issue. Exempt: the kind takes no claim (a new
+	// comment, or a record without an owning issue).
+	Hold   claims.Hold
+	Held   bool
+	Exempt bool
+	// Unchanged: the draft equals the recorded content (a new record's
+	// draft is blank); nothing to apply.
 	Unchanged bool
-	// Conflict: the issue's revision changed since the draft's.
+	// Conflict: the record's revision changed since the draft's.
 	Conflict bool
+	// Created: the new record already exists, so the draft was applied
+	// before (for example by a request whose outcome was uncertain).
+	Created bool
 	// Foreign is another client's claim on an affected issue: applying is
 	// refused before anything is written.
 	Foreign *protocol.Claim
@@ -41,19 +50,27 @@ type Preview struct {
 func (p Preview) Diff() []string { return drafts.Diff(p.Draft.Base, p.Content) }
 
 // Lost reports that the edit claim was lost (or is no longer held), so an
-// apply is optimistic: fenced by the recorded revision only.
-func (p Preview) Lost() bool { return !p.Held || p.Hold.State == claims.Lost }
+// apply is optimistic: fenced by the recorded revision only. A kind that
+// takes no claim has none to lose.
+func (p Preview) Lost() bool { return !p.Exempt && (!p.Held || p.Hold.State == claims.Lost) }
 
 // Ready reports whether Apply can commit the preview.
 func (p Preview) Ready() bool {
-	return p.Err == nil && p.Prepared != nil && !p.Unchanged && !p.Conflict && p.Foreign == nil
+	return p.Err == nil && p.Prepared != nil && !p.Unchanged && !p.Conflict && !p.Created && p.Foreign == nil
 }
 
-// Preview reads the draft and the issue and previews updating the body to
-// the draft's content at the recorded revision. Nothing is written.
+// Preview reads the draft and its record and previews applying the draft's
+// content at the recorded revision (or creating a new record). Nothing is
+// written.
 func (e *Editor) Preview(ctx context.Context, d drafts.Draft) Preview {
-	p := Preview{Draft: d}
-	p.Hold, p.Held = e.h.Snapshot().Hold(d.IssueID)
+	p := Preview{Draft: d, Exempt: !d.Kind.Claims()}
+	if !p.Exempt {
+		p.Hold, p.Held = e.h.Snapshot().Hold(d.IssueID)
+	}
+	kind, err := e.kind(d.Kind)
+	if p.Err = err; err != nil {
+		return p
+	}
 	if p.Content, p.Err = e.store.Read(d); p.Err != nil {
 		return p
 	}
@@ -65,23 +82,32 @@ func (e *Editor) Preview(ctx context.Context, d drafts.Draft) Preview {
 		if d.ServiceID != s.Meta.ServiceID {
 			return protocol.E(409, "wrong_service", "the draft belongs to another lit service")
 		}
-		got, err := readIssue(ctx, s, d.ProjectID, d.IssueID)
+		rec, err := kind.Read(ctx, s, d)
 		if err != nil {
 			return err
 		}
-		p.Current = &got
-		p.Conflict, p.Unchanged = got.Revision != d.Revision, p.Content == d.Base
-		if p.Conflict || p.Unchanged {
+		p.Record, p.Current = rec, rec.Issue
+		switch {
+		case d.Kind.New():
+			p.Created, p.Unchanged = rec.Exists, strings.TrimSpace(p.Content) == ""
+		case !rec.Exists:
+			return protocol.E(404, "not_found", "the record no longer exists")
+		default:
+			p.Conflict, p.Unchanged = rec.Revision != d.Revision, p.Content == d.Base
+		}
+		if p.Conflict || p.Unchanged || p.Created {
 			return nil
 		}
-		body := p.Content
-		p.Prepared, err = s.Prepare(ctx, litclient.UpdateIssue(d.ProjectID, d.IssueID, d.Revision, litclient.IssueChange{Body: &body}))
+		p.Prepared, err = s.Prepare(ctx, kind.Request(d, p.Content))
 		switch litclient.Code(err) {
 		case "":
 		case "revision_conflict":
 			p.Conflict = true
 			return nil
 		case "claim_conflict": // the preview is refused: name the owner
+			if d.IssueID == "" {
+				return err
+			}
 			if p.Foreign, _ = ownerOf(ctx, s, d.IssueID, nil); p.Foreign != nil {
 				return nil
 			}
@@ -132,7 +158,8 @@ type Applied struct {
 }
 
 // Apply commits exactly p's previewed transaction. On success it removes
-// the draft and releases the edit claim (an explicitly held claim is kept).
+// the draft and releases the edit claim (an explicitly held claim, or one
+// another open draft of the issue still uses, is kept).
 // On any failure the draft is kept, and nothing is retried or replayed.
 func (e *Editor) Apply(ctx context.Context, p Preview) Applied {
 	a := Applied{Draft: p.Draft}
@@ -155,7 +182,7 @@ func (e *Editor) Apply(ctx context.Context, p Preview) Applied {
 		}
 		return err
 	})
-	if litclient.Code(a.Err) == "claim_conflict" {
+	if litclient.Code(a.Err) == "claim_conflict" && p.Draft.IssueID != "" {
 		_ = e.g.Do(ctx, func(ctx context.Context, s *litclient.Session) error {
 			a.Owner, _ = ownerOf(ctx, s, p.Draft.IssueID, nil)
 			return nil
@@ -167,49 +194,75 @@ func (e *Editor) Apply(ctx context.Context, p Preview) Applied {
 	if err := e.store.Discard(p.Draft); err != nil {
 		a.Err = err // applied, but the draft could not be removed
 	}
-	a.Released, _ = e.release(ctx, p.Draft.IssueID)
+	a.Released, _ = e.releaseFor(ctx, p.Draft)
 	return a
 }
 
-// Reload records the issue's current revision and body as the draft's base,
-// keeping the draft's content: applying it then replaces the current body.
+func (e *Editor) releaseFor(ctx context.Context, d drafts.Draft) (bool, error) {
+	if !d.Kind.Claims() {
+		return false, nil
+	}
+	return e.release(ctx, d.IssueID, d.Key())
+}
+
+// Reload records the record's current revision and content as the draft's
+// base, keeping the draft's content: applying it then replaces the current
+// content. A new record's draft has no revision to reload and is returned
+// unchanged.
 func (e *Editor) Reload(ctx context.Context, d drafts.Draft) (drafts.Draft, error) {
-	var got protocol.Issue
-	err := e.g.Do(ctx, func(ctx context.Context, s *litclient.Session) error {
+	kind, err := e.kind(d.Kind)
+	if err != nil || d.Kind.New() {
+		return d, err
+	}
+	var rec Record
+	err = e.g.Do(ctx, func(ctx context.Context, s *litclient.Session) error {
 		var err error
-		got, err = readIssue(ctx, s, d.ProjectID, d.IssueID)
+		if rec, err = kind.Read(ctx, s, d); err == nil && !rec.Exists {
+			err = protocol.E(404, "not_found", "the record no longer exists")
+		}
 		return err
 	})
 	if err != nil {
 		return d, err
 	}
-	d.Revision, d.Base, d.Title = got.Revision, got.Body, got.Title
+	d.Revision, d.Base = rec.Revision, rec.Content
+	if rec.Title != "" {
+		d.Title = rec.Title
+	}
 	return e.store.Save(d)
 }
 
-// Compared is a draft compared with the issue's current body.
+// Compared is a draft compared with its record's current content.
 type Compared struct {
 	Draft   drafts.Draft
 	Content string
+	// Record is the record now (a new record that does not exist compares
+	// against empty content); Current is the issue for an issue body draft.
+	Record  Record
 	Current *protocol.Issue
-	// Diff is the change applying the draft would make to the current body.
+	// Diff is the change applying the draft would make to the current
+	// content.
 	Diff []string
 	Err  error
 }
 
-// DiffCurrent compares the draft with the issue's current body.
+// DiffCurrent compares the draft with its record's current content.
 func (e *Editor) DiffCurrent(ctx context.Context, d drafts.Draft) Compared {
 	c := Compared{Draft: d}
+	kind, err := e.kind(d.Kind)
+	if c.Err = err; err != nil {
+		return c
+	}
 	if c.Content, c.Err = e.store.Read(d); c.Err != nil {
 		return c
 	}
 	c.Err = e.g.Do(ctx, func(ctx context.Context, s *litclient.Session) error {
-		got, err := readIssue(ctx, s, d.ProjectID, d.IssueID)
-		c.Current = &got
+		rec, err := kind.Read(ctx, s, d)
+		c.Record, c.Current = rec, rec.Issue
 		return err
 	})
 	if c.Err == nil {
-		c.Diff = drafts.Diff(c.Current.Body, c.Content)
+		c.Diff = drafts.Diff(c.Record.Content, c.Content)
 	}
 	return c
 }
@@ -221,11 +274,12 @@ type Discarded struct {
 }
 
 // Discard cancels the edit: it removes the draft and releases the edit
-// claim (an explicitly held claim is kept).
+// claim (an explicitly held claim, or one another open draft of the issue
+// still uses, is kept).
 func (e *Editor) Discard(ctx context.Context, d drafts.Draft) Discarded {
 	if err := e.store.Discard(d); err != nil {
 		return Discarded{Err: err}
 	}
-	released, err := e.release(ctx, d.IssueID)
+	released, err := e.releaseFor(ctx, d)
 	return Discarded{Released: released, Err: err}
 }

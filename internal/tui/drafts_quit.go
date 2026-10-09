@@ -79,7 +79,7 @@ func (m Model) promptUpdate(msg tea.Msg) (tea.Cmd, bool) {
 // applyNow cancels quitting and previews applying the first open draft.
 func (m Model) applyNow(open []drafts.Draft) tea.Cmd {
 	d := open[0]
-	if d.Kind != drafts.IssueBody {
+	if _, ok := draftOpeners[d.Kind]; !ok {
 		return m.openDraft(d)
 	}
 	if m.ed.busy {

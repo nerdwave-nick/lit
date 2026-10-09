@@ -102,7 +102,7 @@ func (m Model) Init() tea.Cmd {
 
 // context is the keymap context of the focused view.
 func (m Model) context() keys.Context {
-	if m.help || m.b != nil && (m.b.menu != nil || m.b.filt.panel != nil || m.b.qa.m != nil) || m.ed != nil && m.ed.panel != nil ||
+	if m.help || m.b != nil && (m.b.menu != nil || m.b.filt.panel != nil || m.b.qa.m != nil) || m.ed != nil && m.ed.modal() ||
 		m.dv != nil && (m.dv.view != nil || m.dv.prompt != nil) {
 		return keys.Menu
 	}
@@ -253,6 +253,8 @@ func (m Model) dispatch(action keys.Action, msg tea.Msg) (Model, tea.Cmd) {
 		return m, m.editAction(action == keys.EditDetached)
 	case m.dv != nil && action == keys.Drafts:
 		return m.openDraftsView()
+	case m.ed != nil && (action == keys.NewComment || action == keys.EditComment):
+		return m, m.commentAction(action)
 	case m.b != nil:
 		return m, m.b.dispatch(m.view(), action, msg, m.detail)
 	case msg != nil:

@@ -9,6 +9,7 @@ import (
 
 	tea "charm.land/bubbletea/v2"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/comments"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/draftsview"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/edit"
@@ -31,9 +32,11 @@ type editing struct {
 	post  func(key string, msg tea.Msg)
 	susp  *suspension // the editor holding the terminal, if any
 	panel *draftPanel
-	open  map[string]*openDraft // by issue ID
-	note  string
-	busy  bool // an edit request is running
+	// chooser picks the comment to edit (edit_comment).
+	chooser *comments.Chooser
+	open    map[string]*openDraft // by draft key (kind and record)
+	note    string
+	busy    bool // an edit request is running
 }
 
 // openDraft is a draft being edited in this session: in the suspended
@@ -47,9 +50,9 @@ type openDraft struct {
 
 type (
 	editStartedMsg struct {
-		s         edit.Started
-		detached  bool
-		id, title string
+		s        edit.Started
+		detached bool
+		t        edit.Target
 	}
 	editorDoneMsg struct {
 		d   drafts.Draft
@@ -67,8 +70,8 @@ type (
 		err error
 	}
 	draftChangedMsg struct {
-		id string
-		at time.Time
+		key string // the draft's key
+		at  time.Time
 	}
 )
 
@@ -102,7 +105,7 @@ func (m Model) wireClaims() {
 		if bd.Action == keys.Drafts {
 			return bd, ed != nil
 		}
-		if bd.Action == keys.Edit || bd.Action == keys.EditDetached {
+		if bd.Action == keys.Edit || bd.Action == keys.EditDetached || bd.Action == keys.NewComment || bd.Action == keys.EditComment {
 			_, selected := b.tree.Selected()
 			return bd, ed != nil && selected && b.project != nil
 		}
@@ -130,7 +133,15 @@ func (m Model) editAction(detached bool) tea.Cmd {
 		e.note = "Wait for the running edit action to finish."
 		return nil
 	}
-	d, found, err := e.ed.Existing(b.project.ID, issue.ID)
+	return m.openTarget(edit.Target{Kind: drafts.IssueBody, Project: b.project.ID, Record: issue.ID, Issue: issue.ID, Title: issue.Title}, detached)
+}
+
+// openTarget starts a draft of t: its existing draft is offered (never
+// overwritten); otherwise a claiming kind claims the owning issue first,
+// and the draft is edited in the editor or detached.
+func (m Model) openTarget(t edit.Target, detached bool) tea.Cmd {
+	e := m.ed
+	d, found, err := e.ed.ExistingFor(t)
 	switch {
 	case err != nil:
 		e.note = "Cannot read the drafts: " + describe(err) + "."
@@ -138,10 +149,13 @@ func (m Model) editAction(detached bool) tea.Cmd {
 	case found:
 		return m.openBodyDraft(d) // a changed revision opens as a conflict
 	}
-	e.busy, e.note = true, "Claiming "+titled(issue.Title)+" for editing…"
-	ed, project, id, title := e.ed, b.project.ID, issue.ID, issue.Title
+	e.busy, e.note = true, "Claiming "+titled(t.Title)+" for editing…"
+	if !t.Kind.Claims() {
+		e.note = "Starting " + draftOf(t.Kind, t.Title) + "…"
+	}
+	ed := e.ed
 	return func() tea.Msg {
-		return editStartedMsg{s: ed.Start(context.Background(), project, id, title), detached: detached, id: id, title: title}
+		return editStartedMsg{s: ed.Open(context.Background(), t), detached: detached, t: t}
 	}
 }
 
@@ -161,8 +175,8 @@ func (m Model) editUpdate(msg tea.Msg) (tea.Cmd, bool) {
 		e.busy = false
 		return m.started(msg), true
 	case editorDoneMsg:
-		if o := e.open[msg.d.IssueID]; o != nil && !o.detached {
-			e.untrack(msg.d.IssueID)
+		if o := e.open[msg.d.Key()]; o != nil && !o.detached {
+			e.untrack(msg.d.Key())
 		}
 		if msg.err != nil {
 			e.note = "The editor ended with an error (" + describe(msg.err) + "); the draft is kept: " + path(msg.d) + "."
@@ -190,20 +204,20 @@ func (m Model) editUpdate(msg tea.Msg) (tea.Cmd, bool) {
 		return e.previewCmd(msg.d), true
 	case discardedMsg:
 		e.busy = false
-		e.untrack(msg.d.IssueID)
+		e.untrack(msg.d.Key())
 		e.note = discardNote(msg.d, msg.r)
 		return m.refreshTree(), true
 	case draftChangedMsg:
-		if o := e.open[msg.id]; o != nil {
+		if o := e.open[msg.key]; o != nil {
 			o.changed = msg.at
 		}
-		if p := e.panel; p != nil && p.d.IssueID == msg.id && p.preview != nil {
+		if p := e.panel; p != nil && p.d.Key() == msg.key && p.preview != nil {
 			p.stale = true
 			p.choices = m.previewChoices(p)
 		}
 		return nil, true
 	case tea.KeyPressMsg:
-		if e.panel == nil || keys.IsShutdown(msg.Key()) {
+		if e.panel == nil && e.chooser == nil || keys.IsShutdown(msg.Key()) {
 			return nil, false
 		}
 		action, _ := m.prefs.Keymap.Lookup(keys.Menu, msg.Key())
@@ -213,33 +227,39 @@ func (m Model) editUpdate(msg tea.Msg) (tea.Cmd, bool) {
 		case keys.UncertainRequests:
 			return nil, false
 		}
+		if e.chooser != nil {
+			return m.chooserKey(action), true
+		}
 		return m.panelKey(action), true
 	case tea.MouseMsg:
-		return nil, e.panel != nil
+		return nil, e.modal()
 	}
-	return nil, false
+	return m.commentUpdate(msg)
 }
+
+// modal reports that a draft panel or the comment chooser owns the keys.
+func (e *editing) modal() bool { return e.panel != nil || e.chooser != nil }
 
 // started opens the started edit: the editor, or the detached draft's path.
 func (m Model) started(msg editStartedMsg) tea.Cmd {
-	e, s := m.ed, msg.s
+	e, s, t := m.ed, msg.s, msg.t
 	switch {
 	case s.Err != nil && s.Owner != nil:
-		e.note = "Cannot edit " + titled(msg.title) + ": claimed by " + owner(s.Owner) + ". Nothing was changed."
+		e.note = "Cannot edit " + nameOf(t.Kind, t.Title) + ": claimed by " + owner(s.Owner) + ". Nothing was changed."
 		return nil
-	case litclient.Code(s.Err) == "draft_exists" && m.b != nil && m.b.project != nil:
-		if d, ok, _ := e.ed.Existing(m.b.project.ID, msg.id); ok {
+	case litclient.Code(s.Err) == "draft_exists":
+		if d, ok, _ := e.ed.ExistingFor(t); ok {
 			e.panel = m.offerPanel(d)
 			return nil
 		}
 		fallthrough
 	case s.Err != nil:
-		e.note = "Cannot edit " + titled(msg.title) + ": " + describe(s.Err) + "."
+		e.note = "Cannot edit " + nameOf(t.Kind, t.Title) + ": " + describe(s.Err) + "."
 		return nil
 	}
 	e.track(s.Draft, msg.detached)
 	if msg.detached {
-		e.note = "Editing " + titled(s.Draft.Title) + " detached: save the draft file below in any editor, then " + m.editKey() + " applies it."
+		e.note = "Editing " + nameOf(s.Draft.Kind, s.Draft.Title) + " detached: save the draft file below in any editor, then " + m.keyFor(s.Draft.Kind) + " applies it."
 		return m.refreshTree()
 	}
 	e.note = ""
@@ -261,24 +281,26 @@ func (m Model) launch(d drafts.Draft) tea.Cmd {
 // track watches d's file while it is open; a change counts as activity for
 // the claims and is shown in the footer.
 func (e *editing) track(d drafts.Draft, detached bool) {
-	if o := e.open[d.IssueID]; o != nil {
+	key := d.Key()
+	if o := e.open[key]; o != nil {
 		o.d, o.detached = d, o.detached || detached
 		return
 	}
-	ed, post, id := e.ed, e.post, d.IssueID
+	ed, post := e.ed, e.post
 	stop := edit.Watch(d.Path(), edit.WatchEvery, func() {
 		ed.Touch()
 		if post != nil {
-			post("draft:"+id, draftChangedMsg{id: id, at: time.Now()})
+			post("draft:"+key, draftChangedMsg{key: key, at: time.Now()})
 		}
 	})
-	e.open[id] = &openDraft{d: d, detached: detached, stop: stop}
+	e.open[key] = &openDraft{d: d, detached: detached, stop: stop}
 }
 
-func (e *editing) untrack(id string) {
-	if o := e.open[id]; o != nil {
+// untrack stops watching the draft with key.
+func (e *editing) untrack(key string) {
+	if o := e.open[key]; o != nil {
 		o.stop()
-		delete(e.open, id)
+		delete(e.open, key)
 	}
 }
 
