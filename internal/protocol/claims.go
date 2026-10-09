@@ -6,6 +6,8 @@ import (
 )
 
 // Claim is operational authority, independent of durable assignment/revision.
+// OwnerActor is a read projection of the owner's actor name and kind on claim
+// status reads; it is never part of the durable claim envelope.
 type Claim struct {
 	SchemaVersion int    `json:"schema_version"`
 	IssueID       string `json:"issue_id"`
@@ -13,6 +15,7 @@ type Claim struct {
 	Token         string `json:"token"`
 	AcquiredAt    string `json:"acquired_at"`
 	ExpiresAt     string `json:"expires_at"`
+	OwnerActor    *Actor `json:"owner_actor,omitempty"`
 }
 type ClaimToken struct {
 	IssueID string `json:"issue_id"`

@@ -209,6 +209,9 @@ func (s *Server) route(w http.ResponseWriter, r *http.Request, c protocol.Client
 	if handled, e := s.searchRoute(w, r, c); handled {
 		return e
 	}
+	if handled, e := s.issueSummaryRoute(w, r, c); handled {
+		return e
+	}
 	if handled, e := s.recordRoute(w, r, c); handled {
 		return e
 	}
