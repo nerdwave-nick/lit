@@ -89,6 +89,12 @@ func HangUp(w http.ResponseWriter) {
 // entry's liveness lock until the test ends or Crash releases it.
 func Instance(t *testing.T, state, url string) (registry.Entry, *litclient.Session) {
 	t.Helper()
+	return InstanceAs(t, state, url, protocol.Actor{Name: "tester", Kind: "human"})
+}
+
+// InstanceAs is Instance for a client with the given actor.
+func InstanceAs(t *testing.T, state, url string, actor protocol.Actor) (registry.Entry, *litclient.Session) {
+	t.Helper()
 	e := registry.New(state, protocol.UUID())
 	s := &litclient.Session{StateDir: state, HTTP: &http.Client{Timeout: 10 * time.Second}, Context: context.Background()}
 	if err := s.LockPath(e.SessionPath(), time.Now().Add(time.Second)); err != nil {
@@ -103,7 +109,7 @@ func Instance(t *testing.T, state, url string) (registry.Entry, *litclient.Sessi
 	if err := s.Open(litclient.OpenOptions{Endpoint: url, EndpointSet: true, AllowUnmapped: true}); err != nil {
 		t.Fatal(err)
 	}
-	reg := litclient.Registration{Actor: protocol.Actor{Name: "tester", Kind: "human"}, Runtime: protocol.Runtime{Vendor: "lit-tui", SessionID: e.ID}}
+	reg := litclient.Registration{Actor: actor, Runtime: protocol.Runtime{Vendor: "lit-tui", SessionID: e.ID}}
 	if err := s.Connect(context.Background(), reg); err != nil {
 		t.Fatal(err)
 	}

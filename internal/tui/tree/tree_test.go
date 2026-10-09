@@ -48,6 +48,18 @@ func fits(t *testing.T, m *Model, w, h int) {
 	}
 }
 
+// Issues created together (one transaction, one timestamp) are ordered by
+// title.
+func TestSiblingsCreatedTogetherAreOrderedByTitle(t *testing.T) {
+	m := New()
+	m.SetSize(30, 4)
+	m.SetIssues([]protocol.IssueSummary{iss("z1", "", 1, "Charlie"), iss("a9", "", 1, "alpha"), iss("m5", "", 1, "Bravo")})
+	if got := strings.Join(plain(m), "|"); !strings.Contains(got, "alpha") || strings.Index(got, "alpha") > strings.Index(got, "Bravo") ||
+		strings.Index(got, "Bravo") > strings.Index(got, "Charlie") {
+		t.Fatalf("order: %s", got)
+	}
+}
+
 func sample() []protocol.IssueSummary {
 	return []protocol.IssueSummary{
 		iss("b", "", 2, "Second root"),

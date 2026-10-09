@@ -92,6 +92,9 @@ func (m *Model) SetSize(w, h int) {
 // SetPlain marks the selection with ">" instead of styling (no colours).
 func (m *Model) SetPlain(plain bool) { m.plain = plain }
 
+// Plain reports whether the selection is marked without styling.
+func (m *Model) Plain() bool { return m.plain }
+
 // SetFocused says whether the tree has the keyboard focus; the selection is
 // highlighted less strongly without it.
 func (m *Model) SetFocused(focused bool) { m.focused = focused }

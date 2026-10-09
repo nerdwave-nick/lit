@@ -102,10 +102,15 @@ func (f *forest) depths(ids []string) {
 	}
 }
 
-// sort orders siblings by creation, then UUID.
+// sort orders siblings by creation, then title (issues created together),
+// then UUID.
 func (f *forest) sort(ids []string) {
 	slices.SortFunc(ids, func(a, b string) int {
-		if c := strings.Compare(f.nodes[a].issue.CreatedAt, f.nodes[b].issue.CreatedAt); c != 0 {
+		x, y := f.nodes[a].issue, f.nodes[b].issue
+		if c := strings.Compare(x.CreatedAt, y.CreatedAt); c != 0 {
+			return c
+		}
+		if c := strings.Compare(strings.ToLower(x.Title), strings.ToLower(y.Title)); c != 0 {
 			return c
 		}
 		return strings.Compare(a, b)

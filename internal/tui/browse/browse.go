@@ -96,11 +96,15 @@ func paged(ctx context.Context, d Doer, project string, limit int) Issues {
 	}
 }
 
-// LoadProjects reads one page of projects sorted by title; cursor continues
-// a previous page of the same size.
+// LoadProjects reads one page of up to limit projects (at most the
+// service's page limit) sorted by title; cursor continues a previous page of
+// the same size.
 func LoadProjects(ctx context.Context, d Doer, cursor string, limit int) (litclient.Page[protocol.Project], error) {
 	var page litclient.Page[protocol.Project]
 	err := d.Do(ctx, func(ctx context.Context, s *litclient.Session) error {
+		if m := s.Meta.Limits.MaxPage; m > 0 {
+			limit = min(limit, m)
+		}
 		var err error
 		page, err = litclient.List[protocol.Project](ctx, s, litclient.Query{Sort: "title", Limit: limit, Cursor: cursor})
 		return err
