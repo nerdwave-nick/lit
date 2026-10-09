@@ -21,6 +21,7 @@ var topSummaries = map[string]string{
 	"transactions": "Reconcile uncertain mutation outcomes", "grep": "Search current content using a literal substring",
 	"setup-skills": "Install embedded skills for Codex or Claude", "workflow-session": "Bind explicit agent runtime sessions to lit clients",
 	"completion": "Generate the autocompletion script for the specified shell",
+	"tui":        "Open the terminal UI (lit-tui)",
 }
 
 var workflowSummaries = map[string]string{
@@ -82,6 +83,9 @@ func commandDocs(path []string, group bool) (summary, description, example strin
 		summary = topSummaries[name]
 		description = "Search the selected project, or explicitly use --all-projects. Matching is case-insensitive by default.\nUse -- before patterns beginning with a dash; grep -- --help searches for literal --help."
 		example = "  lit grep --session my-session 'renewal'\n  lit grep --session my-session -- --help"
+	case name == "tui":
+		summary, description = topSummaries[name], tuiHelp
+		example = "  lit tui\n  lit tui --endpoint http://127.0.0.1:7411"
 	case name == "setup-skills":
 		summary, description = topSummaries[name], setupSkillsHelp
 		example = "  lit setup-skills --scope local --agent both\n  lit setup-skills --scope custom --path /work/project --agent codex"
@@ -147,6 +151,8 @@ func flagUsage(path []string, f nwcli.Flag) string {
 		u = "Sort `FIELD`: " + strings.Join(f.Value.Choices, ", ")
 	case f.Name == "clear":
 		u = "Clear `FIELD` (repeatable): " + strings.Join(f.Value.Choices, ", ")
+	case p == "tui" && f.Name == "endpoint":
+		u = "Service `URL` passed to lit-tui; flag > LIT_ENDPOINT > http://127.0.0.1:7411"
 	case p == "workflow-session checkout" && f.Name == "path":
 		u = "Required checkout `DIRECTORY` on this machine"
 	case p == "workflow-session checkout" && f.Name == "repository":
@@ -175,3 +181,10 @@ func flagUsage(path []string, f nwcli.Flag) string {
 	}
 	return u
 }
+
+const tuiHelp = "Open the terminal UI for people: the separate lit-tui executable.\n" +
+	"lit looks for lit-tui next to its own executable first, then on PATH, and hands\n" +
+	"the terminal over to it (on Unix lit is replaced by lit-tui). --endpoint is passed through.\n" +
+	"Bare lit with no command opens it too, but only when stdin and stdout are terminals;\n" +
+	"otherwise bare lit reports that a subcommand is required, so scripts are unaffected.\n" +
+	"Install lit-tui with: " + tuiInstall

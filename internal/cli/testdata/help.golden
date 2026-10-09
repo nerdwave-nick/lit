@@ -23,6 +23,7 @@ Available Commands:
   session          Inspect or change session preferences
   setup-skills     Install embedded skills for Codex or Claude
   transactions     Reconcile uncertain mutation outcomes
+  tui              Open the terminal UI (lit-tui)
   version          Print the binary version
   workflow-session Bind explicit agent runtime sessions to lit clients
 
@@ -1859,6 +1860,33 @@ Flags:
   -h, --help             help for setup-skills
       --path DIRECTORY   Required with --scope custom; forbidden otherwise. Parent DIRECTORY of .codex/.claude for custom scope
       --scope SCOPE      Required Install SCOPE: local, user or custom
+== lit tui --help
+Open the terminal UI for people: the separate lit-tui executable.
+lit looks for lit-tui next to its own executable first, then on PATH, and hands
+the terminal over to it (on Unix lit is replaced by lit-tui). --endpoint is passed through.
+Bare lit with no command opens it too, but only when stdin and stdout are terminals;
+otherwise bare lit reports that a subcommand is required, so scripts are unaffected.
+Install lit-tui with: go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-tui@latest
+
+Requirements:
+  Required flags: none. No session is needed; lit-tui must be installed next to lit or on PATH.
+  lit tui needs an interactive terminal; lit-tui refuses to start without one.
+
+Valid forms:
+  lit tui [--endpoint URL]
+  lit [--endpoint URL]  # on a terminal
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit tui [flags]
+
+Examples:
+  lit tui
+  lit tui --endpoint http://127.0.0.1:7411
+
+Flags:
+      --endpoint URL   Optional. Service URL passed to lit-tui; flag > LIT_ENDPOINT > http://127.0.0.1:7411
+  -h, --help           help for tui
 == lit workflow-session --help
 Bind explicit runtime identity to durable workflow state. Never starts a service.
 Fresh sessions and subagents get isolated clients; resume reuses the recorded client.

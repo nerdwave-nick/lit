@@ -8,6 +8,8 @@ The home for my coding agent workflows, local tooling, and customized skills.
   coordinating shared projects and issues stored as Markdown files.
 - **`lit`:** the command-line client for `lit-server`, with terminal, Markdown and JSON
   output for people and coding agents.
+- **`lit-tui`:** the terminal UI for people. `lit tui`, or bare `lit` on a terminal,
+  starts it.
 - **`internal/workflow-skills/`:** skills collected from various sources and adjusted to fit my
   coding workflows and preferences.
 
@@ -22,9 +24,13 @@ for supported binaries, per-user installation, foreground operation, and the
 optional systemd user unit. Build or install with the standard Go toolchain:
 
 ```sh
-go install ./cmd/lit
+go install ./cmd/lit ./cmd/lit-tui
 lit setup-skills --scope local --agent both
 ```
+
+Install `lit-tui` next to `lit`: `lit` looks for it in its own directory first, then
+on `PATH`. Outside a terminal, bare `lit` still exits 2 with `invalid_arguments`, so
+scripts and agents are unaffected.
 
 The CLI embeds the skill suite; setup works offline without a checkout. Choose
 `--scope user` for your home or `--scope custom --path /path/to/parent` for a

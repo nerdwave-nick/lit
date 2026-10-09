@@ -24,10 +24,21 @@ func Run(argv []string, out, errOut io.Writer) int {
 	case r.Help:
 		grammar.WriteHelp(out, r.Path...)
 		return 0
+	case len(r.Path) == 0:
+		if p, ok := bareTUI(argv, out); ok {
+			return runTUI(argv, p, out, errOut)
+		}
+		return argumentError(argv, out, errOut, &nwcli.ParseError{Kind: nwcli.MissingCommand, Command: where})
 	case len(command(r.Path...).Commands) > 0:
 		return argumentError(argv, out, errOut, &nwcli.ParseError{Kind: nwcli.MissingCommand, Command: where})
 	}
 	switch r.Path[0] {
+	case "tui":
+		p, err := grammar.Parse(argv)
+		if err != nil {
+			return argumentError(argv, out, errOut, err)
+		}
+		return runTUI(argv, p, out, errOut)
 	case "completion":
 		if _, err := grammar.Parse(argv); err != nil {
 			return argumentError(argv, out, errOut, err)
