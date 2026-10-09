@@ -37,6 +37,9 @@ type editing struct {
 	open    map[string]*openDraft // by draft key (kind and record)
 	note    string
 	busy    bool // an edit request is running
+
+	// title asks for a new issue's title (new_issue, new_child).
+	title *titlePrompt
 }
 
 // openDraft is a draft being edited in this session: in the suspended
@@ -111,6 +114,10 @@ func (m Model) wireClaims() {
 		if bd.Action == keys.Edit || bd.Action == keys.EditDetached || bd.Action == keys.NewComment || bd.Action == keys.EditComment {
 			_, selected := b.tree.Selected()
 			return bd, ed != nil && selected && b.project != nil
+		}
+		if bd.Action == keys.NewIssue || bd.Action == keys.NewChild {
+			_, selected := b.tree.Selected()
+			return bd, ed != nil && b.project != nil && (selected || bd.Action == keys.NewIssue)
 		}
 		if claimItem != nil {
 			return claimItem(bd)
@@ -241,7 +248,7 @@ func (m Model) editUpdate(msg tea.Msg) (tea.Cmd, bool) {
 }
 
 // modal reports that a draft panel or the comment chooser owns the keys.
-func (e *editing) modal() bool { return e.panel != nil || e.chooser != nil }
+func (e *editing) modal() bool { return e.panel != nil || e.chooser != nil || e.title != nil }
 
 // started opens the started edit: the editor, or the detached draft's path.
 func (m Model) started(msg editStartedMsg) tea.Cmd {

@@ -134,8 +134,9 @@ sequences, other control characters and bidi overrides show as visible markers
 (open or back, refresh, switch project, uncertain requests, search, filter,
 clear filters, claim or release, the [quick actions](#quick-actions), the
 [milestone](#milestones) commands, help, quit, history, edit and edit
-detached, new comment and edit comment); Enter runs one, Escape closes the
-menu. With the `mouse` preference on, a click selects a row, a click
+detached, new comment and edit comment, edit the specification and the
+repositories, new issue and new child); Enter runs one, Escape closes the
+menu; a menu taller than the screen scrolls with its selection. With the `mouse` preference on, a click selects a row, a click
 on the selected row expands or collapses it, a click on the detail pane focuses
 it, and the wheel moves the selection or scrolls the detail.
 
@@ -419,9 +420,8 @@ recovery never removes one; only a successful apply or a discard does.
 project, for example `1 unapplied draft · D opens the Drafts view`. `drafts`
 (`D`, also in the action menu) opens the **Drafts view** at any time; opening
 it ends the banner. It lists every draft, the current project's first, with
-its kind (`issue body`, `new comment`, `comment`, `project spec` or
-`milestone description`;
-later kinds are listed the same way),
+its kind (`issue body`, `new comment`, `comment`, `project spec`, `new
+issue` or `milestone description`; later kinds are listed the same way),
 title, project, recorded revision and start time; the selected draft's file
 is shown below. Enter opens the selected draft: it is compared with its own
 record first (an issue body with its issue, a comment draft with the comment),
@@ -531,6 +531,53 @@ repositories of “feat/x”: +https://… −https://…`) and the project fenc
 the revision read when the list opened; Enter applies exactly that, and a
 change of the project meanwhile refuses it with `revision_conflict`, writing
 nothing.
+
+## Creating issues
+
+`new_issue` (`N`) creates a top-level issue in the current project, and
+`new_child` (`C`) a child of the selected issue, in the tree or the detail.
+Both first ask for the title on one line (`New issue in “test/one”`, or `New
+child of “Fix the parser”`). The field owns typed keys, `q` and `j` included;
+Backspace deletes, Ctrl-U clears, and a paste joins its lines. Enter refuses,
+with a note, a title lit-server would refuse: an empty one, one longer than 128
+characters, or one an issue the tree has loaded uses (titles are unique in a
+project, ignoring case). Escape cancels; nothing is kept. When another client
+claims the parent, the prompt says so: a new child changes its parent, so its
+creation is refused while that claim lasts.
+
+Enter then starts a **draft** of the new issue's body, empty
+(`<title-slug>--<id8>.md`), and suspends into the editor. A new issue takes no
+claim. When the editor exits, the panel previews the creation (`Create the new
+issue “Plan”?`): the new issue, a child's parent (its children change; it is
+fenced at its revision, and a claim this session holds on it is passed on) and
+the project, which is only read; then the body. A blank body is allowed.
+`Apply this change` commits exactly that preview, once: the title, the body
+and the parent in one transaction. The draft is removed, the tree reloads
+with the new issue selected (its parent expanded), and the footer says
+`Created “Plan” under “Fix the parser”.` Set the labels, the assignee, the
+state and the links afterwards with the [quick actions](#quick-actions), each
+its own previewed transaction.
+
+Nothing is written, and the draft is kept, when:
+
+- another client claims the parent: `Cannot apply the new issue “Plan”` names
+  the parent and its owner, for example `“Fix the parser” is claimed by Claude
+  (agent) until …`. lit-server refuses the preview itself, so no change is sent;
+- the title was taken meanwhile, or the parent is gone: the panel names the
+  error. `Change the title` asks for another title (the draft keeps its body)
+  and previews again;
+- the outcome is uncertain: the request ID and evidence are shown and nothing
+  is replayed. The draft's ID is the new issue's ID, so a draft creates at most
+  one issue: a later preview finds the issue if the apply went through (`was
+  created already`) and only offers to discard the draft.
+
+A kept new issue has no issue to resume it from, so it is resumed from the
+Drafts view (`D`), where it is listed as `new issue` and offers resume, preview
+and create, change the title, and discard; `N` and `C` always start a new
+draft. Creating an issue from the Drafts view closes the view, so the tree
+shows the new issue. The sidecar is `.lit/issue_new-<draft-id>.json`; it
+records the title and, for a child, the parent (`parent_id`). A new-issue draft
+started or resumed in this session makes quit ask, like other drafts.
 
 ## Milestones
 
@@ -664,6 +711,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | tree | `edit_comment` | `o` | edit one of the issue's comments |
 | tree | `edit_spec` | `S` | edit the project's specification, or resume its draft |
 | tree | `edit_repositories` | `R` | change the project's repositories |
+| tree | `new_issue` | `N` | create a top-level issue |
+| tree | `new_child` | `C` | create a child of the issue |
 | tree | `set_milestones` | `W` | add to or remove from a milestone |
 | detail | `up` | `up`, `k` | scroll up |
 | detail | `down` | `down`, `j` | scroll down |
@@ -692,6 +741,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | detail | `edit_comment` | `o` | edit one of the issue's comments |
 | detail | `edit_spec` | `S` | edit the project's specification, or resume its draft |
 | detail | `edit_repositories` | `R` | change the project's repositories |
+| detail | `new_issue` | `N` | create a top-level issue |
+| detail | `new_child` | `C` | create a child of the issue |
 | detail | `set_milestones` | `W` | add to or remove from a milestone |
 | menu | `up` | `up`, `k` | previous item |
 | menu | `down` | `down`, `j` | next item |

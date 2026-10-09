@@ -184,15 +184,6 @@ func (m Model) milestonesView() string {
 	return strings.Join(lines, "\n")
 }
 
-// onIssue is where the key resuming a draft of kind k is pressed: on its
-// issue, or (for drafts without an owning issue) anywhere.
-func onIssue(k drafts.Kind) string {
-	if k.Owned() {
-		return " on the issue"
-	}
-	return ""
-}
-
 // milestoneName names a milestone record by its title when the open view
 // knows it.
 func (m Model) milestoneName(id string) string {

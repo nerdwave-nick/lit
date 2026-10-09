@@ -106,6 +106,19 @@ byte-exact and opens it as a conflict with a diff.
 `internal/tui/projectadmin` checks that the local title check accepts
 exactly the titles lit-server's preview accepts (listed and random titles),
 the forms' exact previews and revision fences, and the specification kind.
+`integration/tui_create_test.go` creates issues with `nvim --clean` and
+`vim -u NONE -N`: `N` asks for the title inline (`q` is text), opens the
+editor on an empty draft, previews the creation and applies it, and the new
+issue is selected; `C` then creates a child of it, whose preview lists the
+parent. A child of an issue an agent claims is refused before anything is
+written, naming the owner; quitting keeps its draft, and the next launch
+lists it in the Drafts view, where it creates the child once the claim is
+gone. `internal/tui/creating_test.go` covers these flows in the model
+(including a title taken meanwhile and changed from the panel), and
+`internal/tui/create` tests the issue_new kind against a temporary service
+(the draft's ID as the issue's, created at most once; the parent fenced and
+its foreign claim named; own claims passed on; blank bodies) and the title
+prompt.
 `integration/tui_history_test.go` opens the history
 view of an issue edited a few times (title, a body with an escape sequence, a
 label, the state) and of a comment edited by another client, from the tree and

@@ -17,6 +17,11 @@ import (
 // offerPanel offers an existing draft instead of starting a new one.
 func (m Model) offerPanel(d drafts.Draft) *draftPanel {
 	started := d.Created().Local().Format("2006-01-02 15:04")
+	if d.Kind == drafts.IssueNew {
+		return &draftPanel{d: d, heading: upper(nameOf(d.Kind, d.Title)) + " is not created yet",
+			text:    []string{"Started " + started + ": " + path(d), m.placeOf(d) + " Resume, change the title, create or discard it."},
+			choices: choices(chEdit, chDetached, chPreview, chTitle, chDiscard, chKeep)}
+	}
 	if d.Kind.New() {
 		return &draftPanel{d: d, heading: titled(d.Title) + " has an unposted new " + noun(d.Kind),
 			text:    []string{"Started " + started + ": " + path(d), "A draft is never overwritten: resume, apply or discard it."},
@@ -34,7 +39,7 @@ func (m Model) offerPanel(d drafts.Draft) *draftPanel {
 // or why there is nothing to apply. The draft is kept in every case.
 func (m Model) previewPanel(p edit.Preview) *draftPanel {
 	d := p.Draft
-	t, of := titled(d.Title), draftOf(d.Kind, d.Title)
+	of := draftOf(d.Kind, d.Title)
 	panel := &draftPanel{d: d}
 	kept := "Nothing was written; the draft is kept: " + path(d) + "."
 	switch {
@@ -42,9 +47,15 @@ func (m Model) previewPanel(p edit.Preview) *draftPanel {
 		panel.heading = "Cannot preview " + of
 		panel.text = []string{describe(p.Err) + ".", kept}
 		panel.choices = choices(chPreview, chEdit, chDiff, chKeep, chDiscard)
+		if d.Kind == drafts.IssueNew {
+			panel.choices = choices(chPreview, chTitle, chEdit, chKeep, chDiscard)
+		}
 	case p.Created:
-		panel.heading = upper(of) + " was posted already"
+		panel.heading = upper(of) + " was " + posted(d.Kind) + " already"
 		panel.text = []string{"A " + noun(d.Kind) + " with this draft's ID exists: an earlier apply went through. Nothing was written; discard the draft: " + path(d) + "."}
+		if d.Kind == drafts.IssueNew {
+			panel.text[0] = "An issue with this draft's ID exists: an earlier apply went through. Nothing was written; discard the draft: " + path(d) + "."
+		}
 		panel.choices = choices(chDiscardNow, chKeep)
 	case p.Conflict:
 		panel.heading = fmt.Sprintf("%s changed since the draft was started: revision %d → %d", upper(nameOf(d.Kind, d.Title)), d.Revision, p.Record.Revision)
@@ -60,10 +71,16 @@ func (m Model) previewPanel(p edit.Preview) *draftPanel {
 		panel.choices = choices(chDiscardNow, chEdit, chKeep)
 	case p.Foreign != nil:
 		panel.heading = "Cannot apply " + of
-		panel.text = []string{t + " is claimed by " + owner(p.Foreign) + ".", kept}
+		panel.text = []string{m.claimedName(p.Foreign, d) + " is claimed by " + owner(p.Foreign) + ".", kept}
 		panel.choices = choices(chDiff, chReload, chKeep, chDiscard)
+		if d.Kind.New() {
+			panel.choices = choices(chPreview, chEdit, chKeep, chDiscard)
+		}
 	default:
 		panel.heading = "Apply " + of + "?"
+		if d.Kind == drafts.IssueNew {
+			panel.heading = "Create " + of + "?"
+		}
 		panel.preview = &p
 		panel.text = append(m.claimText(p), "Affected records:")
 		panel.text = append(panel.text, m.affected(p)...)
@@ -94,6 +111,8 @@ func (m Model) claimText(p edit.Preview) []string {
 		optimistic = fmt.Sprintf("Applying is optimistic: it is refused if %s changed after revision %d or another client claims %s.", nameOf(p.Draft.Kind, p.Draft.Title), p.Draft.Revision, t)
 	}
 	switch {
+	case p.Exempt && p.Draft.Kind == drafts.IssueNew:
+		return m.newIssueText(p)
 	case p.Exempt && p.Draft.Kind == drafts.CommentNew:
 		return []string{"New comments take no claim: another client's claim on " + t + " does not block them."}
 	case p.Exempt:
@@ -110,8 +129,14 @@ func (m Model) claimText(p edit.Preview) []string {
 	return []string{"The edit claim on " + t + " is held; applying releases it."}
 }
 
-// affected lists the preview's records with their fenced revisions.
+// affected lists the preview's records with their fenced revisions. Other
+// issues the change touches (a new child's parent) show this session's
+// claim, which is passed on.
 func (m Model) affected(p edit.Preview) []string {
+	mine := map[string]bool{}
+	for _, rc := range p.Prepared.RequiredClaims() {
+		mine[rc.IssueID] = rc.Claim != nil && m.ownClaim(rc.Claim)
+	}
 	var out []string
 	for i, r := range p.Affected {
 		what := "(read)"
@@ -122,7 +147,15 @@ func (m Model) affected(p edit.Preview) []string {
 		if r.ExpectedRevision != nil {
 			rev = fmt.Sprintf("at revision %d", *r.ExpectedRevision)
 		}
-		out = append(out, fmt.Sprintf("  %s %s %s", m.recordName(r), rev, what))
+		name := m.recordName(r)
+		if r.Type == "issues" && r.ID == p.Draft.RecordID && p.Draft.Kind == drafts.IssueNew {
+			name = "issue " + titled(p.Draft.Title)
+		}
+		line := fmt.Sprintf("  %s %s %s", name, rev, what)
+		if r.Type == "issues" && r.ID != p.Draft.IssueID && mine[r.ID] {
+			line += " · claimed by you: your claim is passed on"
+		}
+		out = append(out, line)
 	}
 	return out
 }
@@ -148,10 +181,13 @@ func (m Model) recordName(r protocol.ObjectRef) string {
 // failedPanel says why an apply failed; the draft is kept.
 func (m Model) failedPanel(a edit.Applied) *draftPanel {
 	d := a.Draft
-	t, of := titled(d.Title), draftOf(d.Kind, d.Title)
+	of := draftOf(d.Kind, d.Title)
 	panel := &draftPanel{d: d, heading: "Cannot apply " + of, choices: choices(chDiff, chReload, chKeep, chDiscard)}
 	if d.Kind.New() {
 		panel.choices = choices(chPreview, chKeep, chDiscard)
+	}
+	if d.Kind == drafts.IssueNew {
+		panel.choices = choices(chPreview, chTitle, chKeep, chDiscard)
 	}
 	kept := "Nothing was written; the draft is kept: " + path(d) + "."
 	switch code := litclient.Code(a.Err); {
@@ -165,7 +201,7 @@ func (m Model) failedPanel(a edit.Applied) *draftPanel {
 		}
 		panel.choices = choices(chDiff, chKeep)
 	case code == "claim_conflict" && a.Owner != nil:
-		panel.text = []string{t + " is claimed by " + owner(a.Owner) + ".", kept}
+		panel.text = []string{m.claimedName(a.Owner, d) + " is claimed by " + owner(a.Owner) + ".", kept}
 	case code == "revision_conflict":
 		panel.text = []string{upper(nameOf(d.Kind, d.Title)) + " changed after the preview.", kept}
 	default:

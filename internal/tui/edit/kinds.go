@@ -22,6 +22,26 @@ type Kind struct {
 	// update fenced at d.Revision, or for a new record its creation (with
 	// d.RecordID as the new record's ID, so it is created at most once).
 	Request func(d drafts.Draft, content string) protocol.PrepareRequest
+	// Blank: a new record's draft is applied even when blank (an issue may
+	// have no body). Otherwise a blank new record has nothing to apply.
+	Blank bool
+	// Touches, when set, lists the existing issues besides the owning one
+	// that applying d changes (a new child's parent). Another client's claim
+	// on any of them refuses the apply, and the refusal names its owner.
+	Touches func(d drafts.Draft) []string
+}
+
+// touched are the existing issues applying d changes whose claims may refuse
+// it: the owning issue, then those the kind lists.
+func (k Kind) touched(d drafts.Draft) []string {
+	var out []string
+	if d.IssueID != "" {
+		out = append(out, d.IssueID)
+	}
+	if k.Touches != nil {
+		out = append(out, k.Touches(d)...)
+	}
+	return out
 }
 
 // Record is a draft's record as read now.
@@ -51,11 +71,14 @@ type Target struct {
 	Issue string
 	// Title names the draft until the record's read gives one.
 	Title string
+	// Parent is the issue a new issue is created under (issue_new); empty
+	// for a top-level issue and other kinds.
+	Parent string
 }
 
 // TargetOf is the target a draft edits.
 func TargetOf(d drafts.Draft) Target {
-	return Target{Kind: d.Kind, Project: d.ProjectID, Record: d.RecordID, Issue: d.IssueID, Title: d.Title}
+	return Target{Kind: d.Kind, Project: d.ProjectID, Record: d.RecordID, Issue: d.IssueID, Title: d.Title, Parent: d.ParentID}
 }
 
 func (t Target) key() string { return string(t.Kind) + "-" + t.Record }
@@ -145,7 +168,7 @@ func (e *Editor) Open(ctx context.Context, t Target) Started {
 			return r
 		}
 	}
-	d := drafts.Draft{Kind: t.Kind, ProjectID: t.Project, RecordID: t.Record, IssueID: t.Issue, Title: t.Title, Claim: r.Kind}
+	d := drafts.Draft{Kind: t.Kind, ProjectID: t.Project, RecordID: t.Record, IssueID: t.Issue, ParentID: t.Parent, Title: t.Title, Claim: r.Kind}
 	var content string
 	r.Err = e.g.Do(ctx, func(ctx context.Context, s *litclient.Session) error {
 		d.ServiceID = s.Meta.ServiceID

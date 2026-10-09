@@ -54,6 +54,7 @@ var draftOpeners = map[drafts.Kind]func(Model, drafts.Draft) tea.Cmd{
 	drafts.CommentNew:  Model.openBodyDraft,
 	drafts.CommentBody: Model.openBodyDraft,
 	drafts.ProjectSpec: Model.openBodyDraft,
+	drafts.IssueNew:    Model.openBodyDraft,
 	// milestones.Register
 	drafts.MilestoneDescription: Model.openBodyDraft,
 }

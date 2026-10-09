@@ -89,7 +89,7 @@ func (e *Editor) Preview(ctx context.Context, d drafts.Draft) Preview {
 		p.Record, p.Current = rec, rec.Issue
 		switch {
 		case d.Kind.New():
-			p.Created, p.Unchanged = rec.Exists, strings.TrimSpace(p.Content) == ""
+			p.Created, p.Unchanged = rec.Exists, !kind.Blank && strings.TrimSpace(p.Content) == ""
 		case !rec.Exists:
 			return protocol.E(404, "not_found", "the record no longer exists")
 		default:
@@ -105,10 +105,7 @@ func (e *Editor) Preview(ctx context.Context, d drafts.Draft) Preview {
 			p.Conflict = true
 			return nil
 		case "claim_conflict": // the preview is refused: name the owner
-			if d.IssueID == "" {
-				return err
-			}
-			if p.Foreign, _ = ownerOf(ctx, s, d.IssueID, nil); p.Foreign != nil {
+			if p.Foreign = foreignOn(ctx, s, kind.touched(d)); p.Foreign != nil {
 				return nil
 			}
 			return err
@@ -126,6 +123,17 @@ func (e *Editor) Preview(ctx context.Context, d drafts.Draft) Preview {
 		return nil
 	})
 	return p
+}
+
+// foreignOn is another client's live claim on one of issues, the first
+// found, or nil.
+func foreignOn(ctx context.Context, s *litclient.Session, issues []string) *protocol.Claim {
+	for _, id := range issues {
+		if c, _ := ownerOf(ctx, s, id, nil); c != nil {
+			return c
+		}
+	}
+	return nil
 }
 
 // ownerOf is issue's live claim as a claim snapshot names it (with its
@@ -182,11 +190,13 @@ func (e *Editor) Apply(ctx context.Context, p Preview) Applied {
 		}
 		return err
 	})
-	if litclient.Code(a.Err) == "claim_conflict" && p.Draft.IssueID != "" {
-		_ = e.g.Do(ctx, func(ctx context.Context, s *litclient.Session) error {
-			a.Owner, _ = ownerOf(ctx, s, p.Draft.IssueID, nil)
-			return nil
-		})
+	if litclient.Code(a.Err) == "claim_conflict" {
+		if kind, err := e.kind(p.Draft.Kind); err == nil && len(kind.touched(p.Draft)) > 0 {
+			_ = e.g.Do(ctx, func(ctx context.Context, s *litclient.Session) error {
+				a.Owner = foreignOn(ctx, s, kind.touched(p.Draft))
+				return nil
+			})
+		}
 	}
 	if a.Err != nil {
 		return a

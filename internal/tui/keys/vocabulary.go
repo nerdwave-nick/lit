@@ -80,6 +80,10 @@ const (
 	NewProject       Action = "new_project"
 	EditSpec         Action = "edit_spec"
 	EditRepositories Action = "edit_repositories"
+	// NewIssue creates a top-level issue and NewChild a child of the
+	// selected issue: the title inline, the body in a draft.
+	NewIssue Action = "new_issue"
+	NewChild Action = "new_child"
 	// Milestones opens the Milestones view of the project: progress,
 	// creation, titles and descriptions. SetMilestones adds the selected
 	// issue to a milestone or removes it.
@@ -145,6 +149,8 @@ var vocabulary = map[Context][]entry{
 		{EditComment, "edit one of the issue's comments", []string{"o"}},
 		{EditSpec, "edit the project's specification, or resume its draft", []string{"S"}},
 		{EditRepositories, "change the project's repositories", []string{"R"}},
+		{NewIssue, "create a top-level issue", []string{"N"}},
+		{NewChild, "create a child of the issue", []string{"C"}},
 		{SetMilestones, "add to or remove from a milestone", []string{"W"}},
 	},
 	Detail: {
@@ -175,6 +181,8 @@ var vocabulary = map[Context][]entry{
 		{EditComment, "edit one of the issue's comments", []string{"o"}},
 		{EditSpec, "edit the project's specification, or resume its draft", []string{"S"}},
 		{EditRepositories, "change the project's repositories", []string{"R"}},
+		{NewIssue, "create a top-level issue", []string{"N"}},
+		{NewChild, "create a child of the issue", []string{"C"}},
 		{SetMilestones, "add to or remove from a milestone", []string{"W"}},
 	},
 	Menu: {

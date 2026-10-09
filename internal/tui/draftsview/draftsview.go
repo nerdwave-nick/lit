@@ -83,6 +83,8 @@ func KindLabel(k drafts.Kind) string {
 		return "new comment"
 	case drafts.CommentBody:
 		return "comment"
+	case drafts.IssueNew:
+		return "new issue"
 	}
 	return strings.ReplaceAll(string(k), "_", " ")
 }

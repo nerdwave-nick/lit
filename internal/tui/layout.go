@@ -144,6 +144,8 @@ func (m Model) View() tea.View {
 		content = m.historyView()
 	case m.ed != nil && m.ed.panel != nil:
 		content = m.draftPanelView()
+	case m.ed != nil && m.ed.title != nil && m.b != nil: // also over the Drafts view
+		content = m.browserView()
 	case m.dv != nil && m.dv.view != nil:
 		content = m.draftsView()
 	case m.ed != nil && m.ed.chooser != nil:
@@ -178,6 +180,8 @@ func (m Model) browserView() string {
 		out = append(out, m.crumb())
 	}
 	switch {
+	case m.ed != nil && m.ed.title != nil:
+		out = append(out, m.titleLines(g.height)...)
 	case b.qa.m != nil:
 		out = append(out, b.qa.m.Lines(b.method, m.width, g.height, b.tree.Plain())...)
 	case b.menu != nil:
@@ -274,6 +278,8 @@ func (m Model) crumb() string {
 func (m Model) hint() string {
 	km, ctx := m.prefs.Keymap, m.view()
 	switch {
+	case m.ed != nil && m.ed.title != nil:
+		return m.ed.title.p.Hint(km)
 	case m.b.qa.m != nil:
 		return m.b.qa.m.Hint(km)
 	case m.b.filt.input != nil:
