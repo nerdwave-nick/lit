@@ -74,6 +74,12 @@ const (
 	// EditComment chooses one of its comments and edits it.
 	NewComment  Action = "new_comment"
 	EditComment Action = "edit_comment"
+	// NewProject creates a project from the project switcher; EditSpec
+	// edits the current project's shared specification in the editor;
+	// EditRepositories changes its repository list.
+	NewProject       Action = "new_project"
+	EditSpec         Action = "edit_spec"
+	EditRepositories Action = "edit_repositories"
 	// Milestones opens the Milestones view of the project: progress,
 	// creation, titles and descriptions. SetMilestones adds the selected
 	// issue to a milestone or removes it.
@@ -137,6 +143,8 @@ var vocabulary = map[Context][]entry{
 		{EditDetached, "edit the body in any editor (shows the draft path)", []string{"E"}},
 		{NewComment, "add a comment, or resume its draft", []string{"a"}},
 		{EditComment, "edit one of the issue's comments", []string{"o"}},
+		{EditSpec, "edit the project's specification, or resume its draft", []string{"S"}},
+		{EditRepositories, "change the project's repositories", []string{"R"}},
 		{SetMilestones, "add to or remove from a milestone", []string{"W"}},
 	},
 	Detail: {
@@ -165,6 +173,8 @@ var vocabulary = map[Context][]entry{
 		{EditDetached, "edit the body in any editor (shows the draft path)", []string{"E"}},
 		{NewComment, "add a comment, or resume its draft", []string{"a"}},
 		{EditComment, "edit one of the issue's comments", []string{"o"}},
+		{EditSpec, "edit the project's specification, or resume its draft", []string{"S"}},
+		{EditRepositories, "change the project's repositories", []string{"R"}},
 		{SetMilestones, "add to or remove from a milestone", []string{"W"}},
 	},
 	Menu: {
@@ -176,5 +186,6 @@ var vocabulary = map[Context][]entry{
 		{PageDown, "page down", []string{"pgdown", "ctrl+d"}},
 		{Top, "first item", []string{"home", "g"}},
 		{Bottom, "last item", []string{"end", "G"}},
+		{NewProject, "create a project (in the project switcher)", []string{"n"}},
 	},
 }

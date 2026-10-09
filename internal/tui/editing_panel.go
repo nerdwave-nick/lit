@@ -104,7 +104,11 @@ func (m Model) choose(k choiceKind) tea.Cmd {
 	switch k {
 	case chKeep:
 		e.panel = nil
-		e.note = "Kept " + draftOf(d.Kind, d.Title) + ": " + path(d) + ". " + m.keyFor(d.Kind) + onIssue(d.Kind) + " resumes, applies or discards it."
+		on := onIssue(d.Kind)
+		if d.Kind == drafts.ProjectSpec {
+			on = " in the project"
+		}
+		e.note = "Kept " + draftOf(d.Kind, d.Title) + ": " + path(d) + ". " + m.keyFor(d.Kind) + on + " resumes, applies or discards it."
 		return nil
 	case chDiscard:
 		e.panel = m.confirmPanel(d)

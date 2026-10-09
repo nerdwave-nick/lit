@@ -22,6 +22,8 @@ func nameOf(k drafts.Kind, title string) string {
 		return "the new comment on " + titled(title)
 	case drafts.CommentBody:
 		return "the comment on " + titled(title)
+	case drafts.ProjectSpec:
+		return "the specification of " + titled(title)
 	case drafts.MilestoneDescription:
 		return "the description of the milestone " + titled(title)
 	}
@@ -47,6 +49,8 @@ func noun(k drafts.Kind) string {
 		return "comment"
 	case drafts.IssueBody:
 		return "body"
+	case drafts.ProjectSpec:
+		return "specification"
 	case drafts.MilestoneDescription:
 		return "description"
 	}
@@ -68,6 +72,8 @@ func (m Model) keyFor(k drafts.Kind) string {
 		return firstKey(m, keys.Tree, keys.NewComment)
 	case drafts.CommentBody:
 		return firstKey(m, keys.Tree, keys.EditComment)
+	case drafts.ProjectSpec:
+		return firstKey(m, keys.Tree, keys.EditSpec)
 	case drafts.MilestoneDescription:
 		return firstKey(m, keys.Global, keys.Milestones)
 	}

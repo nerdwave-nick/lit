@@ -93,6 +93,19 @@ shared edit claims) against a temporary service. `internal/tui/drafts`
 also tests the draft kinds (new records under generated draft IDs, kinds
 without an owning issue), and `internal/tui/edit` a registered kind without
 an owner (a project specification) through the generic editor.
+`integration/tui_projects_test.go` administers projects: in the switcher an
+invalid title is refused under the field with the service's prefixes before
+anything is previewed, a valid one previews and creates the project, which
+lit-tui then browses and lists; the specification is edited with nvim and
+vim through a `project_spec` draft (no claim, applied at the recorded
+revision); the repository list is changed through an exact preview, and a
+change of the project after the preview refuses it; and an agent's change
+after the specification's preview refuses the apply, keeps the draft
+byte-exact and opens it as a conflict with a diff.
+`internal/tui/project_admin_test.go` covers these flows in the model, and
+`internal/tui/projectadmin` checks that the local title check accepts
+exactly the titles lit-server's preview accepts (listed and random titles),
+the forms' exact previews and revision fences, and the specification kind.
 `integration/tui_history_test.go` opens the history
 view of an issue edited a few times (title, a body with an escape sequence, a
 label, the state) and of a comment edited by another client, from the tree and
