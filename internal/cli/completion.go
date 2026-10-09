@@ -2,7 +2,6 @@ package cli
 
 import (
 	"context"
-	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -11,6 +10,7 @@ import (
 	"unicode"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/clientendpoint"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 )
@@ -59,11 +59,11 @@ func fetchCompletions(c nwcli.Context, kind string) ([]protocol.Completion, erro
 	}
 	var mapping Mapping
 	if name != "" {
-		dir, err := StateDir()
+		dir, err := litclient.StateDir()
 		if err != nil {
 			return nil, err
 		}
-		mapping, err = readMapping(mappingPath(dir, name))
+		mapping, err = litclient.ReadMapping(litclient.MappingPath(dir, name))
 		if err != nil && !os.IsNotExist(err) {
 			return nil, err
 		}
@@ -81,9 +81,9 @@ func fetchCompletions(c nwcli.Context, kind string) ([]protocol.Completion, erro
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), completionTimeout)
 	defer cancel()
-	app := &App{Endpoint: endpoint, Mapping: mapping, HTTP: &http.Client{Timeout: completionTimeout}, Context: ctx, Out: io.Discard, Err: io.Discard}
+	session := &litclient.Session{Endpoint: endpoint, Mapping: mapping, HTTP: &http.Client{Timeout: completionTimeout}, Context: ctx}
 	var result protocol.Completions
-	if err := app.Call(http.MethodGet, "/v1/completions/"+kind+"?"+q.Encode(), nil, nil, &result, false); err != nil {
+	if err := session.Call(http.MethodGet, "/v1/completions/"+kind+"?"+q.Encode(), nil, nil, &result, false); err != nil {
 		return nil, err
 	}
 	// The completion response carries identity, saving a separate meta request

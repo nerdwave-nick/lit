@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"go.yaml.in/yaml/v3"
 )
@@ -23,7 +24,7 @@ func TestMarkdownRecordDocuments(t *testing.T) {
 	} {
 		t.Run(tc.command, func(t *testing.T) {
 			var out bytes.Buffer
-			a := App{Args: Args{Command: tc.command, Verb: "get"}, Format: "markdown", Out: &out, Err: &out, ServerTime: "transport-time"}
+			a := App{Session: litclient.Session{ServerTime: "transport-time"}, Args: Args{Command: tc.command, Verb: "get"}, Format: "markdown", Out: &out, Err: &out}
 			if a.Print(Result{Items: []any{tc.record}}) != 0 {
 				t.Fatal(out.String())
 			}

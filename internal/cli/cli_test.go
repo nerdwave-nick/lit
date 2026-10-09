@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -20,7 +20,7 @@ func TestUnknownMutationOutcomeRemainsPending(t *testing.T) {
 				w.Write([]byte(`{"data":` + data + `,"server_time":"2026-09-29T12:00:00Z"}`))
 			}))
 			defer srv.Close()
-			a := &App{StateDir: t.TempDir(), Endpoint: srv.URL, HTTP: srv.Client(), Context: context.Background(), Err: new(bytes.Buffer)}
+			a := &App{Session: litclient.Session{StateDir: t.TempDir(), Endpoint: srv.URL, HTTP: srv.Client(), Context: context.Background()}, Err: new(bytes.Buffer)}
 			var v any
 			e := a.Call("POST", "/v1/connect", map[string]any{}, nil, &v, true)
 			if e == nil {
@@ -39,7 +39,7 @@ func TestPendingFailureDoesNotTransmit(t *testing.T) {
 	defer srv.Close()
 	dir := t.TempDir()
 	os.WriteFile(filepath.Join(dir, "pending"), []byte("blocked"), 0600)
-	a := &App{StateDir: dir, Endpoint: srv.URL, HTTP: srv.Client(), Context: context.Background()}
+	a := &App{Session: litclient.Session{StateDir: dir, Endpoint: srv.URL, HTTP: srv.Client(), Context: context.Background()}}
 	e := a.Call("POST", "/v1/connect", map[string]any{}, nil, nil, true)
 	if e == nil || sent {
 		t.Fatal("request sent without pending evidence")
@@ -52,7 +52,7 @@ func TestPreserveServiceTime(t *testing.T) {
 	}))
 	defer srv.Close()
 	out := new(bytes.Buffer)
-	a := &App{Endpoint: srv.URL, HTTP: srv.Client(), Context: context.Background(), Out: out, Err: new(bytes.Buffer), Format: "json"}
+	a := &App{Session: litclient.Session{Endpoint: srv.URL, HTTP: srv.Client(), Context: context.Background()}, Out: out, Err: new(bytes.Buffer), Format: "json"}
 	var v any
 	if e := a.Call("GET", "/v1/meta", nil, nil, &v, false); e != nil {
 		t.Fatal(e)
@@ -62,18 +62,5 @@ func TestPreserveServiceTime(t *testing.T) {
 	json.Unmarshal(out.Bytes(), &r)
 	if r.ServerTime != stamp {
 		t.Fatal("fabricated server time", r.ServerTime)
-	}
-}
-func TestPrivateVersionsAndPaths(t *testing.T) {
-	dir := t.TempDir()
-	p := mappingPath(dir, "../../unsafe")
-	if filepath.Dir(p) != filepath.Join(dir, "sessions") {
-		t.Fatal(p)
-	}
-	os.MkdirAll(filepath.Dir(p), 0700)
-	m := Mapping{2, protocol.UUID(), protocol.UUID(), "http://localhost:7411"}
-	WriteJSON(p, m)
-	if _, e := readMapping(p); e == nil {
-		t.Fatal("accepted unsupported mapping")
 	}
 }

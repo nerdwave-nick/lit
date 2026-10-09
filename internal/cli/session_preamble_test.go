@@ -11,6 +11,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
@@ -70,7 +71,7 @@ func TestSessionPreambleErrorsAndFormats(t *testing.T) {
 	}
 	setCache := func(m Mapping, format string) {
 		t.Helper()
-		if err := WriteJSON(cachePath(m.ClientID), Cache{1, m.ClientID, m.ServiceID, format}); err != nil {
+		if err := litclient.WriteJSON(cachePath(m.ClientID), Cache{1, m.ClientID, m.ServiceID, format}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -78,19 +79,19 @@ func TestSessionPreambleErrorsAndFormats(t *testing.T) {
 	if code := run("session", "get", "--session", "ghost", "--format", "json"); code != 2 || out.Len() != 0 || jsonErrorCode(t, stderr.Bytes()) != "not_connected" {
 		t.Fatalf("unmapped session: %d %s %s", code, &out, &stderr)
 	}
-	if _, err := os.Stat(mappingPath(state, "ghost")); !os.IsNotExist(err) {
+	if _, err := os.Stat(litclient.MappingPath(state, "ghost")); !os.IsNotExist(err) {
 		t.Fatalf("unmapped session created a mapping: %v", err)
 	}
 
 	if code := run("connect", "--session", "pref", "--output-format", "markdown", "--format", "json"); code != 0 {
 		t.Fatalf("connect: %d %s", code, &stderr)
 	}
-	mapping, err := readMapping(mappingPath(state, "pref"))
+	mapping, err := litclient.ReadMapping(litclient.MappingPath(state, "pref"))
 	if err != nil {
 		t.Fatal(err)
 	}
 
-	unlock, err := acquireLocal(mappingPath(state, "pref")+".lock", time.Now().Add(time.Second))
+	unlock, err := litclient.AcquireLock(litclient.MappingPath(state, "pref")+".lock", time.Now().Add(time.Second))
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -101,8 +102,8 @@ func TestSessionPreambleErrorsAndFormats(t *testing.T) {
 	}
 
 	// Before the client record is read, the cwd cache selects the format.
-	setCache(mapping, "json")
-	if code := run("session", "get", "--session", "pref", "--endpoint", "http://127.0.0.1:1"); code != 1 || jsonErrorCode(t, stderr.Bytes()) != "service_unavailable" {
+	setCache(mapping, "markdown")
+	if code := run("session", "get", "--session", "pref", "--endpoint", "http://127.0.0.1:1"); code != 1 || !strings.HasPrefix(stderr.String(), "**Error [service&#95;unavailable]:**") {
 		t.Fatalf("unreachable endpoint: %d %s", code, &stderr)
 	}
 
@@ -119,7 +120,7 @@ func TestSessionPreambleErrorsAndFormats(t *testing.T) {
 		t.Fatalf("repeat disconnect: %d %s %s", code, &out, &stderr)
 	}
 
-	if err := os.WriteFile(mappingPath(state, "corrupt"), []byte(`{"schema_version":2}`), 0600); err != nil {
+	if err := os.WriteFile(litclient.MappingPath(state, "corrupt"), []byte(`{"schema_version":2}`), 0600); err != nil {
 		t.Fatal(err)
 	}
 	if code := run("session", "get", "--session", "corrupt", "--format", "json"); code != 1 || jsonErrorCode(t, stderr.Bytes()) != "invalid_local_state" {
@@ -133,7 +134,7 @@ func TestSessionPreambleErrorsAndFormats(t *testing.T) {
 	if code := run("connect", "--session", "future", "--endpoint", other.URL, "--format", "json"); code != 1 || jsonErrorCode(t, stderr.Bytes()) != "incompatible_service" {
 		t.Fatalf("incompatible service: %d %s", code, &stderr)
 	}
-	if _, err := os.Stat(mappingPath(state, "future")); !os.IsNotExist(err) {
+	if _, err := os.Stat(litclient.MappingPath(state, "future")); !os.IsNotExist(err) {
 		t.Fatalf("incompatible service created a mapping: %v", err)
 	}
 }

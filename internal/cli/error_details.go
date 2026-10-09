@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 )
 
 // The message explains the failure; details retain the identities and evidence
@@ -18,7 +20,7 @@ func (a *App) printErrorDetails(details any, markdown bool) {
 		return
 	}
 	var value any
-	if err = decodeResponseData(raw, &value); err != nil {
+	if err = litclient.DecodeResponseData(raw, &value); err != nil {
 		return
 	}
 	var b bytes.Buffer
