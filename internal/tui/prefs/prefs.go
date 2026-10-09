@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
@@ -28,6 +29,16 @@ const (
 	EnvConfig = "LIT_TUI_CONFIG"
 	EnvTheme  = "LIT_TUI_THEME"
 	EnvMouse  = "LIT_TUI_MOUSE"
+	// EnvClaimIdle sets ClaimIdle, as a Go duration such as 30m.
+	EnvClaimIdle = "LIT_TUI_CLAIM_IDLE"
+)
+
+// DefaultClaimIdle is how long claims are renewed without input or a draft
+// change before the TUI asks whether to keep holding them (Proposal).
+// MinClaimIdle is the shortest accepted period.
+const (
+	DefaultClaimIdle = 30 * time.Minute
+	MinClaimIdle     = time.Second
 )
 
 // Prefs are the effective preferences.
@@ -36,14 +47,20 @@ type Prefs struct {
 	Mouse  bool // click-to-select and wheel scrolling; off keeps native selection
 	Keymap keys.Keymap
 	File   string // the config file read, or "" when none was
+	// ClaimIdle is how long held claims are renewed without activity before
+	// renewal pauses and the TUI asks whether to keep holding them.
+	ClaimIdle time.Duration
 }
 
 // Default returns the preferences used without flags, environment or file.
-func Default() Prefs { return Prefs{Theme: ThemeAuto, Keymap: keys.Default()} }
+func Default() Prefs {
+	return Prefs{Theme: ThemeAuto, Keymap: keys.Default(), ClaimIdle: DefaultClaimIdle}
+}
 
 // Flags are lit-tui's preference flags; nil means not given.
 type Flags struct {
 	Config, Theme, Mouse *string
+	ClaimIdle            *string
 }
 
 // file is the schema_version 1 config file.
@@ -52,6 +69,7 @@ type file struct {
 	Theme         *string                        `json:"theme"`
 	Mouse         *bool                          `json:"mouse"`
 	Keymap        map[string]map[string][]string `json:"keymap"`
+	ClaimIdle     *string                        `json:"claim_idle"`
 }
 
 // DefaultPath returns ${XDG_CONFIG_HOME:-$HOME/.config}/lit/tui.json. A
@@ -92,6 +110,14 @@ func Load(f Flags) (Prefs, error) {
 	if err := p.apply("--theme", f.Theme, "--mouse", f.Mouse); err != nil {
 		return p, err
 	}
+	for _, src := range []struct {
+		name  string
+		value *string
+	}{{EnvClaimIdle, env(EnvClaimIdle)}, {"--claim-idle", f.ClaimIdle}} {
+		if err := p.applyClaimIdle(src.name, src.value); err != nil {
+			return p, err
+		}
+	}
 	return p, nil
 }
 
@@ -129,6 +155,9 @@ func (p *Prefs) readFile(path string, explicit bool) error {
 	if c.Mouse != nil {
 		p.Mouse = *c.Mouse
 	}
+	if err := p.applyClaimIdle("claim_idle", c.ClaimIdle); err != nil {
+		return fail(err)
+	}
 	k, err := keys.New(c.Keymap)
 	if err != nil {
 		return fail(err)
@@ -155,6 +184,23 @@ func (p *Prefs) apply(themeSource string, theme *string, mouseSource string, mou
 			return fmt.Errorf("%s: invalid value %q (want true or false)", mouseSource, *mouse)
 		}
 	}
+	return nil
+}
+
+// applyClaimIdle overrides ClaimIdle from one source, named in errors; nil
+// means not given.
+func (p *Prefs) applyClaimIdle(source string, value *string) error {
+	if value == nil {
+		return nil
+	}
+	d, err := time.ParseDuration(*value)
+	switch {
+	case err != nil:
+		return fmt.Errorf("%s: invalid duration %q (want a Go duration such as 30m or 1h)", source, *value)
+	case d < MinClaimIdle:
+		return fmt.Errorf("%s: %s is shorter than %s", source, *value, MinClaimIdle)
+	}
+	p.ClaimIdle = d
 	return nil
 }
 

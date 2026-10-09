@@ -11,7 +11,7 @@ import (
 // menuCommands are the actions the action menu offers, in its order
 // (Proposal): the view's commands first, then the global ones. Navigation
 // stays on its keys. Later screens add their commands (claim, edit, …) here.
-var menuCommands = []keys.Action{keys.Open, keys.Back, keys.Refresh, keys.SwitchProject, keys.UncertainRequests, keys.Search, keys.Filter, keys.ClearFilters, keys.Help, keys.Quit}
+var menuCommands = []keys.Action{keys.Open, keys.Back, keys.Refresh, keys.SwitchProject, keys.UncertainRequests, keys.Search, keys.Filter, keys.ClearFilters, keys.Claim, keys.Release, keys.Help, keys.Quit}
 
 // actionMenu lists the commands of one view with their effective keys.
 type actionMenu struct {
@@ -24,6 +24,12 @@ func (b *browser) openMenu(ctx keys.Context) {
 	for _, want := range menuCommands {
 		for _, bd := range b.km.Bindings(ctx) {
 			if bd.Action == want && (bd.Context == ctx || bd.Context == keys.Global) {
+				if b.menuItem != nil {
+					var ok bool
+					if bd, ok = b.menuItem(bd); !ok {
+						break
+					}
+				}
 				m.items = append(m.items, bd)
 				break
 			}

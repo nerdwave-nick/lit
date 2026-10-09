@@ -16,6 +16,7 @@ defaults, the same order `lit-server` uses.
 | Theme | `--theme auto\|light\|dark` | `LIT_TUI_THEME` | `theme` | `auto` |
 | Mouse | `--mouse true\|false` | `LIT_TUI_MOUSE` | `mouse` | `false` |
 | Keymap | | | `keymap` | the default keymap below |
+| Claim idle period | `--claim-idle DURATION` | `LIT_TUI_CLAIM_IDLE` | `claim_idle` | `30m` |
 
 An empty environment variable counts as unset. A relative `XDG_CONFIG_HOME` is
 ignored. The default config file may be missing. A file selected explicitly with
@@ -38,7 +39,8 @@ keys and trailing data are rejected:
   "keymap": {
     "global": {"quit": ["q", "Q"]},
     "tree": {"expand": ["right", "l", "space"], "collapse": ["left", "h"]}
-  }
+  },
+  "claim_idle": "45m"
 }
 ```
 
@@ -49,6 +51,9 @@ keys and trailing data are rejected:
   `true` turns on mouse reporting for click-to-select and wheel scrolling. While
   it is on, many terminals select text only with Shift held down.
 - **`keymap`**: rebinds actions per context. See below.
+- **`claim_idle`**: how long claims are renewed without input or a draft change
+  before renewal pauses and `lit-tui` asks whether to keep holding them (see
+  [claims](#claims)). A Go duration such as `30m`, `1h` or `90s`, at least `1s`.
 
 Invalid preferences stop `lit-tui` before it takes over the terminal. It prints
 one `lit-tui:` line per problem, naming the file or variable, and exits with
@@ -121,7 +126,7 @@ sequences, other control characters and bidi overrides show as visible markers
 
 `action_menu` (`m`) lists the commands of the current view with their keys
 (open or back, refresh, switch project, uncertain requests, search, filter,
-clear filters, help and quit); Enter runs one, Escape
+clear filters, claim or release, help and quit); Enter runs one, Escape
 closes the menu. With the `mouse` preference on, a click selects a row, a click
 on the selected row expands or collapses it, a click on the detail pane focuses
 it, and the wheel moves the selection or scrolls the detail.
@@ -192,6 +197,57 @@ The first release targets projects of up to about 1,000 issues, with bodies of
 up to 64 KB. Larger projects still load, page by page, but every request
 currently makes lit-server read its whole store, so they are slow.
 
+## Claims
+
+`claim` (`c`) claims the selected issue for this session, in the tree or in the
+detail, and `release` (`u`) releases it; the action menu offers whichever
+applies. Before claiming, `lit-tui` rereads the issue and its claim. If another
+client holds the claim, nothing is written and the note names the owner, for
+example `Cannot claim “Fix the parser”: claimed by Claude (agent) until …`.
+`lit-tui` never forces a claim. After a claim or release the tree reloads, so the
+row shows `⚑` and your name.
+
+While `lit-tui` holds a claim, it renews it in the background. Each claim is
+taken for 15 minutes and renewed after 10 (two thirds of the lease), one request
+at a time. Renewal does not depend on the screen: it goes on while the screen is
+busy or suspended for an editor. The footer counts the claims, for example
+`Claims: 2 held · 1 lost`.
+
+**Idle.** After the claim idle period (`claim_idle`, 30 minutes by default) with
+no key press, no mouse input and no draft change, renewal stops and `lit-tui`
+asks:
+
+```text
+Claim renewal paused: no input or draft change for 30m0s.
+Keep holding these claims?
+
+  “Fix the parser”: lapses about 14:05:12
+
+Without an answer they lapse when their leases end and are shown as lost.
+
+enter keep holding · esc let them lapse
+```
+
+Enter renews every listed claim at once and resumes renewal. The note says
+`Holding N claim(s) again.` only for claims that were really renewed. Escape, or
+no answer, lets them lapse when their leases end; until then the tree marks
+them `paused`.
+
+**Lost claims.** A claim is **lost** when a renewal fails (for example with
+`claim_conflict`, because another client took it over) or when its lease passes.
+The tree marks it `lost`, and the footer names it with the reason, for example
+`Claim lost: “Fix the parser”: renewal failed: claim_conflict: …`. `lit-tui` never
+retries a lost claim and never reacquires it on its own. Keeping a claim whose
+lease has already passed reports `Could not keep holding …`, never success. To
+take it back, use `claim` again; the action menu calls it reacquire. `lit-tui`
+rereads the issue first, refuses if another client holds it, and otherwise
+claims it at the issue's current revision, noting when the issue changed since
+the claim was taken. `release` forgets a lost claim.
+
+Quitting releases every claim this session holds (see [leaving](#leaving)).
+After a crash, a claim lasts until its lease ends: at most 15 minutes for a claim
+`lit-tui` took.
+
 ## Keymap
 
 Every binding belongs to a **context**:
@@ -255,6 +311,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | tree | `search` | `/` | search issue content |
 | tree | `filter` | `f` | filter the tree |
 | tree | `clear_filters` | `F` | clear the filters and the search |
+| tree | `claim` | `c` | claim the issue, or reacquire a lost claim |
+| tree | `release` | `u` | release the issue's claim |
 | detail | `up` | `up`, `k` | scroll up |
 | detail | `down` | `down`, `j` | scroll down |
 | detail | `left` | `left`, `h` | scroll a wide block left |
@@ -266,6 +324,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | detail | `page_down` | `pgdown`, `ctrl+d` | page down |
 | detail | `top` | `home`, `g` | go to the top |
 | detail | `bottom` | `end`, `G` | go to the bottom |
+| detail | `claim` | `c` | claim the issue, or reacquire a lost claim |
+| detail | `release` | `u` | release the issue's claim |
 | menu | `up` | `up`, `k` | previous item |
 | menu | `down` | `down`, `j` | next item |
 | menu | `open` | `enter` | choose the item |
