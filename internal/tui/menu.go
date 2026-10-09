@@ -11,7 +11,7 @@ import (
 // menuCommands are the actions the action menu offers, in its order
 // (Proposal): the view's commands first, then the global ones. Navigation
 // stays on its keys. Later screens add their commands (claim, edit, …) here.
-var menuCommands = []keys.Action{keys.Open, keys.Back, keys.Refresh, keys.SwitchProject, keys.UncertainRequests, keys.Help, keys.Quit}
+var menuCommands = []keys.Action{keys.Open, keys.Back, keys.Refresh, keys.SwitchProject, keys.UncertainRequests, keys.Search, keys.Filter, keys.ClearFilters, keys.Help, keys.Quit}
 
 // actionMenu lists the commands of one view with their effective keys.
 type actionMenu struct {

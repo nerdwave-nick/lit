@@ -44,6 +44,9 @@ const (
 	Bottom        Action = "bottom"
 	NextBlock     Action = "next_block"
 	PrevBlock     Action = "prev_block"
+	Search        Action = "search"
+	Filter        Action = "filter"
+	ClearFilters  Action = "clear_filters"
 	// UncertainRequests opens the read-only view of retained requests whose
 	// outcome is not established.
 	UncertainRequests Action = "uncertain_requests"
@@ -86,6 +89,9 @@ var vocabulary = map[Context][]entry{
 		{PageDown, "page down", []string{"pgdown", "ctrl+d"}},
 		{Top, "select the first issue", []string{"home", "g"}},
 		{Bottom, "select the last issue", []string{"end", "G"}},
+		{Search, "search issue content", []string{"/"}},
+		{Filter, "filter the tree", []string{"f"}},
+		{ClearFilters, "clear the filters and the search", []string{"F"}},
 	},
 	Detail: {
 		{Up, "scroll up", []string{"up", "k"}},

@@ -26,7 +26,11 @@ func (m *Model) View() string {
 		return strings.Repeat("\n", max(m.height-1, 0))
 	}
 	lines := make([]string, 0, m.height)
-	if len(m.rows) == 0 {
+	switch {
+	case len(m.rows) > 0:
+	case m.match != nil:
+		lines = append(lines, m.pad("No issues match the filters."))
+	default:
 		lines = append(lines, m.pad("No issues in this project."))
 	}
 	for r := m.offset; r < len(m.rows) && len(lines) < m.height; r++ {
@@ -43,9 +47,11 @@ func (m *Model) pad(s string) string {
 	return s + strings.Repeat(" ", max(m.width-cells.Width(m.method, s), 0))
 }
 
-// line draws one row: the marker, the indentation (capped at half the pane;
-// deeper rows show their depth instead), the expander, the sanitized title
-// truncated to fit, and badges for the state and the claim owner.
+// line draws one row: the marker, the match column while filtered, the
+// indentation (capped at half the pane; deeper rows show their depth
+// instead), the expander, the sanitized title truncated to fit, and badges
+// for the state and the claim owner. Ancestors shown only as context for a
+// match are dimmed.
 func (m *Model) line(r row) string {
 	n := m.f.nodes[r.id]
 	sel := r.id == m.selected
@@ -55,6 +61,16 @@ func (m *Model) line(r row) string {
 		if sel {
 			marker = "> "
 		}
+	}
+	context := m.match != nil && !m.hits[r.id]
+	switch {
+	case m.match == nil:
+	case context:
+		marker += "  "
+	case m.plain:
+		marker += "* "
+	default:
+		marker += "• "
 	}
 	prefix := marker + m.indent(r.depth) + m.expander(n) + " "
 	badges := m.badges(n.issue)
@@ -71,7 +87,7 @@ func (m *Model) line(r row) string {
 	if m.plain {
 		return plainLine
 	}
-	if n.issue.State == "closed" && !sel {
+	if (n.issue.State == "closed" || context) && !sel {
 		plainLine = faint + plainLine + reset
 	}
 	switch {
@@ -94,11 +110,11 @@ func (m *Model) indent(depth int) string {
 
 func (m *Model) expander(n *node) string {
 	switch {
-	case len(n.children) == 0:
+	case len(m.children(n.issue.ID)) == 0:
 		return " "
-	case m.expanded[n.issue.ID] && m.plain:
+	case m.expansion()[n.issue.ID] && m.plain:
 		return "-"
-	case m.expanded[n.issue.ID]:
+	case m.expansion()[n.issue.ID]:
 		return "▾"
 	case m.plain:
 		return "+"

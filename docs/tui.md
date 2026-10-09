@@ -120,10 +120,55 @@ sequences, other control characters and bidi overrides show as visible markers
 (`␛[2J`, `␇`, `⟨U+202E⟩`) and never reach the terminal.
 
 `action_menu` (`m`) lists the commands of the current view with their keys
-(open or back, refresh, switch project, uncertain requests, help and quit); Enter runs one, Escape
+(open or back, refresh, switch project, uncertain requests, search, filter,
+clear filters, help and quit); Enter runs one, Escape
 closes the menu. With the `mouse` preference on, a click selects a row, a click
 on the selected row expands or collapses it, a click on the detail pane focuses
 it, and the wheel moves the selection or scrolls the detail.
+
+### Search and filters
+
+`search` (`/`) searches the project's current content with the semantics of
+`lit grep`: a literal substring, ignoring case, matched by lit-server in issue
+titles and bodies and in comments. A comment match shows its issue. The search
+input owns every typed key, including `q` and `/`: Enter (`menu.open`)
+searches, Escape (`menu.cancel`) cancels, Backspace deletes and Ctrl-U clears
+the text. Searching for an empty text removes the search. While the search
+runs, the footer says `searching "…"…`. If it fails, the footer names the
+error and the previous search stays in effect. Each load of the project (`r`
+or the background refresh) runs the search again, so its matches follow the
+current content. One search reads up to 10,000 matching records, in pages of
+up to 1,000; beyond that the footer says the search stopped.
+
+`filter` (`f`) opens the filter panel: one row per filter, changed with Enter
+and applied at once; Escape closes it. The filters are:
+
+- **State:** any, open or closed (Enter cycles);
+- **Claimed:** any, claimed or unclaimed;
+- **Label:** any of the checked labels (every label of the loaded issues is
+  offered);
+- **Assignee:** any of the checked assignees, `unassigned` included;
+- **Search:** Enter edits the search text;
+- **Clear all filters.**
+
+Different kinds combine: an issue must match each kind that is set. Within one
+kind, any checked value matches.
+
+The tree then shows every matching issue and, as context, the ancestors of
+each match, expanded so that every match is visible. Matches are marked with
+`•` (`*` without colours); context ancestors are dimmed. Other issues are
+hidden, including non-matching children of a match. The footer line names the
+filters and how many loaded issues match (`2 of 120 issues match`; after a
+partial load it gives no total). When nothing matches, the tree says
+`No issues match the filters.` `clear_filters` (`F`), or the action menu's
+entry, removes every filter and the search at once.
+
+The selection follows the issue: it stays while the issue is shown. When a
+filter hides it, the first match is selected. When a refresh hides it because
+it no longer matches, the row in its place is selected and a note says so.
+Clearing the filters keeps the selection and shows it in the whole tree; the
+branches you had expanded before filtering are restored. Filters belong to the
+project: switching projects clears them.
 
 ### Loading and refresh
 
@@ -207,6 +252,9 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | tree | `page_down` | `pgdown`, `ctrl+d` | page down |
 | tree | `top` | `home`, `g` | select the first issue |
 | tree | `bottom` | `end`, `G` | select the last issue |
+| tree | `search` | `/` | search issue content |
+| tree | `filter` | `f` | filter the tree |
+| tree | `clear_filters` | `F` | clear the filters and the search |
 | detail | `up` | `up`, `k` | scroll up |
 | detail | `down` | `down`, `j` | scroll down |
 | detail | `left` | `left`, `h` | scroll a wide block left |

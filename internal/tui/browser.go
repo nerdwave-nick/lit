@@ -56,6 +56,7 @@ type browser struct {
 	memory    map[string]tree.State // per project, for switching back
 	focus     focusPane
 	menu      *actionMenu
+	filt      filtering
 	method    cells.Method
 
 	gen      int  // the current load; older results are dropped
@@ -143,6 +144,7 @@ func (b *browser) choose(p protocol.Project, d *detail.Model) tea.Cmd {
 		b.memory[b.project.ID] = b.tree.State()
 	}
 	b.project, b.focus, b.loaded, b.note, b.selected = &p, paneTree, false, "", ""
+	b.resetFilters()
 	b.tree.Restore(b.memory[p.ID])
 	b.tree.SetFocused(true)
 	b.loading = false
@@ -189,6 +191,8 @@ func (b *browser) update(msg tea.Msg, d *detail.Model) (tea.Cmd, bool) {
 			return nil, true
 		}
 		return b.loadedIssues(msg.issues, d), true
+	case searchMsg, tea.PasteMsg:
+		return b.filterUpdate(msg, d)
 	case refreshMsg:
 		if msg.timer != b.timer || b.src.Started() {
 			return nil, true
@@ -206,13 +210,16 @@ func (b *browser) loadedIssues(got browse.Issues, d *detail.Model) tea.Cmd {
 	if shown {
 		b.last, b.lastAt, b.loaded = got, time.Now(), true
 		b.note = ""
-		if ch := b.tree.SetIssues(got.Items); ch.Missing {
+		switch ch := b.tree.SetIssues(got.Items); {
+		case ch.Missing:
 			b.note = "The previously selected issue is no longer listed."
+		case ch.Hidden:
+			b.note = "The previously selected issue no longer matches the filters."
 		}
 	} else {
 		b.last.Err = got.Err
 	}
-	cmds := []tea.Cmd{b.showSelected(d, true)}
+	cmds := []tea.Cmd{b.showSelected(d, true), b.researchAfterLoad()}
 	if b.again {
 		cmds = append(cmds, b.refresh())
 	} else {
@@ -247,6 +254,9 @@ func (b *browser) dispatch(ctx keys.Context, action keys.Action, msg tea.Msg, d 
 		r := b.switcher.Do(action)
 		return b.switched(r, d)
 	case keys.Tree:
+		if cmd, ok := b.filterAction(action, d); ok {
+			return cmd
+		}
 		ch := b.tree.Do(action)
 		if ch.Open {
 			b.focus = paneDetail
