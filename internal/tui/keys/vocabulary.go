@@ -67,6 +67,9 @@ const (
 	// TUI); EditDetached shows the draft's path for any editor and watches it.
 	Edit         Action = "edit"
 	EditDetached Action = "edit_detached"
+	// Drafts opens the Drafts view: the unapplied TUI drafts of every
+	// project, to resume, diff against the current record or discard.
+	Drafts Action = "drafts"
 )
 
 // Required actions must keep at least one key, so the way out, help and
@@ -95,6 +98,7 @@ var vocabulary = map[Context][]entry{
 		{SwitchProject, "switch project", []string{"p"}},
 		{ActionMenu, "open the action menu", []string{"m"}},
 		{UncertainRequests, "show uncertain requests", []string{"U"}},
+		{Drafts, "show the unapplied drafts", []string{"D"}},
 	},
 	Tree: {
 		{Up, "select the previous issue", []string{"up", "k"}},

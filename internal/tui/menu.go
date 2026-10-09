@@ -12,7 +12,7 @@ import (
 // (Proposal): the view's commands first, then the global ones. Navigation
 // stays on its keys. Later screens add their commands (claim, edit, …) here.
 var menuCommands = []keys.Action{keys.Open, keys.Back, keys.Refresh, keys.SwitchProject, keys.UncertainRequests, keys.Search, keys.Filter, keys.ClearFilters, keys.Claim, keys.Release,
-	keys.EditTitle, keys.SetState, keys.SetLabels, keys.SetAssignee, keys.SetParent, keys.Link, keys.Unlink, keys.Help, keys.Quit, keys.History, keys.Edit, keys.EditDetached}
+	keys.EditTitle, keys.SetState, keys.SetLabels, keys.SetAssignee, keys.SetParent, keys.Link, keys.Unlink, keys.Help, keys.Quit, keys.History, keys.Edit, keys.EditDetached, keys.Drafts}
 
 // actionMenu lists the commands of one view with their effective keys.
 type actionMenu struct {

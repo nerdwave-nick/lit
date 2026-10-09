@@ -49,8 +49,8 @@ func serve(endpoint string, pref prefs.Prefs, stdin, stdout *os.File, stderr io.
 	// before the disconnect that releases its claims.
 	h := claims.Start(l, claims.Config{Idle: pref.ClaimIdle, Lease: pref.ClaimLease})
 	ed := edit.New(l, h, drafts.New(stateDir))
-	p := tea.NewProgram(NewModel(endpoint).WithPrefs(pref).WithLifecycle(l).WithClaims(h).WithEditor(ed),
-		tea.WithInput(stdin), tea.WithOutput(stdout), tea.WithoutSignalHandler())
+	m := NewModel(endpoint).WithPrefs(pref).WithLifecycle(l).WithClaims(h).WithEditor(ed)
+	p := tea.NewProgram(m, tea.WithInput(stdin), tea.WithOutput(stdout), tea.WithoutSignalHandler())
 	l.Attach(p)
 	if l.Started() { // a signal arrived while connecting
 		return finish(l, stderr, 0)
@@ -60,15 +60,35 @@ func serve(endpoint string, pref prefs.Prefs, stdin, stdout *os.File, stderr io.
 		_, err := p.Run()
 		ran <- err
 	}()
+	// Shutdown never kills an open editor: once remote cleanup is done the
+	// program quits after the editor exits.
+	waited := make(chan string, 1)
+	go func() {
+		<-l.Done()
+		if _, path, ok := m.EditorRunning(); ok {
+			waited <- path
+		}
+	}()
 	select {
 	case err = <-ran:
 	case <-l.Forced():
+		if pid, path, ok := m.EditorRunning(); ok {
+			// The editor holds the terminal: restoring it now would break
+			// the editor's input. Leave both to the editor.
+			fmt.Fprintf(stderr, "lit-tui: exit forced while the editor (pid %d) was open: it was not killed and keeps the draft file %s\n", pid, path)
+			return forced(l, stderr)
+		}
 		p.Kill()
 		select {
 		case <-ran:
 		case <-time.After(2 * time.Second):
 		}
 		return forced(l, stderr)
+	}
+	select {
+	case path := <-waited:
+		fmt.Fprintf(stderr, "lit-tui: shutdown finished while the editor was open and then waited for it to exit; the draft is kept: %s\n", path)
+	default:
 	}
 	if err != nil && !errors.Is(err, tea.ErrProgramKilled) {
 		fmt.Fprintln(stderr, "lit-tui:", err)

@@ -44,7 +44,9 @@ func newEditEnv(t *testing.T, editor, config string) *editEnv {
 		if _, err := exec.LookPath(bin); err != nil {
 			t.Skipf("%s is not installed", bin)
 		}
-		e.env = append(e.env, "EDITOR="+editor)
+		// NVIM_LOG_FILE: an nvim outliving the test's directories would
+		// otherwise log into the package directory.
+		e.env = append(e.env, "EDITOR="+editor, "NVIM_LOG_FILE="+os.DevNull)
 	}
 	path := filepath.Join(e.root, "home", "config", "lit", "tui.json")
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -230,7 +232,7 @@ func walkAway(t *testing.T, editor string) {
 	}
 	p.keys("Escape") // keep it; wait before q, or ESC q reads as alt+q
 	p.await("the draft kept", func(s string) bool { return strings.Contains(s, "Kept the draft of “Edited body”") })
-	p.quit()
+	p.quitKeepingDrafts("“Edited body”")
 }
 
 // Edit detached: E shows the draft's path and the TUI stays live; a change

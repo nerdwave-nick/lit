@@ -334,7 +334,7 @@ func TestBindingsListTheContextThenGlobalForTheActionMenu(t *testing.T) {
 	}
 	want := []string{"detail.up", "detail.down", "detail.left", "detail.right", "detail.next_block", "detail.prev_block", "detail.back", "detail.page_up", "detail.page_down", "detail.top", "detail.bottom", "detail.claim", "detail.release", "detail.history",
 		"detail.edit_title", "detail.set_state", "detail.set_labels", "detail.set_assignee", "detail.set_parent", "detail.link", "detail.unlink", "detail.edit", "detail.edit_detached",
-		"global.quit", "global.help", "global.refresh", "global.switch_project", "global.action_menu", "global.uncertain_requests"}
+		"global.quit", "global.help", "global.refresh", "global.switch_project", "global.action_menu", "global.uncertain_requests", "global.drafts"}
 	if !slices.Equal(names, want) {
 		t.Errorf("bindings %v, want %v", names, want)
 	}
@@ -342,7 +342,7 @@ func TestBindingsListTheContextThenGlobalForTheActionMenu(t *testing.T) {
 	if refresh.Keys == nil || len(refresh.Keys) != 0 || refresh.Description != "refresh" {
 		t.Errorf("unbound refresh: %+v", refresh)
 	}
-	if got := Default().Bindings(Global); len(got) != 6 {
+	if got := Default().Bindings(Global); len(got) != 7 {
 		t.Errorf("global bindings %v", got)
 	}
 }

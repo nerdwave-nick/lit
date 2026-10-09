@@ -232,8 +232,7 @@ func TestApplyAfterALostClaimWarnsAndConflictsKeepTheDraft(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	u.press("e")
-	u.choose("Preview and apply")
+	u.press("e") // the issue changed since the draft: it opens as a conflict
 	u.expect("conflict", u.line(fmt.Sprintf("“Root issue” changed since the draft was started: revision %d → %d", rev, rev+1)) != "" && u.line("the draft is kept") != "")
 	u.choose("Reload")
 	u.expect("warning before confirming", u.line("Warning: this session holds no claim on “Root issue”") != "" && u.line("Apply the draft of “Root issue”?") != "")
