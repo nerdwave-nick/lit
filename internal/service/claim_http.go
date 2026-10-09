@@ -85,8 +85,11 @@ func (s *Server) claimRoute(w http.ResponseWriter, r *http.Request, c protocol.C
 				return true, e
 			}
 			for _, claim := range claims {
-				v := claim
-				out = append(out, protocol.RequiredClaim{IssueID: v.IssueID, Claim: &v})
+				v, e := s.withOwnerActor(&claim)
+				if e != nil {
+					return true, e
+				}
+				out = append(out, protocol.RequiredClaim{IssueID: v.IssueID, Claim: v})
 			}
 		} else {
 			if len(req.Targets) == 0 {
@@ -108,7 +111,7 @@ func (s *Server) claimRoute(w http.ResponseWriter, r *http.Request, c protocol.C
 					continue
 				}
 				seen[issue.ID] = true
-				claim, e := s.LiveClaim(issue.ID)
+				claim, e := s.publicClaim(issue.ID)
 				if e != nil {
 					return true, e
 				}
@@ -127,6 +130,14 @@ func (s *Server) claimRoute(w http.ResponseWriter, r *http.Request, c protocol.C
 		if e != nil {
 			return true, e
 		}
+		for n, item := range page.Items {
+			claim := item.(protocol.Claim)
+			v, e := s.withOwnerActor(&claim)
+			if e != nil {
+				return true, e
+			}
+			page.Items[n] = v
+		}
 		s.writeProjectPage(w, page)
 		return true, nil
 	}
@@ -144,7 +155,7 @@ func (s *Server) claimRoute(w http.ResponseWriter, r *http.Request, c protocol.C
 		return true, e
 	}
 	if len(parts) == 2 && r.Method == "GET" {
-		claim, e := s.LiveClaim(parts[0])
+		claim, e := s.publicClaim(parts[0])
 		if e != nil {
 			return true, e
 		}
@@ -267,7 +278,7 @@ func (s *Server) readProjection(r any) (any, error) {
 	if !ok {
 		return r, nil
 	}
-	claim, e := s.LiveClaim(p.ID)
+	claim, e := s.publicClaim(p.ID)
 	if e != nil {
 		return nil, e
 	}

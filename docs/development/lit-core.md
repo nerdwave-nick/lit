@@ -232,6 +232,12 @@ absolute targets at one hour, retaining its 30-minute default. Duplicate/older t
 matching claim remain no-ops, even when the requested target is now in the past.
 
 Current issue reads project live `claim`/`claimed` outside the durable schema.
+Every claim status a read exposes (issue reads and query pages, issue summaries,
+claim snapshots, claim lists and `GET /v1/issues/<id>/claim`) adds `owner_actor`
+with only the owner's actor `name` and `kind`; clients still cannot read other
+clients' records. The member is projected on a copy and a durable claim envelope
+carrying it is invalid. Claim operation results and `Prepared.RequiredClaims`
+are unchanged.
 Claim lists support owner/issue filters and query-bound cursors, acquisition-time
 (`created_at`) ordering with issue UUID ties, direction and bounded all-results
 reads. Owner-wide renewal still uses a complete atomic claim snapshot.
@@ -260,6 +266,14 @@ times, deterministic sort/UUID ordering, and cursors bound to normalized queries
 `all` remains one bounded snapshot, never a page loop. Nullable parent/assignee
 JSON filters use null for absence; the literal string `none` remains a real name,
 while CLI `--assignee none` and URL `assignee=none` select absence.
+
+`POST /v1/issue-summaries` takes `{"schema_version":1,"query":{...}}` with an
+issue query (`type` omitted or `issues`; the session project applies as for
+snapshot queries) and returns `protocol.IssueSummary` pages: identity, revision,
+timestamps, title, state, labels, assignee, project, parent/children, link sets
+and live `claimed`/`claim`, never bodies or comments. It reuses `recordPage`, so
+filters, `default_page`/`max_page`, query-bound cursors, `all` and the 413
+`limit_exceeded` item and `snapshot_bytes` bounds behave exactly as for snapshots.
 
 ## Interrupted-request reconciliation
 
