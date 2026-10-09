@@ -57,10 +57,17 @@ instance itself, checking that the evidence stays byte-identical.
 `integration/tui_claims_test.go` claims an issue, sees an agent's claim attempt
 refused and an agent-held issue refused with its owner named, waits for the idle
 question after a short `claim_idle`, keeps the claim (renewed at once) and checks
-that quitting releases it. These
+that quitting releases it. `integration/tui_quick_test.go` is user story 7:
+adding a blocker previews the other issue, an agent's claim on it refuses the
+action with `claim_conflict` naming the owner while nothing is written (no
+commit, no pending evidence, no revision change), and after the claim is
+released the same action applies its preview. These
 scenarios skip without tmux or with `-short`. The lifecycle,
-registry, recovery and claims packages are tested in-process against a temporary
-service (`internal/tui/tuitest`). The claims tests use leases of about a second;
+registry, recovery, claims and quick-action packages are tested in-process
+against a temporary service (`internal/tui/tuitest`); `internal/tui/quick`
+covers every quick action's preview and exact commit, the affected-issue list,
+claim refusals at preview and at commit, revision fences and own claim tokens
+on the wire. The claims tests use leases of about a second;
 one renews a claim across several leases while the program's event loop is
 blocked inside Update.
 
