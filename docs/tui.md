@@ -179,6 +179,7 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | global | `refresh` | `r` | refresh |
 | global | `switch_project` | `p` | switch project |
 | global | `action_menu` | `m` | open the action menu |
+| global | `uncertain_requests` | `U` | show uncertain requests |
 | tree | `up` | `up`, `k` | select the previous issue |
 | tree | `down` | `down`, `j` | select the next issue |
 | tree | `collapse` | `left`, `h` | collapse |

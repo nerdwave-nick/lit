@@ -13,7 +13,7 @@ import (
 func (u UI) Overlay(km keys.Keymap) string {
 	switch {
 	case u.status.Phase == Stopped && u.status.Result.Outcome != Clean:
-		return exitReport(u.status.Result)
+		return exitReport(u.status.Result, km)
 	case u.status.Phase != Running:
 		return ""
 	case len(u.ask) > 0:
@@ -28,6 +28,9 @@ func (u UI) Overlay(km keys.Keymap) string {
 		writeRequests(&b, o.Requests)
 		b.WriteString("\nThe evidence is kept and never replayed. Inspect it read-only with\n`lit transactions status` and decide what to do (see docs/recovery.md).\n\n")
 		b.WriteString(hint(km, keys.Cancel, "close"))
+		if len(km.Keys(keys.Global, keys.UncertainRequests)) > 0 {
+			b.WriteString(" · " + hint(km, keys.UncertainRequests, "view the uncertain requests"))
+		}
 		return b.String()
 	}
 	return ""
@@ -46,7 +49,7 @@ func (u UI) Lines() []string {
 	return out
 }
 
-func exitReport(r Result) string {
+func exitReport(r Result, km keys.Keymap) string {
 	var b strings.Builder
 	fmt.Fprintf(&b, "lit-tui could not confirm a clean exit (%s).\n", r.Outcome)
 	if r.Reason != "" {
@@ -61,6 +64,9 @@ func exitReport(r Result) string {
 		b.WriteString(line + "\n")
 	}
 	b.WriteString("\nPress any key to exit.")
+	if k := km.Keys(keys.Global, keys.UncertainRequests); len(r.Requests) > 0 && len(k) > 0 {
+		b.WriteString(" " + k[0] + " first shows these requests read-only.")
+	}
 	return b.String()
 }
 
@@ -87,8 +93,10 @@ func writeRequests(b *strings.Builder, rs []recovery.Request) {
 }
 
 func hint(km keys.Keymap, a keys.Action, what string) string {
-	if k := km.Keys(keys.Menu, a); len(k) > 0 {
-		return k[0] + " " + what
+	for _, ctx := range []keys.Context{keys.Menu, keys.Global} {
+		if k := km.Keys(ctx, a); len(k) > 0 {
+			return k[0] + " " + what
+		}
 	}
 	return what
 }

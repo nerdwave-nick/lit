@@ -117,6 +117,8 @@ func (m Model) View() tea.View {
 	lines := strings.Join(m.life.Lines(), "\n")
 	var content string
 	switch overlay := m.life.Overlay(km); {
+	case m.uv != nil:
+		content = m.uncertainView()
 	case overlay != "":
 		content = strings.TrimRight(overlay+"\n\n"+lines, "\n")
 	case m.help:
