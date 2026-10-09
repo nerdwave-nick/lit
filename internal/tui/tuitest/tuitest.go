@@ -32,14 +32,17 @@ type Server struct {
 }
 
 // Service starts a temporary lit service for the test.
-func Service(t *testing.T) *Server {
+func Service(t *testing.T) *Server { return ServiceWithLimits(t, protocol.DefaultLimits()) }
+
+// ServiceWithLimits starts a temporary lit service with the given limits.
+func ServiceWithLimits(t *testing.T, limits protocol.Limits) *Server {
 	t.Helper()
 	storage, err := store.Open(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = storage.Close() })
-	backend, err := service.New(storage, service.Config{Limits: protocol.DefaultLimits(), TitlePrefixes: []string{"test"}})
+	backend, err := service.New(storage, service.Config{Limits: limits, TitlePrefixes: []string{"test"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -172,4 +175,36 @@ func UnconfirmedRegistration(t *testing.T, state, url, serviceID, id string) str
 		t.Fatal(err)
 	}
 	return path
+}
+
+// Apply prepares req through s and commits exactly that preview.
+func Apply(t *testing.T, s *litclient.Session, req protocol.PrepareRequest) {
+	t.Helper()
+	p, err := s.Prepare(context.Background(), req)
+	if err == nil {
+		_, err = s.Commit(context.Background(), p)
+	}
+	if err != nil {
+		t.Fatalf("%s: %v", req.Operation, err)
+	}
+}
+
+// CreateIssues creates one issue per title in project, in one transaction;
+// parent is an issue UUID or "". It returns the new issues' UUIDs.
+func CreateIssues(t *testing.T, s *litclient.Session, project, parent string, titles ...string) []string {
+	t.Helper()
+	req := protocol.PrepareRequest{SchemaVersion: 1, Operation: "issue.create", Project: project}
+	var ids []string
+	for _, title := range titles {
+		title, body := title, "body of "+title
+		item := protocol.ProjectInput{ID: protocol.UUID(), Title: &title, Content: &body}
+		if parent != "" {
+			p := parent
+			item.Parent = &p
+		}
+		req.Items = append(req.Items, item)
+		ids = append(ids, item.ID)
+	}
+	Apply(t, s, req)
+	return ids
 }

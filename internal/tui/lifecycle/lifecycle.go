@@ -26,6 +26,7 @@ import (
 	"context"
 	"net/http"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	tea "charm.land/bubbletea/v2"
@@ -101,6 +102,8 @@ type Lifecycle struct {
 	s     *litclient.Session
 	gate  gate
 	fwd   forwarder
+
+	mutating atomic.Int32 // mutations admitted or waiting (Mutate)
 
 	mu       sync.Mutex
 	prog     *tea.Program
@@ -220,3 +223,14 @@ func (l *Lifecycle) recoveryOptions() recovery.Options {
 // HardDeadline bounds how long main waits for shutdown after the program has
 // ended.
 func (l *Lifecycle) HardDeadline() time.Duration { return l.cfg.HardDeadline() }
+
+// Mutate runs a mutation through the gate like Do. Mutating reports true from
+// the call until it returns, so background refresh pauses meanwhile.
+func (l *Lifecycle) Mutate(ctx context.Context, fn func(ctx context.Context, s *litclient.Session) error) error {
+	l.mutating.Add(1)
+	defer l.mutating.Add(-1)
+	return l.Do(ctx, fn)
+}
+
+// Mutating reports whether a mutation is waiting for or holding the gate.
+func (l *Lifecycle) Mutating() bool { return l.mutating.Load() > 0 }
