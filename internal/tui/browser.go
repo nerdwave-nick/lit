@@ -57,6 +57,8 @@ type browser struct {
 	focus     focusPane
 	menu      *actionMenu
 	method    cells.Method
+	// menuItem, when set, adjusts or hides (false) an action menu item.
+	menuItem func(keys.Binding) (keys.Binding, bool)
 
 	gen      int  // the current load; older results are dropped
 	loading  bool // a load of the current project is running

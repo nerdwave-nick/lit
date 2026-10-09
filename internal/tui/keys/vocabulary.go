@@ -44,6 +44,8 @@ const (
 	Bottom        Action = "bottom"
 	NextBlock     Action = "next_block"
 	PrevBlock     Action = "prev_block"
+	Claim         Action = "claim"
+	Release       Action = "release"
 )
 
 // Required actions must keep at least one key, so the way out, help and
@@ -82,6 +84,8 @@ var vocabulary = map[Context][]entry{
 		{PageDown, "page down", []string{"pgdown", "ctrl+d"}},
 		{Top, "select the first issue", []string{"home", "g"}},
 		{Bottom, "select the last issue", []string{"end", "G"}},
+		{Claim, "claim the issue, or reacquire a lost claim", []string{"c"}},
+		{Release, "release the issue's claim", []string{"u"}},
 	},
 	Detail: {
 		{Up, "scroll up", []string{"up", "k"}},
@@ -95,6 +99,8 @@ var vocabulary = map[Context][]entry{
 		{PageDown, "page down", []string{"pgdown", "ctrl+d"}},
 		{Top, "go to the top", []string{"home", "g"}},
 		{Bottom, "go to the bottom", []string{"end", "G"}},
+		{Claim, "claim the issue, or reacquire a lost claim", []string{"c"}},
+		{Release, "release the issue's claim", []string{"u"}},
 	},
 	Menu: {
 		{Up, "previous item", []string{"up", "k"}},

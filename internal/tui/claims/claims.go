@@ -106,6 +106,8 @@ type Msg struct {
 	// answered whether to keep holding (the holds marked Asked).
 	Asking bool
 	Idle   time.Duration
+	// Seq orders states: a state with a lower Seq is older.
+	Seq uint64
 }
 
 // Asked lists the holds the idle question is about.

@@ -188,6 +188,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | tree | `page_down` | `pgdown`, `ctrl+d` | page down |
 | tree | `top` | `home`, `g` | select the first issue |
 | tree | `bottom` | `end`, `G` | select the last issue |
+| tree | `claim` | `c` | claim the issue, or reacquire a lost claim |
+| tree | `release` | `u` | release the issue's claim |
 | detail | `up` | `up`, `k` | scroll up |
 | detail | `down` | `down`, `j` | scroll down |
 | detail | `left` | `left`, `h` | scroll a wide block left |
@@ -199,6 +201,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | detail | `page_down` | `pgdown`, `ctrl+d` | page down |
 | detail | `top` | `home`, `g` | go to the top |
 | detail | `bottom` | `end`, `G` | go to the bottom |
+| detail | `claim` | `c` | claim the issue, or reacquire a lost claim |
+| detail | `release` | `u` | release the issue's claim |
 | menu | `up` | `up`, `k` | previous item |
 | menu | `down` | `down`, `j` | next item |
 | menu | `open` | `enter` | choose the item |

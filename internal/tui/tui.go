@@ -28,6 +28,7 @@ type Model struct {
 	width, height int
 	life          lifecycle.UI // session line, recovery notes and exit prompts
 	b             *browser     // the project tree; nil without a lifecycle
+	cl            *claimsView  // held claims and the idle question; nil without a holder
 }
 
 // NewModel returns the root model for the service at endpoint, with the
@@ -41,6 +42,7 @@ func (m Model) WithPrefs(p prefs.Prefs) Model {
 	m.detail = detail.New(render.NewService(render.DefaultCacheBytes), p.Keymap)
 	if m.b != nil {
 		m.b = newBrowser(m.b.src, p.Keymap)
+		m.wireClaims()
 	}
 	return m
 }
@@ -59,6 +61,7 @@ func (m Model) WithLifecycle(l *lifecycle.Lifecycle) Model {
 	m.life = lifecycle.NewUI(l)
 	if l != nil {
 		m.b = newBrowser(l, m.prefs.Keymap)
+		m.wireClaims()
 	}
 	return m
 }
@@ -123,8 +126,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.theme.Update(msg) && m.theme.Ready() {
 		cmds = append(cmds, m.setStyle())
 	}
+	m.touchClaims(msg)
 	if life, cmd, handled := m.life.Update(msg, m.prefs.Keymap); handled {
 		m.life = life
+		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
+	}
+	if cmd, handled := m.claimsUpdate(msg); handled {
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
 	switch msg := msg.(type) {
@@ -196,6 +203,8 @@ func (m Model) dispatch(action keys.Action, msg tea.Msg) (Model, tea.Cmd) {
 	case action == keys.Help:
 		m.help = true
 		return m, nil
+	case m.cl != nil && (action == keys.Claim || action == keys.Release):
+		return m, m.claimAction(action)
 	case m.b != nil:
 		return m, m.b.dispatch(m.view(), action, msg, m.detail)
 	case msg != nil:

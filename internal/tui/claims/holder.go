@@ -28,6 +28,7 @@ type Holder struct {
 	order  []string // issue IDs in the order they were first held
 	asking bool
 	active time.Time // the last activity
+	seq    uint64    // the number of states published
 
 	kick       chan struct{} // wakes the renewer to recompute its timer
 	stop, done chan struct{}
@@ -56,7 +57,7 @@ func (h *Holder) Snapshot() Msg {
 }
 
 func (h *Holder) msg() Msg {
-	m := Msg{Asking: h.asking, Idle: h.cfg.Idle}
+	m := Msg{Asking: h.asking, Idle: h.cfg.Idle, Seq: h.seq}
 	for _, id := range h.order {
 		if e, ok := h.holds[id]; ok {
 			m.Holds = append(m.Holds, e.Hold)
@@ -67,7 +68,10 @@ func (h *Holder) msg() Msg {
 
 // publish posts the state; the caller holds h.mu, so posts keep their order.
 // Post never blocks.
-func (h *Holder) publish() { h.l.Post(Key, h.msg()) }
+func (h *Holder) publish() {
+	h.seq++
+	h.l.Post(Key, h.msg())
+}
 
 func (h *Holder) poke() {
 	select {

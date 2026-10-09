@@ -6,6 +6,7 @@ import (
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
 )
@@ -18,7 +19,7 @@ func isolate(t *testing.T) string {
 	t.Setenv("HOME", home)
 	t.Setenv("USERPROFILE", home)
 	t.Setenv("XDG_CONFIG_HOME", xdg)
-	for _, v := range []string{EnvConfig, EnvTheme, EnvMouse} {
+	for _, v := range []string{EnvConfig, EnvTheme, EnvMouse, EnvClaimIdle} {
 		t.Setenv(v, "")
 	}
 	return filepath.Join(xdg, "lit", "tui.json")
@@ -234,5 +235,47 @@ func TestLoadRejectsInvalidEnvironmentAndFlagValues(t *testing.T) {
 				t.Errorf("error %v, want %q", err, tc.want)
 			}
 		})
+	}
+}
+
+// claim_idle defaults to 30 minutes and follows the usual precedence: flag,
+// then environment, then the config file. Invalid or too short periods are
+// rejected naming their source.
+func TestClaimIdlePrecedenceAndValidation(t *testing.T) {
+	path := isolate(t)
+	if p := mustLoad(t, Flags{}); p.ClaimIdle != 30*time.Minute || Default().ClaimIdle != DefaultClaimIdle {
+		t.Fatalf("default claim idle %v", p.ClaimIdle)
+	}
+	write(t, path, `{"schema_version": 1, "claim_idle": "45m"}`)
+	if p := mustLoad(t, Flags{}); p.ClaimIdle != 45*time.Minute {
+		t.Errorf("config: %v", p.ClaimIdle)
+	}
+	t.Setenv(EnvClaimIdle, "10m")
+	if p := mustLoad(t, Flags{}); p.ClaimIdle != 10*time.Minute {
+		t.Errorf("environment over config: %v", p.ClaimIdle)
+	}
+	if p := mustLoad(t, Flags{ClaimIdle: str("1h30m")}); p.ClaimIdle != 90*time.Minute {
+		t.Errorf("flag over environment: %v", p.ClaimIdle)
+	}
+	t.Setenv(EnvClaimIdle, "")
+	for _, c := range []struct {
+		file string
+		f    Flags
+		want string
+	}{
+		{`{"schema_version": 1, "claim_idle": "soon"}`, Flags{}, "config " + path + ": claim_idle: invalid duration \"soon\""},
+		{`{"schema_version": 1, "claim_idle": "500ms"}`, Flags{}, "claim_idle: 500ms is shorter than 1s"},
+		{`{"schema_version": 1}`, Flags{ClaimIdle: str("-5m")}, "--claim-idle: -5m is shorter than 1s"},
+		{`{"schema_version": 1, "claim_idle": 30}`, Flags{}, "config " + path},
+	} {
+		write(t, path, c.file)
+		if _, err := Load(c.f); err == nil || !strings.Contains(err.Error(), c.want) {
+			t.Errorf("%s %+v: error %v, want %q", c.file, c.f, err, c.want)
+		}
+	}
+	write(t, path, `{"schema_version": 1}`)
+	t.Setenv(EnvClaimIdle, "forever")
+	if _, err := Load(Flags{}); err == nil || !strings.Contains(err.Error(), EnvClaimIdle+": invalid duration") {
+		t.Errorf("environment: %v", err)
 	}
 }
