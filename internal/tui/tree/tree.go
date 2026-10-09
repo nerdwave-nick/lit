@@ -186,6 +186,14 @@ func (m *Model) Path(id string) []protocol.IssueSummary {
 	return m.f.path(id)
 }
 
+// Children lists id's loaded children in tree order.
+func (m *Model) Children(id string) []string {
+	if n := m.f.nodes[id]; n != nil {
+		return append([]string{}, n.children...)
+	}
+	return nil
+}
+
 // Len is the number of loaded issues.
 func (m *Model) Len() int { return len(m.f.nodes) }
 

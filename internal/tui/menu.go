@@ -1,6 +1,7 @@
 package tui
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
@@ -57,7 +58,7 @@ func (m *actionMenu) lines(method cells.Method, w, h int, plain bool) []string {
 	out := []string{pad(method, "Actions", w)}
 	width := 0
 	for _, it := range m.items {
-		width = max(width, len(strings.Join(it.Keys, ", ")))
+		width = max(width, len(it.Description))
 	}
 	for i, it := range m.items {
 		if len(out) >= h {
@@ -71,7 +72,7 @@ func (m *actionMenu) lines(method cells.Method, w, h int, plain bool) []string {
 		if i == m.cursor && plain {
 			marker = "> "
 		}
-		line := pad(method, marker+it.Description+strings.Repeat(" ", 2)+k, w)
+		line := pad(method, fmt.Sprintf("%s%-*s  %s", marker, width, it.Description, k), w)
 		if i == m.cursor && !plain {
 			line = "\x1b[7m" + line + "\x1b[m"
 		}

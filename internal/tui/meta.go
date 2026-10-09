@@ -38,7 +38,7 @@ func issueMarkdown(i protocol.IssueSummary, project *protocol.Project, t *tree.M
 		field("Parent", title(*i.ParentID))
 	}
 	if len(i.ChildIDs) > 0 {
-		field("Children", list(i.ChildIDs, title, ""))
+		field("Children", strconv.Itoa(len(i.ChildIDs))+": "+list(ordered(i.ID, i.ChildIDs, t), title, ""))
 	}
 	for _, l := range []struct {
 		name string
@@ -57,15 +57,45 @@ func issueMarkdown(i protocol.IssueSummary, project *protocol.Project, t *tree.M
 	return b.String()
 }
 
+// maxListed bounds how many related issues a field names.
+const maxListed = 8
+
 func list(items []string, f func(string) string, empty string) string {
 	if len(items) == 0 {
 		return empty
 	}
-	out := make([]string, len(items))
-	for n, it := range items {
-		out[n] = f(it)
+	out := make([]string, 0, min(len(items), maxListed+1))
+	for _, it := range items[:min(len(items), maxListed)] {
+		out = append(out, f(it))
+	}
+	if len(items) > maxListed {
+		out = append(out, "and "+strconv.Itoa(len(items)-maxListed)+" more")
 	}
 	return strings.Join(out, ", ")
+}
+
+// ordered puts parent's loaded children in tree order, then any not loaded.
+func ordered(parent string, ids []string, t *tree.Model) []string {
+	if t == nil {
+		return ids
+	}
+	want := make(map[string]bool, len(ids))
+	for _, id := range ids {
+		want[id] = true
+	}
+	var out []string
+	for _, id := range t.Children(parent) {
+		if want[id] {
+			out = append(out, id)
+			delete(want, id)
+		}
+	}
+	for _, id := range ids {
+		if want[id] {
+			out = append(out, id)
+		}
+	}
+	return out
 }
 
 // escape backslash-escapes the ASCII punctuation that forms Markdown

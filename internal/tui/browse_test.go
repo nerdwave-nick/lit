@@ -15,6 +15,7 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/detail"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/lifecycle"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/prefs"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/tree"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/tuitest"
 )
 
@@ -388,5 +389,33 @@ func TestIssueMetadataRendersTrackerTextLiterally(t *testing.T) {
 		if !strings.Contains(view, want) {
 			t.Errorf("missing %q:\n%s", want, view)
 		}
+	}
+}
+
+// The metadata names children in tree order (not UUID order), at most
+// eight, with a count, and children that are not loaded by short ID.
+func TestIssueMetadataListsChildrenInTreeOrder(t *testing.T) {
+	parent := "p0000000-0000-4000-8000-000000000000"
+	sum := func(id, title, created string) protocol.IssueSummary {
+		return protocol.IssueSummary{ID: id, Title: title, State: "open", CreatedAt: created, ParentID: &parent, ChildIDs: []string{}, Labels: []string{}}
+	}
+	var items []protocol.IssueSummary
+	var ids []string
+	for n := 0; n < 10; n++ {
+		id := string(rune('z'-n)) + "0000000-0000-4000-8000-000000000000" // UUID order is the reverse of creation order
+		items = append(items, sum(id, "Child "+string(rune('A'+n)), "2026-10-09T10:00:0"+string(rune('0'+n))+"Z"))
+		ids = append([]string{id}, ids...)
+	}
+	p := protocol.IssueSummary{ID: parent, Title: "Parent", State: "open", ChildIDs: append(ids, "00000000-0000-4000-8000-00000000beef"), Labels: []string{}}
+	tr := tree.New()
+	tr.SetIssues(append(items, p))
+	md := issueMarkdown(p, nil, tr)
+	want := "**Children:** 11: Child A, Child B, Child C, Child D, Child E, Child F, Child G, Child H, and 3 more"
+	if !strings.Contains(md, want) {
+		t.Fatalf("children:\n%s", md)
+	}
+	p.ChildIDs = []string{"00000000-0000-4000-8000-00000000beef", items[1].ID}
+	if md := issueMarkdown(p, nil, tr); !strings.Contains(md, "**Children:** 2: Child B, `00000000`") {
+		t.Fatalf("unloaded child:\n%s", md)
 	}
 }
