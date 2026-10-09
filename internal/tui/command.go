@@ -36,6 +36,7 @@ Quit with q (rebindable) or Ctrl-C, which is reserved and cannot be rebound.`,
 			Value: nwcli.Value{Kind: nwcli.Choice, Choices: []string{"auto", "light", "dark"}}},
 		{Name: "mouse", Usage: "Optional `BOOL`: true enables click-to-select and wheel scrolling (or " + prefs.EnvMouse + "; default false)",
 			Value: nwcli.Value{Kind: nwcli.Choice, Choices: []string{"true", "false"}}},
+		{Name: "claim-idle", Usage: "Optional `DURATION` without input or draft changes before claim renewal pauses and asks (or " + prefs.EnvClaimIdle + "; default 30m)"},
 		{Name: "version", Short: "v", Switch: true, Usage: "version for lit-tui"},
 	},
 }
@@ -65,7 +66,7 @@ func Main(args []string, stdin, stdout *os.File, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "lit-tui: invalid endpoint:", err)
 		return 2
 	}
-	pref, err := prefs.Load(prefs.Flags{Config: one(p.Flags["config"]), Theme: one(p.Flags["theme"]), Mouse: one(p.Flags["mouse"])})
+	pref, err := prefs.Load(prefs.Flags{Config: one(p.Flags["config"]), Theme: one(p.Flags["theme"]), Mouse: one(p.Flags["mouse"]), ClaimIdle: one(p.Flags["claim-idle"])})
 	if err != nil {
 		for _, line := range strings.Split(err.Error(), "\n") {
 			fmt.Fprintln(stderr, "lit-tui:", line)
