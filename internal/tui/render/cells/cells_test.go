@@ -19,7 +19,9 @@ var samples = []string{
 	"mixed ascii 中文 and emoji ✅ done",
 }
 
-func name(m Method) string { return map[Method]string{ansi.WcWidth: "wc", ansi.GraphemeWidth: "grapheme"}[m] }
+func name(m Method) string {
+	return map[Method]string{ansi.WcWidth: "wc", ansi.GraphemeWidth: "grapheme"}[m]
+}
 
 func TestWidthMatchesRendererMeasure(t *testing.T) {
 	for _, m := range methods {
