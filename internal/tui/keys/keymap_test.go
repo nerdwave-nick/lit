@@ -179,7 +179,7 @@ func TestNewRejectsInvalidKeymaps(t *testing.T) {
 		{"unknown context", map[string]map[string][]string{"sidebar": {"up": {"k"}}},
 			`keymap: unknown context "sidebar" (contexts: global, tree, detail, menu)`},
 		{"unknown action", map[string]map[string][]string{"tree": {"jump": {"J"}}},
-			`keymap.tree: unknown action "jump" (tree actions: up, down, collapse, expand, open, page_up, page_down, top, bottom, search, filter, clear_filters, claim, release, edit_title, set_state, set_labels, set_assignee, set_parent, link, unlink)`},
+			`keymap.tree: unknown action "jump" (tree actions: up, down, collapse, expand, open, page_up, page_down, top, bottom, search, filter, clear_filters, claim, release, history, edit_title, set_state, set_labels, set_assignee, set_parent, link, unlink)`},
 		{"action of another context", map[string]map[string][]string{"global": {"up": {"k"}}},
 			`keymap.global: unknown action "up"`},
 		{"empty key", map[string]map[string][]string{"tree": {"up": {""}}},
@@ -332,7 +332,7 @@ func TestBindingsListTheContextThenGlobalForTheActionMenu(t *testing.T) {
 	for _, x := range b {
 		names = append(names, string(x.Context)+"."+string(x.Action))
 	}
-	want := []string{"detail.up", "detail.down", "detail.left", "detail.right", "detail.next_block", "detail.prev_block", "detail.back", "detail.page_up", "detail.page_down", "detail.top", "detail.bottom", "detail.claim", "detail.release",
+	want := []string{"detail.up", "detail.down", "detail.left", "detail.right", "detail.next_block", "detail.prev_block", "detail.back", "detail.page_up", "detail.page_down", "detail.top", "detail.bottom", "detail.claim", "detail.release", "detail.history",
 		"detail.edit_title", "detail.set_state", "detail.set_labels", "detail.set_assignee", "detail.set_parent", "detail.link", "detail.unlink",
 		"global.quit", "global.help", "global.refresh", "global.switch_project", "global.action_menu", "global.uncertain_requests"}
 	if !slices.Equal(names, want) {

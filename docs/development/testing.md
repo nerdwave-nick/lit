@@ -57,7 +57,13 @@ instance itself, checking that the evidence stays byte-identical.
 `integration/tui_claims_test.go` claims an issue, sees an agent's claim attempt
 refused and an agent-held issue refused with its owner named, waits for the idle
 question after a short `claim_idle`, keeps the claim (renewed at once) and checks
-that quitting releases it. `integration/tui_quick_test.go` is user story 7:
+that quitting releases it. `integration/tui_history_test.go` opens the history
+view of an issue edited a few times (title, a body with an escape sequence, a
+label, the state) and of a comment edited by another client, from the tree and
+from the detail's chooser: it checks the actors, field changes, the body diff
+and its visible markers, that Escape returns to the same selection, and that
+nothing was written.
+`integration/tui_quick_test.go` is user story 7:
 adding a blocker previews the other issue, an agent's claim on it refuses the
 action with `claim_conflict` naming the owner while nothing is written (no
 commit, no pending evidence, no revision change), and after the claim is

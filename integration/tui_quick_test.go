@@ -79,7 +79,9 @@ func TestTUIQuickActionsInTmux(t *testing.T) {
 		return strings.Contains(s, "• “Blocker” · revision") && strings.Contains(s, "enter apply") && !strings.Contains(s, "Refused")
 	})
 	p.keys("Enter")
-	p.await("applied", func(s string) bool { return strings.Contains(s, "Applied: Link: “Work” is blocked by “Blocker”.") })
+	p.await("applied", func(s string) bool {
+		return strings.Contains(s, "Applied: Link: “Work” is blocked by “Blocker”.")
+	})
 	if w, b := read(work), read(blocker); !slices.Equal(w.BlockedBy, []string{blocker}) || !slices.Equal(b.Blocks, []string{work}) {
 		t.Fatalf("not linked: %v %v", w.BlockedBy, b.Blocks)
 	}

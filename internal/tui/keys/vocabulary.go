@@ -49,6 +49,9 @@ const (
 	ClearFilters  Action = "clear_filters"
 	Claim         Action = "claim"
 	Release       Action = "release"
+	// History opens the read-only history of the selected issue or of one
+	// of its comments.
+	History Action = "history"
 	// Quick actions: one previewed transaction each.
 	EditTitle   Action = "edit_title"
 	SetState    Action = "set_state"
@@ -104,6 +107,7 @@ var vocabulary = map[Context][]entry{
 		{ClearFilters, "clear the filters and the search", []string{"F"}},
 		{Claim, "claim the issue, or reacquire a lost claim", []string{"c"}},
 		{Release, "release the issue's claim", []string{"u"}},
+		{History, "show the issue's history", []string{"H"}},
 		{EditTitle, "edit the title", []string{"t"}},
 		{SetState, "close or reopen the issue", []string{"s"}},
 		{SetLabels, "change the labels", []string{"#"}},
@@ -126,6 +130,7 @@ var vocabulary = map[Context][]entry{
 		{Bottom, "go to the bottom", []string{"end", "G"}},
 		{Claim, "claim the issue, or reacquire a lost claim", []string{"c"}},
 		{Release, "release the issue's claim", []string{"u"}},
+		{History, "show the history of the issue or a comment", []string{"H"}},
 		{EditTitle, "edit the title", []string{"t"}},
 		{SetState, "close or reopen the issue", []string{"s"}},
 		{SetLabels, "change the labels", []string{"#"}},
