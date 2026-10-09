@@ -54,6 +54,23 @@ Invalid preferences stop `lit-tui` before it takes over the terminal. It prints
 one `lit-tui:` line per problem, naming the file or variable, and exits with
 status 2.
 
+## Theme and the detail view
+
+With `theme` set to `auto`, `lit-tui` asks the terminal for its background
+colour and waits up to 300 ms for the answer before it falls back to dark. A
+late answer still switches the style. A forced `light` or `dark` theme skips
+the question. With `NO_COLOR` set (to anything but the empty string), or on a
+terminal without colours such as `TERM=dumb`, bodies use a plain ASCII style.
+
+In the detail view, prose wraps to the pane and never scrolls sideways.
+Top-level code blocks and tables keep their lines unwrapped. The focused wide
+block is marked in the left margin (`▌`, or `>` without colours), and
+`left`/`right` scroll it on its own; every block keeps its own offset. A
+clipped edge shows `‹` or `›` (`$` without colours). The focus follows the
+first wide block on screen, and `next_block`/`prev_block` move it. The scroll
+position follows the text across resizes and re-renders. A body that takes
+longer than about 100 ms to render shows `rendering…` meanwhile.
+
 ## Keymap
 
 Every binding belongs to a **context**:

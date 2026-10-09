@@ -302,3 +302,22 @@ func TestScrollAnchorSurvivesHeightChanges(t *testing.T) {
 		t.Errorf("top %q", x.top())
 	}
 }
+
+// Panes too narrow for the margins still draw exactly their size.
+func TestTinyPanesStillFit(t *testing.T) {
+	x := newHarness(t, 80, 10, render.Dark, ansi.WcWidth)
+	x.show(doc(wideBody))
+	for w := 0; w <= 12; w++ {
+		for h := 0; h <= 3; h++ {
+			x.resize(w, h)
+			x.press("right", "tab", "pgdown", "right")
+			if h == 0 {
+				if v := x.m.View(); v != "" {
+					t.Fatalf("%dx0 view %q", w, v)
+				}
+				continue
+			}
+			x.checkFits(fmt.Sprintf("%dx%d", w, h), w, h, ansi.WcWidth)
+		}
+	}
+}
