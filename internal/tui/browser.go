@@ -68,7 +68,9 @@ type browser struct {
 	lastAt   time.Time
 	note     string
 	selected string // the issue whose detail is shown
-	choose1  bool   // choose the only project of the first page
+	wide     bool   // the detail is laid out beside the tree
+	full     fullDetail
+	choose1  bool // choose the only project of the first page
 }
 
 type (
@@ -192,6 +194,8 @@ func (b *browser) update(msg tea.Msg, d *detail.Model) (tea.Cmd, bool) {
 			return nil, true
 		}
 		return b.refresh(), true
+	case detailMsg:
+		return b.loadedFull(msg, d), true
 	}
 	return nil, false
 }
@@ -275,20 +279,4 @@ func (b *browser) switched(r projects.Result, d *detail.Model) tea.Cmd {
 		b.switching = false
 	}
 	return nil
-}
-
-// showSelected shows the selected issue in the detail. It is the seam for
-// the issue detail: the selection changed, the detail was opened, or a load
-// may have changed the issue (reload).
-func (b *browser) showSelected(d *detail.Model, reload bool) tea.Cmd {
-	issue, ok := b.tree.Selected()
-	if !ok {
-		b.selected = ""
-		return d.SetSections()
-	}
-	if issue.ID == b.selected && !reload {
-		return nil
-	}
-	b.selected = issue.ID
-	return d.SetSections(detail.Section{RecordID: issue.ID, Revision: issue.Revision, Content: issueMarkdown(issue, b.project, b.tree)})
 }
