@@ -46,7 +46,9 @@ func TestTUIClaimsInTmux(t *testing.T) {
 	p := e.launch("claims")
 	p.await("the tree", func(s string) bool { return strings.Contains(s, "Mine") && strings.Contains(s, "⚑ Claude") })
 	p.keys("c")
-	p.await("the claim", func(s string) bool { return strings.Contains(s, "Claimed “Mine”") && strings.Contains(s, "Claims: 1 held") })
+	p.await("the claim", func(s string) bool {
+		return strings.Contains(s, "Claimed “Mine”") && strings.Contains(s, "Claims: 1 held")
+	})
 	if c := claim(); c == nil || c.OwnerClientID != p.m.ClientID {
 		t.Fatalf("not claimed by lit-tui: %+v", c)
 	}
@@ -55,7 +57,9 @@ func TestTUIClaimsInTmux(t *testing.T) {
 	}
 	p.keys("Down")
 	p.keys("c")
-	p.await("the refusal naming the owner", func(s string) bool { return strings.Contains(s, "Cannot claim “Theirs”: claimed by Claude (agent)") })
+	p.await("the refusal naming the owner", func(s string) bool {
+		return strings.Contains(s, "Cannot claim “Theirs”: claimed by Claude (agent)")
+	})
 
 	before := claim().ExpiresAt
 	p.await("the idle question", func(s string) bool {
