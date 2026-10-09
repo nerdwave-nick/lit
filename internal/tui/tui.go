@@ -224,6 +224,8 @@ func (m Model) dispatch(action keys.Action, msg tea.Msg) (Model, tea.Cmd) {
 		return m, m.claimAction(action)
 	case action == keys.UncertainRequests:
 		return m.openUncertain()
+	case m.b != nil && isQuick(m.view(), action):
+		return m, m.b.quickAction(action)
 	case m.b != nil:
 		return m, m.b.dispatch(m.view(), action, msg, m.detail)
 	case msg != nil:

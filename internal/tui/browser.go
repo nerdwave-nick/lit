@@ -256,11 +256,6 @@ func (b *browser) dispatch(ctx keys.Context, action keys.Action, msg tea.Msg, d 
 		}
 		return b.openSwitcher(false)
 	}
-	if ctx == keys.Tree || ctx == keys.Detail {
-		if cmd, ok := b.quickAction(action); ok {
-			return cmd
-		}
-	}
 	switch ctx {
 	case keys.Menu:
 		r := b.switcher.Do(action)

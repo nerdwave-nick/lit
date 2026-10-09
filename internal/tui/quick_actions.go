@@ -24,21 +24,22 @@ var quickKinds = map[keys.Action]quick.Kind{
 	keys.Unlink:      quick.RemoveLink,
 }
 
-// quickAction opens the quick action for action on the selected issue, if
-// action is one.
-func (b *browser) quickAction(action keys.Action) (tea.Cmd, bool) {
-	kind, ok := quickKinds[action]
-	if !ok {
-		return nil, false
-	}
+// isQuick reports whether action is a quick action of the view ctx.
+func isQuick(ctx keys.Context, action keys.Action) bool {
+	_, ok := quickKinds[action]
+	return ok && (ctx == keys.Tree || ctx == keys.Detail)
+}
+
+// quickAction opens the quick action for action on the selected issue.
+func (b *browser) quickAction(action keys.Action) tea.Cmd {
 	sel, selected := b.tree.Selected()
 	if !selected || b.project == nil {
 		b.qa.note = "Select an issue first."
-		return nil, true
+		return nil
 	}
 	b.menu, b.qa.note = nil, ""
-	b.qa.m = quick.Start(kind, quick.Env{Gate: b.src, Project: b.project.ID, ProjectTitle: b.project.Title, Issue: sel, Issues: b.last.Items})
-	return nil, true
+	b.qa.m = quick.Start(quickKinds[action], quick.Env{Gate: b.src, Project: b.project.ID, ProjectTitle: b.project.Title, Issue: sel, Issues: b.last.Items})
+	return nil
 }
 
 // quickKey gives a key press to the open quick action.
