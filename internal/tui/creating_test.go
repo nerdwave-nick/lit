@@ -168,4 +168,6 @@ func TestAKeptNewIssueIsRetitledAfterItsTitleWasTaken(t *testing.T) {
 	if got := u.titled("Racing again"); len(got) != 1 || got[0].Body != "race body\n" {
 		t.Fatalf("created %+v", got)
 	}
+	u.expect("the Drafts view closes on the new issue", u.line("Unapplied drafts") == "" && u.line("Created “Racing again”.") != "" &&
+		strings.HasPrefix(u.crumb(), "test/one › Racing again"))
 }

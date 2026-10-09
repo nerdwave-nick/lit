@@ -151,10 +151,16 @@ func (m Model) titleLines(h int) []string {
 	return lines[:h]
 }
 
-// selectCreated selects a just-created issue once a load lists it.
+// selectCreated selects a just-created issue once a load lists it, and
+// closes the Drafts view it may have been created from, so the tree shows
+// it.
 func (m Model) selectCreated(a edit.Applied) {
-	if a.Draft.Kind == drafts.IssueNew && m.b != nil {
-		m.b.want = a.Draft.RecordID
+	if a.Draft.Kind != drafts.IssueNew || m.b == nil {
+		return
+	}
+	m.b.want = a.Draft.RecordID
+	if m.dv != nil {
+		m.dv.view = nil
 	}
 }
 
