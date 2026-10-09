@@ -52,6 +52,14 @@ const (
 	// History opens the read-only history of the selected issue or of one
 	// of its comments.
 	History Action = "history"
+	// Quick actions: one previewed transaction each.
+	EditTitle   Action = "edit_title"
+	SetState    Action = "set_state"
+	SetLabels   Action = "set_labels"
+	SetAssignee Action = "set_assignee"
+	SetParent   Action = "set_parent"
+	Link        Action = "link"
+	Unlink      Action = "unlink"
 	// UncertainRequests opens the read-only view of retained requests whose
 	// outcome is not established.
 	UncertainRequests Action = "uncertain_requests"
@@ -100,6 +108,13 @@ var vocabulary = map[Context][]entry{
 		{Claim, "claim the issue, or reacquire a lost claim", []string{"c"}},
 		{Release, "release the issue's claim", []string{"u"}},
 		{History, "show the issue's history", []string{"H"}},
+		{EditTitle, "edit the title", []string{"t"}},
+		{SetState, "close or reopen the issue", []string{"s"}},
+		{SetLabels, "change the labels", []string{"#"}},
+		{SetAssignee, "change the assignee", []string{"A"}},
+		{SetParent, "change the parent", []string{"P"}},
+		{Link, "add a link: blocker, blocked or related issue", []string{"b"}},
+		{Unlink, "remove a link", []string{"B"}},
 	},
 	Detail: {
 		{Up, "scroll up", []string{"up", "k"}},
@@ -116,6 +131,13 @@ var vocabulary = map[Context][]entry{
 		{Claim, "claim the issue, or reacquire a lost claim", []string{"c"}},
 		{Release, "release the issue's claim", []string{"u"}},
 		{History, "show the history of the issue or a comment", []string{"H"}},
+		{EditTitle, "edit the title", []string{"t"}},
+		{SetState, "close or reopen the issue", []string{"s"}},
+		{SetLabels, "change the labels", []string{"#"}},
+		{SetAssignee, "change the assignee", []string{"A"}},
+		{SetParent, "change the parent", []string{"P"}},
+		{Link, "add a link: blocker, blocked or related issue", []string{"b"}},
+		{Unlink, "remove a link", []string{"B"}},
 	},
 	Menu: {
 		{Up, "previous item", []string{"up", "k"}},

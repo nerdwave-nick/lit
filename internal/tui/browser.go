@@ -30,6 +30,7 @@ const (
 // whether a mutation or shutdown is running.
 type source interface {
 	browse.Doer
+	Mutate(ctx context.Context, fn func(ctx context.Context, s *litclient.Session) error) error
 	Mutating() bool
 	Started() bool
 }
@@ -57,6 +58,7 @@ type browser struct {
 	focus     focusPane
 	menu      *actionMenu
 	filt      filtering
+	qa        quickActions
 	method    cells.Method
 	// menuItem, when set, adjusts or hides (false) an action menu item.
 	menuItem func(keys.Binding) (keys.Binding, bool)
@@ -180,6 +182,9 @@ func (b *browser) schedule(d time.Duration) tea.Cmd {
 
 // update handles the browser's own messages.
 func (b *browser) update(msg tea.Msg, d *detail.Model) (tea.Cmd, bool) {
+	if cmd, ok := b.quickUpdate(msg); ok {
+		return cmd, true
+	}
 	switch msg := msg.(type) {
 	case projectsMsg:
 		b.switcher.AddPage(msg.page, msg.err)

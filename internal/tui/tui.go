@@ -100,7 +100,7 @@ func (m Model) Init() tea.Cmd {
 
 // context is the keymap context of the focused view.
 func (m Model) context() keys.Context {
-	if m.help || m.b != nil && (m.b.menu != nil || m.b.filt.panel != nil) {
+	if m.help || m.b != nil && (m.b.menu != nil || m.b.filt.panel != nil || m.b.qa.m != nil) {
 		return keys.Menu
 	}
 	return m.view()
@@ -184,6 +184,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // key handles a key press: help first, then the action menu, then the view.
 func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
+	if m.b != nil && m.b.qa.m != nil { // an open quick action owns the keys
+		return m, m.b.quickKey(msg)
+	}
 	if m.b != nil && m.b.filt.input != nil { // the search input owns typed keys
 		return m, m.b.inputKey(msg, m.detail)
 	}
@@ -228,6 +231,8 @@ func (m Model) dispatch(action keys.Action, msg tea.Msg) (Model, tea.Cmd) {
 		return m.openUncertain()
 	case action == keys.History:
 		return m.openHistory()
+	case m.b != nil && isQuick(m.view(), action):
+		return m, m.b.quickAction(action)
 	case m.b != nil:
 		return m, m.b.dispatch(m.view(), action, msg, m.detail)
 	case msg != nil:
