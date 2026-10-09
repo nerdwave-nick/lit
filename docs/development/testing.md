@@ -45,8 +45,11 @@ terminal opens the detail and returns to the same selection; switching back to
 a project keeps its selection. `integration/tui_filter_test.go` searches and
 filters the same way: a deep match keeps its ancestors, typed letters belong to
 the search input, no match shows the empty state, filters combine with the
-search, and one key clears them. These scenarios skip without tmux or with
-`-short`. The lifecycle,
+search, and one key clears them. `integration/tui_uncertain_test.go` opens the
+uncertain-requests view with fabricated uncertain evidence: from an orphan's
+launch panel and the action menu, and from its key and the exit report of the
+instance itself, checking that the evidence stays byte-identical. These
+scenarios skip without tmux or with `-short`. The lifecycle,
 registry and recovery packages are tested in-process against a temporary
 service (`internal/tui/tuitest`).
 

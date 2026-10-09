@@ -28,6 +28,7 @@ type UI struct {
 	notes  []string
 	panel  []recovery.Orphan // uncertain orphans, shown until dismissed
 	ask    []recovery.Orphan // orphans awaiting the user's decision
+	kept   []recovery.Orphan // orphans with retained requests, for the uncertain-requests view
 }
 
 // NewUI returns the UI for l; a nil l (tests, demos) quits directly.
@@ -85,8 +86,12 @@ func (u UI) Update(msg tea.Msg, km keys.Keymap) (next UI, cmd tea.Cmd, handled b
 
 func (u UI) key(msg tea.KeyPressMsg, km keys.Keymap) (UI, tea.Cmd, bool) {
 	shutdown := keys.IsShutdown(msg.Key())
+	action, _ := km.Lookup(keys.Menu, msg.Key())
 	switch {
 	case u.status.Phase == Stopped && u.status.Result.Outcome != Clean:
+		if action == keys.UncertainRequests && len(u.status.Result.Requests) > 0 {
+			return u, nil, false // the root model opens the view
+		}
 		return u, tea.Quit, true // the second keypress leaves
 	case u.status.Phase != Running:
 		if shutdown {
@@ -96,7 +101,6 @@ func (u UI) key(msg tea.KeyPressMsg, km keys.Keymap) (UI, tea.Cmd, bool) {
 	case shutdown:
 		return u, nil, false
 	}
-	action, _ := km.Lookup(keys.Menu, msg.Key())
 	switch {
 	case len(u.ask) > 0:
 		o := u.ask[0]
@@ -117,8 +121,11 @@ func (u UI) key(msg tea.KeyPressMsg, km keys.Keymap) (UI, tea.Cmd, bool) {
 		}
 		return u, nil, true
 	case len(u.panel) > 0:
-		if action == keys.Cancel {
+		switch action {
+		case keys.Cancel:
 			u.panel = u.panel[1:]
+		case keys.UncertainRequests:
+			return u, nil, false // the root model opens the view
 		}
 		return u, nil, true
 	}
@@ -129,6 +136,9 @@ func (u UI) key(msg tea.KeyPressMsg, km keys.Keymap) (UI, tea.Cmd, bool) {
 func (u *UI) absorb(orphans []recovery.Orphan) {
 	cleaned := 0
 	for _, o := range orphans {
+		if len(o.Requests) > 0 {
+			u.kept = append(u.kept, o)
+		}
 		switch o.Outcome {
 		case recovery.Disconnected:
 			cleaned++
@@ -167,3 +177,10 @@ func (u UI) Interrupt() tea.Cmd {
 	u.l.Interrupt(130)
 	return nil
 }
+
+// Orphans are the launch's orphans that retained requests, kept after their
+// panel is closed, for the uncertain-requests view.
+func (u UI) Orphans() []recovery.Orphan { return append([]recovery.Orphan(nil), u.kept...) }
+
+// Exit is shutdown's result once it has ended.
+func (u UI) Exit() (Result, bool) { return u.status.Result, u.status.Phase == Stopped }

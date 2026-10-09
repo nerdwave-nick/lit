@@ -47,6 +47,9 @@ const (
 	Search        Action = "search"
 	Filter        Action = "filter"
 	ClearFilters  Action = "clear_filters"
+	// UncertainRequests opens the read-only view of retained requests whose
+	// outcome is not established.
+	UncertainRequests Action = "uncertain_requests"
 )
 
 // Required actions must keep at least one key, so the way out, help and
@@ -74,6 +77,7 @@ var vocabulary = map[Context][]entry{
 		{Refresh, "refresh", []string{"r"}},
 		{SwitchProject, "switch project", []string{"p"}},
 		{ActionMenu, "open the action menu", []string{"m"}},
+		{UncertainRequests, "show uncertain requests", []string{"U"}},
 	},
 	Tree: {
 		{Up, "select the previous issue", []string{"up", "k"}},
