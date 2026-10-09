@@ -206,3 +206,13 @@ func TestInputPostponesTheIdleQuestion(t *testing.T) {
 	}
 	c.await("the idle question once input stops", func(m claims.Msg) bool { return m.Asking })
 }
+
+// Without a claim holder the menu offers no claim actions.
+func TestNoClaimActionsWithoutAHolder(t *testing.T) {
+	srv := tuitest.Service(t)
+	seed(t, srv, "test/one")
+	b := startBrowsing(t, srv, 120, 30, false)
+	b.press("m")
+	b.expect("no claim actions", !strings.Contains(b.view(), "claim the issue") && !strings.Contains(b.view(), "release the issue's claim") &&
+		strings.Contains(b.view(), "refresh"))
+}

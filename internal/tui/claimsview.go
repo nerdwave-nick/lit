@@ -37,8 +37,15 @@ func (m Model) WithClaims(h *claims.Holder) Model {
 }
 
 // wireClaims connects the browser (recreated by WithPrefs) to the claims.
+// Without a holder the menu offers no claim actions.
 func (m Model) wireClaims() {
-	if m.b == nil || m.cl == nil {
+	switch {
+	case m.b == nil:
+		return
+	case m.cl == nil:
+		m.b.menuItem = func(bd keys.Binding) (keys.Binding, bool) {
+			return bd, bd.Action != keys.Claim && bd.Action != keys.Release
+		}
 		return
 	}
 	b, cl := m.b, m.cl
