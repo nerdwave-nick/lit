@@ -158,6 +158,9 @@ func (m Model) failedPanel(a edit.Applied) *draftPanel {
 		panel.text = []string{"Request " + a.Uncertain.ID + ", evidence " + sanitize.Title(a.Uncertain.Path) + ".",
 			"It is never replayed. Check it with " + firstKey(m, keys.Global, keys.UncertainRequests) + " (uncertain requests) or lit transactions status.",
 			"The draft and the claim are kept: " + path(d) + "."}
+		if !d.Kind.Claims() {
+			panel.text[2] = "The draft is kept: " + path(d) + ". A later preview shows whether the apply went through."
+		}
 		panel.choices = choices(chDiff, chKeep)
 	case code == "claim_conflict" && a.Owner != nil:
 		panel.text = []string{t + " is claimed by " + owner(a.Owner) + ".", kept}

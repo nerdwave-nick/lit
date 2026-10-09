@@ -316,3 +316,38 @@ func TestCommentEditsKeepExplicitClaimsAndShareEditClaims(t *testing.T) {
 		t.Fatalf("discarding the last draft: %+v", r)
 	}
 }
+
+// An apply of a new comment whose outcome is uncertain keeps the draft,
+// names the retained request and replays nothing; a later preview reads
+// whether the comment exists under the draft's ID before offering to apply.
+func TestAnUncertainNewCommentKeepsTheDraft(t *testing.T) {
+	f := start(t)
+	s := f.e.Open(ctx, New(f.project, f.issue, "Discussed issue"))
+	if s.Err != nil {
+		t.Fatal(s.Err)
+	}
+	write(t, s.Draft, "uncertain reply\n")
+	p := f.e.Preview(ctx, s.Draft)
+	f.srv.Intercept(func(w http.ResponseWriter, r *http.Request) bool {
+		if r.URL.Path == "/v1/transactions" || r.URL.Path == "/v1/transaction-status" {
+			tuitest.HangUp(w)
+			return true
+		}
+		return false
+	})
+	commits := f.srv.Count("POST /v1/transactions")
+	a := f.e.Apply(ctx, p)
+	f.srv.Intercept(nil)
+	if litclient.Code(a.Err) != "outcome_uncertain" || a.Uncertain == nil || a.Uncertain.ID == "" {
+		t.Fatalf("apply: %+v", a)
+	}
+	if f.srv.Count("POST /v1/transactions") != commits+1 {
+		t.Fatal("the commit was retried")
+	}
+	if _, ok, _ := f.e.ExistingFor(New(f.project, f.issue, "")); !ok {
+		t.Fatal("the draft was dropped")
+	}
+	if again := f.e.Preview(ctx, s.Draft); again.Created || !again.Ready() || len(f.comments()) != 1 {
+		t.Fatalf("a later preview, the comment never created: %+v", again)
+	}
+}
