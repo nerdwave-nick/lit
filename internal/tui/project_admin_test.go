@@ -165,7 +165,7 @@ func TestRepositoriesChangeFromTheTree(t *testing.T) {
 // The action menu offers the project's specification and repositories.
 func TestTheMenuOffersProjectAdministration(t *testing.T) {
 	u := startAdministering(t)
-	u.press("m")
+	u.press("m", "G") // the menu is longer than the pane: its end scrolls into view
 	u.expect("the menu", u.line("edit the project's specification, or resume its draft  S") != "" &&
 		u.line("change the project's repositories") != "")
 }

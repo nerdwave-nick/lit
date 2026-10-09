@@ -19,6 +19,7 @@ var menuCommands = []keys.Action{keys.Open, keys.Back, keys.Refresh, keys.Switch
 type actionMenu struct {
 	items  []keys.Binding
 	cursor int
+	offset int // the first item shown: a long menu scrolls to the cursor
 }
 
 func (b *browser) openMenu(ctx keys.Context) {
@@ -68,7 +69,12 @@ func (m *actionMenu) lines(method cells.Method, w, h int, plain bool) []string {
 	for _, it := range m.items {
 		width = max(width, len(it.Description))
 	}
+	rows := max(h-1, 1)
+	m.offset = max(min(m.offset, m.cursor), m.cursor-rows+1, 0)
 	for i, it := range m.items {
+		if i < m.offset {
+			continue
+		}
 		if len(out) >= h {
 			break
 		}
