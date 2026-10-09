@@ -57,7 +57,14 @@ func (m Model) relayout() tea.Cmd {
 	g := m.geometry()
 	m.b.tree.SetSize(g.treeW, g.height)
 	m.b.switcher.SetSize(m.width, g.height)
-	return m.detail.SetSize(g.detailW, g.height)
+	cmd := m.detail.SetSize(g.detailW, g.height)
+	if g.wide != m.b.wide {
+		m.b.wide = g.wide
+		if g.wide && m.b.project != nil {
+			cmd = tea.Batch(cmd, m.b.showSelected(m.detail, false))
+		}
+	}
+	return cmd
 }
 
 // mouse handles clicks and the wheel (only delivered with the mouse
