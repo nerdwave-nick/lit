@@ -250,15 +250,8 @@ func (b *browser) dispatch(ctx keys.Context, action keys.Action, msg tea.Msg, d 
 		r := b.switcher.Do(action)
 		return b.switched(r, d)
 	case keys.Tree:
-		switch action {
-		case keys.Search:
-			b.openSearch()
-			return nil
-		case keys.Filter:
-			b.openFilters()
-			return nil
-		case keys.ClearFilters:
-			return b.clearFilters(d)
+		if cmd, ok := b.filterAction(action, d); ok {
+			return cmd
 		}
 		ch := b.tree.Do(action)
 		if ch.Open {

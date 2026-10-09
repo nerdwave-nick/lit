@@ -35,8 +35,19 @@ type searchMsg struct {
 // modal reports whether the filter panel or the search input has the keys.
 func (f *filtering) modal() bool { return f.panel != nil || f.input != nil }
 
-func (b *browser) openFilters() {
-	b.filt.panel = filter.NewPanel(b.filt.crit, b.last.Items)
+// filterAction performs a tree action of the filters, if action is one.
+func (b *browser) filterAction(action keys.Action, d *detail.Model) (tea.Cmd, bool) {
+	switch action {
+	case keys.Search:
+		b.openSearch()
+	case keys.Filter:
+		b.filt.panel = filter.NewPanel(b.filt.crit, b.last.Items)
+	case keys.ClearFilters:
+		return b.clearFilters(d), true
+	default:
+		return nil, false
+	}
+	return nil, true
 }
 
 func (b *browser) openSearch() { b.filt.input = filter.NewInput(b.filt.crit.Search) }
