@@ -1,6 +1,10 @@
 package litclient
 
-import "github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+import (
+	"context"
+
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+)
 
 // IssueSummaryPage is one page of the bodiless issue list projection.
 type IssueSummaryPage struct {
@@ -15,7 +19,9 @@ type IssueSummaryPage struct {
 // neither project_id nor all_projects. It is a read and journals nothing.
 // Service limits are refused with typed errors such as limit_exceeded; a page
 // is never truncated, and a non-nil NextCursor continues the same query.
-func (s *Session) IssueSummaries(query map[string]any) (IssueSummaryPage, error) {
+// ctx bounds this read; nil keeps the session's context.
+func (s *Session) IssueSummaries(ctx context.Context, query map[string]any) (IssueSummaryPage, error) {
+	defer s.bind(ctx)()
 	var page IssueSummaryPage
 	body := map[string]any{"schema_version": 1, "query": query}
 	if e := s.Call("POST", "/v1/issue-summaries", body, nil, &page, false); e != nil {

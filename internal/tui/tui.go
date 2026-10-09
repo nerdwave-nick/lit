@@ -4,9 +4,10 @@ package tui
 
 import (
 	"context"
-	"strings"
+	"time"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/charmbracelet/x/ansi"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/detail"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/lifecycle"
@@ -18,14 +19,15 @@ import (
 
 // Model is the root Bubble Tea model.
 type Model struct {
-	endpoint string
-	prefs    prefs.Prefs
-	help     bool // the help overlay is shown
-	theme    *theme.Detector
-	detail   *detail.Model
-	doc      *detail.Section // shown in the detail viewport when set
-	width    int
-	life     lifecycle.UI // session line, recovery notes and exit prompts
+	endpoint      string
+	prefs         prefs.Prefs
+	help          bool // the help overlay is shown
+	theme         *theme.Detector
+	detail        *detail.Model
+	doc           *detail.Section // shown in the detail viewport when set
+	width, height int
+	life          lifecycle.UI // session line, recovery notes and exit prompts
+	b             *browser     // the project tree; nil without a lifecycle
 }
 
 // NewModel returns the root model for the service at endpoint, with the
@@ -37,112 +39,169 @@ func (m Model) WithPrefs(p prefs.Prefs) Model {
 	m.prefs = p
 	m.theme = theme.New(p.Theme, theme.DefaultTimeout)
 	m.detail = detail.New(render.NewService(render.DefaultCacheBytes), p.Keymap)
+	if m.b != nil {
+		m.b = newBrowser(m.b.src, p.Keymap)
+	}
 	return m
 }
 
-// WithDocument shows a Markdown document in the detail viewport. The issue
-// detail (T10) replaces this with loaded issues; tests and demos use it now.
+// WithDocument shows a Markdown document in the detail viewport instead of
+// the project tree. Tests and demos use it.
 func (m Model) WithDocument(s detail.Section) Model {
 	m.doc = &s
 	return m
 }
 
-// WithLifecycle routes quit and Ctrl-C into l's orderly shutdown and shows
-// its status, recovery notes and exit prompts. Without it they quit directly.
+// WithLifecycle routes quit and Ctrl-C into l's orderly shutdown, shows its
+// status, recovery notes and exit prompts, and browses projects through its
+// gate. Without it quit is direct and nothing is loaded.
 func (m Model) WithLifecycle(l *lifecycle.Lifecycle) Model {
 	m.life = lifecycle.NewUI(l)
+	if l != nil {
+		m.b = newBrowser(l, m.prefs.Keymap)
+	}
+	return m
+}
+
+// withTimers replaces the browser's refresh timers (tests).
+func (m Model) withTimers(after func(time.Duration, tea.Msg) tea.Cmd) Model {
+	if m.b != nil {
+		m.b.after = after
+	}
 	return m
 }
 
 // Prefs returns the effective preferences: theme, mouse and keymap.
 func (m Model) Prefs() prefs.Prefs { return m.prefs }
 
-// Init starts background detection and, with a document, its render.
+// Init starts background detection, the recovery scan and either the
+// document's render or the project list.
 func (m Model) Init() tea.Cmd {
 	cmds := []tea.Cmd{m.theme.Init(), m.life.Init()}
 	if m.theme.Ready() {
-		cmds = append(cmds, m.detail.SetStyle(m.theme.Style()))
+		cmds = append(cmds, m.setStyle())
 	}
-	if m.doc != nil {
+	switch {
+	case m.doc != nil:
 		cmds = append(cmds, m.detail.SetSections(*m.doc))
+	case m.b != nil:
+		cmds = append(cmds, m.b.openSwitcher(true))
 	}
 	return tea.Batch(cmds...)
 }
 
 // context is the keymap context of the focused view.
 func (m Model) context() keys.Context {
-	if m.help {
+	if m.help || m.b != nil && m.b.menu != nil {
 		return keys.Menu
 	}
 	return m.view()
 }
 
-// view is the keymap context of the view under the help overlay.
+// view is the keymap context of the view under the help overlay and the
+// action menu.
 func (m Model) view() keys.Context {
-	if m.doc != nil {
+	switch {
+	case m.doc != nil:
 		return keys.Detail
+	case m.b == nil:
+		return keys.Global
 	}
-	return keys.Global
+	return m.b.view()
+}
+
+func (m Model) setStyle() tea.Cmd {
+	style := m.theme.Style()
+	if m.b != nil {
+		m.b.setPlain(style == render.ASCII)
+	}
+	return m.detail.SetStyle(style)
 }
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 	if m.theme.Update(msg) && m.theme.Ready() {
-		cmds = append(cmds, m.detail.SetStyle(m.theme.Style()))
+		cmds = append(cmds, m.setStyle())
 	}
 	if life, cmd, handled := m.life.Update(msg, m.prefs.Keymap); handled {
 		m.life = life
-		return m, tea.Batch(append(cmds, cmd)...)
+		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.width = msg.Width
-		cmds = append(cmds, m.detail.SetSize(msg.Width, max(0, msg.Height-2)))
+		m.width, m.height = msg.Width, msg.Height
+		if m.b == nil {
+			cmds = append(cmds, m.detail.SetSize(msg.Width, max(0, msg.Height-2)))
+		}
+	case tea.ModeReportMsg:
+		if m.b != nil && msg.Mode == ansi.ModeUnicodeCore {
+			m.b.setMethod(cells.MethodForUnicodeCore(msg.Value))
+		}
+		cmds = append(cmds, m.detail.Update(msg))
 	case tea.KeyPressMsg:
 		if keys.IsShutdown(msg.Key()) {
 			return m, m.life.Interrupt()
 		}
-		action, _ := m.prefs.Keymap.Lookup(m.context(), msg.Key())
-		switch action {
-		case keys.Quit:
-			return m, m.life.Quit()
-		case keys.Help:
-			m.help = !m.help
-		case keys.Cancel:
-			m.help = false
-		default:
-			if !m.help {
-				cmds = append(cmds, m.detail.Update(msg))
-			}
+		var cmd tea.Cmd
+		m, cmd = m.key(msg)
+		cmds = append(cmds, cmd)
+	case tea.MouseClickMsg, tea.MouseWheelMsg:
+		if m.b != nil && !m.help {
+			cmds = append(cmds, m.mouse(msg.(tea.MouseMsg)))
+		} else {
+			cmds = append(cmds, m.detail.Update(msg))
 		}
 	default:
+		if m.b != nil {
+			if cmd, handled := m.b.update(msg, m.detail); handled {
+				cmds = append(cmds, cmd)
+				break
+			}
+		}
 		cmds = append(cmds, m.detail.Update(msg))
 	}
-	return m, tea.Batch(cmds...)
+	return m, tea.Batch(append(cmds, m.relayout())...)
 }
 
-func (m Model) View() tea.View {
-	km := m.prefs.Keymap
-	content := "lit-tui\n\nService: " + m.endpoint + "\n\n" + km.Hint(keys.Global, keys.Quit, keys.Help)
-	lines := strings.Join(m.life.Lines(), "\n")
-	if lines != "" {
-		content += "\n\n" + lines
-	}
-	switch overlay := m.life.Overlay(km); {
-	case overlay != "":
-		content = strings.TrimRight(overlay+"\n\n"+lines, "\n")
+// key handles a key press: help first, then the action menu, then the view.
+func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
+	action, _ := m.prefs.Keymap.Lookup(m.context(), msg.Key())
+	switch {
+	case action == keys.Quit:
+		return m, m.life.Quit()
 	case m.help:
-		content = strings.Join(km.Help(m.view()), "\n") + "\n\n" + km.Hint(keys.Menu, keys.Cancel)
-	case m.doc != nil:
-		content = cells.Clip(cells.Default, "lit-tui · "+m.endpoint, m.width, "…") + "\n" + m.detail.View() + "\n" +
-			cells.Clip(cells.Default, km.Hint(keys.Detail, keys.NextBlock, keys.Quit, keys.Help), m.width, "…")
+		if action == keys.Help || action == keys.Cancel {
+			m.help = false
+		}
+		return m, nil
+	case action == keys.Help:
+		m.help = true
+		return m, nil
+	case m.b != nil && m.b.menu != nil:
+		chosen, ok := m.b.menuKey(action)
+		if !ok {
+			return m, nil
+		}
+		return m.dispatch(chosen, nil)
 	}
-	v := tea.NewView(content)
-	v.AltScreen = true
-	if m.prefs.Mouse {
-		v.MouseMode = tea.MouseModeCellMotion
+	return m.dispatch(action, msg)
+}
+
+// dispatch performs action in the current view; msg is the key press, or
+// nil when the action menu chose it.
+func (m Model) dispatch(action keys.Action, msg tea.Msg) (Model, tea.Cmd) {
+	switch {
+	case action == keys.Quit:
+		return m, m.life.Quit()
+	case action == keys.Help:
+		m.help = true
+		return m, nil
+	case m.b != nil:
+		return m, m.b.dispatch(m.view(), action, msg, m.detail)
+	case msg != nil:
+		return m, m.detail.Update(msg)
 	}
-	return v
+	return m, nil
 }
 
 // Run runs the program until the user quits or ctx ends. Bubble Tea restores

@@ -456,3 +456,49 @@ func TestPostNeverBlocksAndCoalesces(t *testing.T) {
 	p.Quit()
 	p.Wait()
 }
+
+// Mutate marks a mutation as running from admission until it returns, so
+// background refresh can pause; reads through Do never do.
+func TestMutatingCoversOnlyMutations(t *testing.T) {
+	srv := tuitest.Service(t)
+	l := start(t, t.TempDir(), srv.URL)
+	if l.Mutating() {
+		t.Fatal("mutating before any mutation")
+	}
+	entered, release := make(chan struct{}), make(chan struct{})
+	done := make(chan error, 1)
+	go func() {
+		done <- l.Mutate(context.Background(), func(context.Context, *litclient.Session) error {
+			close(entered)
+			<-release
+			return nil
+		})
+	}()
+	wait(t, entered, "the mutation to start")
+	if !l.Mutating() {
+		t.Fatal("not mutating while a mutation runs")
+	}
+	close(release)
+	if err := <-done; err != nil {
+		t.Fatal(err)
+	}
+	if l.Mutating() {
+		t.Fatal("still mutating after the mutation returned")
+	}
+	read := make(chan struct{})
+	go func() {
+		_ = l.Do(context.Background(), func(context.Context, *litclient.Session) error {
+			if l.Mutating() {
+				t.Error("a read counts as a mutation")
+			}
+			close(read)
+			return nil
+		})
+	}()
+	wait(t, read, "the read")
+	l.Shutdown("test")
+	wait(t, l.Done(), "shutdown")
+	if err := l.Mutate(context.Background(), func(context.Context, *litclient.Session) error { return nil }); litclient.Code(err) != "shutting_down" || l.Mutating() {
+		t.Fatalf("mutation after shutdown: %v, mutating %v", err, l.Mutating())
+	}
+}

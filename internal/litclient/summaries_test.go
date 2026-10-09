@@ -68,7 +68,7 @@ func summaryService(t *testing.T) (*service.Server, *Session, string, string) {
 
 func TestIssueSummariesReadsBodilessPagesWithClaimOwners(t *testing.T) {
 	srv, s, project, parent := summaryService(t)
-	page, e := s.IssueSummaries(map[string]any{"project_id": project, "all": true})
+	page, e := s.IssueSummaries(context.Background(), map[string]any{"project_id": project, "all": true})
 	if e != nil || len(page.Items) != 2 || page.NextCursor != nil {
 		t.Fatalf("all: %+v %v", page, e)
 	}
@@ -87,7 +87,7 @@ func TestIssueSummariesReadsBodilessPagesWithClaimOwners(t *testing.T) {
 	seen := map[string]bool{}
 	query := map[string]any{"project_id": project, "limit": 1}
 	for n := 0; n < 3; n++ {
-		page, e = s.IssueSummaries(query)
+		page, e = s.IssueSummaries(context.Background(), query)
 		if e != nil || len(page.Items) != 1 || seen[page.Items[0].ID] {
 			t.Fatalf("page %d: %+v %v", n, page, e)
 		}
@@ -102,7 +102,7 @@ func TestIssueSummariesReadsBodilessPagesWithClaimOwners(t *testing.T) {
 	}
 	// A limit is a typed refusal, never a truncated page; reads leave no evidence.
 	srv.Config.Limits.SnapshotBytes = 200
-	page, e = s.IssueSummaries(map[string]any{"project_id": project, "all": true})
+	page, e = s.IssueSummaries(context.Background(), map[string]any{"project_id": project, "all": true})
 	if errorCode(e) != "limit_exceeded" || page.Items != nil {
 		t.Fatalf("limit: %+v %v", page, e)
 	}
@@ -125,7 +125,7 @@ func TestIssueSummariesSendsTheQueryUnchanged(t *testing.T) {
 	}))
 	defer server.Close()
 	s := testSession(t, server.URL)
-	page, e := s.IssueSummaries(map[string]any{"project_id": "p", "limit": 5, "cursor": "c"})
+	page, e := s.IssueSummaries(context.Background(), map[string]any{"project_id": "p", "limit": 5, "cursor": "c"})
 	if e != nil || page.Items == nil || page.NextCursor == nil || *page.NextCursor != "next" {
 		t.Fatalf("%+v %v", page, e)
 	}

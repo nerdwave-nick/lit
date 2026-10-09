@@ -32,14 +32,17 @@ type Server struct {
 }
 
 // Service starts a temporary lit service for the test.
-func Service(t *testing.T) *Server {
+func Service(t *testing.T) *Server { return ServiceWithLimits(t, protocol.DefaultLimits()) }
+
+// ServiceWithLimits starts a temporary lit service with the given limits.
+func ServiceWithLimits(t *testing.T, limits protocol.Limits) *Server {
 	t.Helper()
 	storage, err := store.Open(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = storage.Close() })
-	backend, err := service.New(storage, service.Config{Limits: protocol.DefaultLimits(), TitlePrefixes: []string{"test"}})
+	backend, err := service.New(storage, service.Config{Limits: limits, TitlePrefixes: []string{"test"}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -86,6 +89,12 @@ func HangUp(w http.ResponseWriter) {
 // entry's liveness lock until the test ends or Crash releases it.
 func Instance(t *testing.T, state, url string) (registry.Entry, *litclient.Session) {
 	t.Helper()
+	return InstanceAs(t, state, url, protocol.Actor{Name: "tester", Kind: "human"})
+}
+
+// InstanceAs is Instance for a client with the given actor.
+func InstanceAs(t *testing.T, state, url string, actor protocol.Actor) (registry.Entry, *litclient.Session) {
+	t.Helper()
 	e := registry.New(state, protocol.UUID())
 	s := &litclient.Session{StateDir: state, HTTP: &http.Client{Timeout: 10 * time.Second}, Context: context.Background()}
 	if err := s.LockPath(e.SessionPath(), time.Now().Add(time.Second)); err != nil {
@@ -100,7 +109,7 @@ func Instance(t *testing.T, state, url string) (registry.Entry, *litclient.Sessi
 	if err := s.Open(litclient.OpenOptions{Endpoint: url, EndpointSet: true, AllowUnmapped: true}); err != nil {
 		t.Fatal(err)
 	}
-	reg := litclient.Registration{Actor: protocol.Actor{Name: "tester", Kind: "human"}, Runtime: protocol.Runtime{Vendor: "lit-tui", SessionID: e.ID}}
+	reg := litclient.Registration{Actor: actor, Runtime: protocol.Runtime{Vendor: "lit-tui", SessionID: e.ID}}
 	if err := s.Connect(context.Background(), reg); err != nil {
 		t.Fatal(err)
 	}
@@ -172,4 +181,36 @@ func UnconfirmedRegistration(t *testing.T, state, url, serviceID, id string) str
 		t.Fatal(err)
 	}
 	return path
+}
+
+// Apply prepares req through s and commits exactly that preview.
+func Apply(t *testing.T, s *litclient.Session, req protocol.PrepareRequest) {
+	t.Helper()
+	p, err := s.Prepare(context.Background(), req)
+	if err == nil {
+		_, err = s.Commit(context.Background(), p)
+	}
+	if err != nil {
+		t.Fatalf("%s: %v", req.Operation, err)
+	}
+}
+
+// CreateIssues creates one issue per title in project, in one transaction;
+// parent is an issue UUID or "". It returns the new issues' UUIDs.
+func CreateIssues(t *testing.T, s *litclient.Session, project, parent string, titles ...string) []string {
+	t.Helper()
+	req := protocol.PrepareRequest{SchemaVersion: 1, Operation: "issue.create", Project: project}
+	var ids []string
+	for _, title := range titles {
+		title, body := title, "body of "+title
+		item := protocol.ProjectInput{ID: protocol.UUID(), Title: &title, Content: &body}
+		if parent != "" {
+			p := parent
+			item.Parent = &p
+		}
+		req.Items = append(req.Items, item)
+		ids = append(ids, item.ID)
+	}
+	Apply(t, s, req)
+	return ids
 }
