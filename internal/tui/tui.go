@@ -92,7 +92,7 @@ func (m Model) Init() tea.Cmd {
 
 // context is the keymap context of the focused view.
 func (m Model) context() keys.Context {
-	if m.help || m.b != nil && m.b.menu != nil {
+	if m.help || m.b != nil && (m.b.menu != nil || m.b.filt.panel != nil) {
 		return keys.Menu
 	}
 	return m.view()
@@ -165,6 +165,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 // key handles a key press: help first, then the action menu, then the view.
 func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
+	if m.b != nil && m.b.filt.input != nil { // the search input owns typed keys
+		return m, m.b.inputKey(msg, m.detail)
+	}
 	action, _ := m.prefs.Keymap.Lookup(m.context(), msg.Key())
 	switch {
 	case action == keys.Quit:
@@ -183,6 +186,8 @@ func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 			return m, nil
 		}
 		return m.dispatch(chosen, nil)
+	case m.b != nil && m.b.filt.panel != nil:
+		return m, m.b.panelKey(action, m.detail)
 	}
 	return m.dispatch(action, msg)
 }

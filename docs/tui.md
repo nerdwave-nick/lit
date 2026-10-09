@@ -188,6 +188,9 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | tree | `page_down` | `pgdown`, `ctrl+d` | page down |
 | tree | `top` | `home`, `g` | select the first issue |
 | tree | `bottom` | `end`, `G` | select the last issue |
+| tree | `search` | `/` | search issue content |
+| tree | `filter` | `f` | filter the tree |
+| tree | `clear_filters` | `F` | clear the filters and the search |
 | detail | `up` | `up`, `k` | scroll up |
 | detail | `down` | `down`, `j` | scroll down |
 | detail | `left` | `left`, `h` | scroll a wide block left |
