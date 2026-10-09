@@ -44,6 +44,9 @@ const (
 	Bottom        Action = "bottom"
 	NextBlock     Action = "next_block"
 	PrevBlock     Action = "prev_block"
+	// UncertainRequests opens the read-only view of retained requests whose
+	// outcome is not established.
+	UncertainRequests Action = "uncertain_requests"
 )
 
 // Required actions must keep at least one key, so the way out, help and
@@ -71,6 +74,7 @@ var vocabulary = map[Context][]entry{
 		{Refresh, "refresh", []string{"r"}},
 		{SwitchProject, "switch project", []string{"p"}},
 		{ActionMenu, "open the action menu", []string{"m"}},
+		{UncertainRequests, "show uncertain requests", []string{"U"}},
 	},
 	Tree: {
 		{Up, "select the previous issue", []string{"up", "k"}},
