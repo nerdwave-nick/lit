@@ -43,13 +43,16 @@ type kindInfo struct {
 	unowned bool
 	// prefix starts the title part of the draft's file name.
 	prefix string
+	// parent: the draft may record the issue its new record is created
+	// under (Draft.ParentID).
+	parent bool
 }
 
 var kinds = map[Kind]kindInfo{
 	IssueBody:            {},
 	CommentNew:           {fresh: true, prefix: "comment"},
 	CommentBody:          {prefix: "comment"},
-	IssueNew:             {fresh: true, unowned: true},
+	IssueNew:             {fresh: true, unowned: true, parent: true},
 	MilestoneDescription: {unowned: true},
 	ProjectSpec:          {unowned: true},
 }
@@ -76,7 +79,8 @@ func NewID() string { return protocol.UUID() }
 
 // valid checks a draft's identity: a kind, project and record UUIDs (a
 // generated draft ID for a new record), and the owning issue's UUID for an
-// owned kind, or none for a kind without an owner.
+// owned kind, or none for a kind without an owner; a parent only for a kind
+// that records one (issue_new).
 func valid(d Draft) error {
 	if err := validKey(d.Kind, d.ProjectID, d.RecordID); err != nil {
 		return err
@@ -86,6 +90,10 @@ func valid(d Draft) error {
 		return protocol.E(400, "invalid_arguments", "a "+string(d.Kind)+" draft needs project, record and issue UUIDs")
 	case !d.Kind.Owned() && d.IssueID != "":
 		return protocol.E(400, "invalid_arguments", "a "+string(d.Kind)+" draft has no owning issue")
+	case d.ParentID != "" && !kinds[d.Kind].parent:
+		return protocol.E(400, "invalid_arguments", "a "+string(d.Kind)+" draft has no parent")
+	case d.ParentID != "" && !protocol.ValidUUID(d.ParentID):
+		return protocol.E(400, "invalid_arguments", "a draft's parent must be an issue UUID")
 	}
 	return nil
 }
