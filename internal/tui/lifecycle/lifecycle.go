@@ -215,3 +215,7 @@ func (l *Lifecycle) recoveryOptions() recovery.Options {
 			return l.Do(context.Background(), func(ctx context.Context, _ *litclient.Session) error { return fn(ctx) })
 		}}
 }
+
+// HardDeadline bounds how long main waits for shutdown after the program has
+// ended.
+func (l *Lifecycle) HardDeadline() time.Duration { return l.cfg.HardDeadline() }

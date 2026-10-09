@@ -1,14 +1,11 @@
 package tui
 
 import (
-	"context"
-	"errors"
 	"fmt"
 	"io"
 	"os"
 	"strings"
 
-	tea "charm.land/bubbletea/v2"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/clientendpoint"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
@@ -79,15 +76,7 @@ func Main(args []string, stdin, stdout *os.File, stderr io.Writer) int {
 		fmt.Fprintln(stderr, "lit-tui needs an interactive terminal: stdin and stdout must be terminals")
 		return 2
 	}
-	err = Run(context.Background(), NewModel(endpoint).WithPrefs(pref), tea.WithInput(stdin), tea.WithOutput(stdout))
-	switch {
-	case err == nil:
-		return 0
-	case errors.Is(err, tea.ErrInterrupted):
-		return 130
-	}
-	fmt.Fprintln(stderr, "lit-tui:", err)
-	return 1
+	return serve(endpoint, pref, stdin, stdout, stderr)
 }
 
 // one returns a flag's single value, or nil when it was not given.
