@@ -67,6 +67,10 @@ const (
 	// TUI); EditDetached shows the draft's path for any editor and watches it.
 	Edit         Action = "edit"
 	EditDetached Action = "edit_detached"
+	// NewComment writes a new comment on the selected issue in the editor;
+	// EditComment chooses one of its comments and edits it.
+	NewComment  Action = "new_comment"
+	EditComment Action = "edit_comment"
 )
 
 // Required actions must keep at least one key, so the way out, help and
@@ -121,6 +125,8 @@ var vocabulary = map[Context][]entry{
 		{Unlink, "remove a link", []string{"B"}},
 		{Edit, "edit the body, or resume, apply or discard its draft", []string{"e"}},
 		{EditDetached, "edit the body in any editor (shows the draft path)", []string{"E"}},
+		{NewComment, "add a comment, or resume its draft", []string{"a"}},
+		{EditComment, "edit one of the issue's comments", []string{"o"}},
 	},
 	Detail: {
 		{Up, "scroll up", []string{"up", "k"}},
@@ -146,6 +152,8 @@ var vocabulary = map[Context][]entry{
 		{Unlink, "remove a link", []string{"B"}},
 		{Edit, "edit the body, or resume, apply or discard its draft", []string{"e"}},
 		{EditDetached, "edit the body in any editor (shows the draft path)", []string{"E"}},
+		{NewComment, "add a comment, or resume its draft", []string{"a"}},
+		{EditComment, "edit one of the issue's comments", []string{"o"}},
 	},
 	Menu: {
 		{Up, "previous item", []string{"up", "k"}},

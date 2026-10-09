@@ -14,6 +14,7 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/claims"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/comments"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/edit"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/lifecycle"
@@ -49,6 +50,7 @@ func serve(endpoint string, pref prefs.Prefs, stdin, stdout *os.File, stderr io.
 	// before the disconnect that releases its claims.
 	h := claims.Start(l, claims.Config{Idle: pref.ClaimIdle, Lease: pref.ClaimLease})
 	ed := edit.New(l, h, drafts.New(stateDir))
+	comments.Register(ed)
 	p := tea.NewProgram(NewModel(endpoint).WithPrefs(pref).WithLifecycle(l).WithClaims(h).WithEditor(ed),
 		tea.WithInput(stdin), tea.WithOutput(stdout), tea.WithoutSignalHandler())
 	l.Attach(p)

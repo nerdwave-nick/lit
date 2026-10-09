@@ -32,32 +32,6 @@ func (s Store) sidecar(project string, kind Kind, record string) string {
 	return filepath.Join(s.Dir(project), sidecars, string(kind)+"-"+record+".json")
 }
 
-// valid checks a draft's identity: a kind, project and record UUIDs (a
-// generated draft ID for a new record), and the owning issue's UUID for an
-// owned kind, or none for a kind without an owner.
-func valid(d Draft) error {
-	if err := validKey(d.Kind, d.ProjectID, d.RecordID); err != nil {
-		return err
-	}
-	switch {
-	case d.Kind.Owned() && !protocol.ValidUUID(d.IssueID):
-		return protocol.E(400, "invalid_arguments", "a "+string(d.Kind)+" draft needs project, record and issue UUIDs")
-	case !d.Kind.Owned() && d.IssueID != "":
-		return protocol.E(400, "invalid_arguments", "a "+string(d.Kind)+" draft has no owning issue")
-	}
-	return nil
-}
-
-func validKey(kind Kind, project, record string) error {
-	switch {
-	case kind == "" || strings.ContainsAny(string(kind), `/\.`):
-		return protocol.E(400, "invalid_arguments", "a draft needs a kind")
-	case !protocol.ValidUUID(project) || !protocol.ValidUUID(record):
-		return protocol.E(400, "invalid_arguments", "a draft needs project and record UUIDs")
-	}
-	return nil
-}
-
 func localError(what string, err error) error {
 	return protocol.E(500, "local_state_error", what+": "+err.Error())
 }

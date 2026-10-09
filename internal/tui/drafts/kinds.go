@@ -1,6 +1,10 @@
 package drafts
 
-import "github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+import (
+	"strings"
+
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+)
 
 // The draft kinds. Each declares, in kinds below, whether its record exists
 // yet, whether an issue owns it (Draft.IssueID) and so whether an edit of it
@@ -69,3 +73,29 @@ func (k Kind) Claims() bool { return k.Owned() && !k.New() }
 // NewID is a generated draft ID for a draft of a record that does not exist
 // yet (Kind.New): its RecordID until it is applied.
 func NewID() string { return protocol.UUID() }
+
+// valid checks a draft's identity: a kind, project and record UUIDs (a
+// generated draft ID for a new record), and the owning issue's UUID for an
+// owned kind, or none for a kind without an owner.
+func valid(d Draft) error {
+	if err := validKey(d.Kind, d.ProjectID, d.RecordID); err != nil {
+		return err
+	}
+	switch {
+	case d.Kind.Owned() && !protocol.ValidUUID(d.IssueID):
+		return protocol.E(400, "invalid_arguments", "a "+string(d.Kind)+" draft needs project, record and issue UUIDs")
+	case !d.Kind.Owned() && d.IssueID != "":
+		return protocol.E(400, "invalid_arguments", "a "+string(d.Kind)+" draft has no owning issue")
+	}
+	return nil
+}
+
+func validKey(kind Kind, project, record string) error {
+	switch {
+	case kind == "" || strings.ContainsAny(string(kind), `/\.`):
+		return protocol.E(400, "invalid_arguments", "a draft needs a kind")
+	case !protocol.ValidUUID(project) || !protocol.ValidUUID(record):
+		return protocol.E(400, "invalid_arguments", "a draft needs project and record UUIDs")
+	}
+	return nil
+}

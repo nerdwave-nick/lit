@@ -104,7 +104,7 @@ func (m Model) choose(k choiceKind) tea.Cmd {
 	switch k {
 	case chKeep:
 		e.panel = nil
-		e.note = "Kept the draft of " + titled(d.Title) + ": " + path(d) + ". " + m.editKey() + " on the issue resumes, applies or discards it."
+		e.note = "Kept " + draftOf(d.Kind, d.Title) + ": " + path(d) + ". " + m.keyFor(d.Kind) + " on the issue resumes, applies or discards it."
 		return nil
 	case chDiscard:
 		e.panel = m.confirmPanel(d)
@@ -125,24 +125,24 @@ func (m Model) choose(k choiceKind) tea.Cmd {
 	switch k {
 	case chCommit:
 		pv := *p.preview
-		e.note = "Applying the draft of " + titled(d.Title) + "…"
+		e.note = "Applying " + draftOf(d.Kind, d.Title) + "…"
 		return func() tea.Msg { return appliedMsg{ed.Apply(ctx, pv)} }
 	case chEdit, chDetached:
 		detached := k == chDetached
-		e.note = "Resuming the draft of " + titled(d.Title) + "…"
+		e.note = "Resuming " + draftOf(d.Kind, d.Title) + "…"
 		return func() tea.Msg {
-			return editStartedMsg{s: ed.Resume(ctx, d), detached: detached, id: d.IssueID, title: d.Title}
+			return editStartedMsg{s: ed.Resume(ctx, d), detached: detached, t: edit.TargetOf(d)}
 		}
 	case chDiff:
 		return func() tea.Msg { return comparedMsg{ed.DiffCurrent(ctx, d)} }
 	case chReload:
-		e.note = "Reloading " + titled(d.Title) + "…"
+		e.note = "Reloading " + nameOf(d.Kind, d.Title) + "…"
 		return func() tea.Msg {
 			nd, err := ed.Reload(ctx, d)
 			return reloadedMsg{nd, err}
 		}
 	case chDiscardNow:
-		e.note = "Discarding the draft of " + titled(d.Title) + "…"
+		e.note = "Discarding " + draftOf(d.Kind, d.Title) + "…"
 		return func() tea.Msg { return discardedMsg{d, ed.Discard(ctx, d)} }
 	}
 	e.busy = false
@@ -161,9 +161,9 @@ func (m Model) draftPanelView() string {
 	out = append(out, p.text...)
 	out = append(out, "")
 	for i, c := range p.choices {
-		line := "  " + c.label
+		line := "  " + c.text(p.d)
 		if i == p.cursor {
-			line = "> " + c.label
+			line = "> " + c.text(p.d)
 			if !plain {
 				line = "\x1b[7m" + line + "\x1b[m"
 			}
@@ -214,7 +214,7 @@ func diffLine(l string, plain bool) string {
 
 func (e *editing) previewCmd(d drafts.Draft) tea.Cmd {
 	e.busy, e.panel = true, nil
-	e.note = "Previewing the draft of " + titled(d.Title) + "…"
+	e.note = "Previewing " + draftOf(d.Kind, d.Title) + "…"
 	ed := e.ed
 	return func() tea.Msg { return previewMsg{ed.Preview(context.Background(), d)} }
 }
@@ -227,7 +227,7 @@ func (m Model) applied(a edit.Applied) tea.Cmd {
 		e.panel = m.failedPanel(a)
 		return nil
 	}
-	e.untrack(a.Draft.IssueID)
+	e.untrack(a.Draft.Key())
 	e.panel, e.note = nil, appliedNote(a)
 	return m.refreshTree()
 }
@@ -235,7 +235,7 @@ func (m Model) applied(a edit.Applied) tea.Cmd {
 // claimLostSince reports that p was previewed while this session held the
 // edit claim and the claim has been lost or released since.
 func (m Model) claimLostSince(p edit.Preview) bool {
-	if p.Lost() {
+	if p.Lost() || p.Exempt {
 		return false
 	}
 	h, ok := m.ed.ed.Hold(p.Draft.IssueID)
