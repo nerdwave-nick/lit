@@ -22,3 +22,17 @@ func TestClaimIdleFlagIsDocumentedAndValidated(t *testing.T) {
 		t.Fatalf("a valid flag must reach the terminal check: %d %q", code, stderr)
 	}
 }
+
+// --claim-lease is documented and validated before the terminal check.
+func TestClaimLeaseFlagIsDocumentedAndValidated(t *testing.T) {
+	_, stdout, _ := run(t, "--help")
+	for _, want := range []string{"--claim-lease DURATION", "LIT_TUI_CLAIM_LEASE", "default 15m"} {
+		if !strings.Contains(stdout, want) {
+			t.Errorf("help lacks %q:\n%s", want, stdout)
+		}
+	}
+	isolatePrefs(t)
+	if code, _, stderr := runIsolated(t, "--claim-lease", "2h"); code != 2 || !strings.Contains(stderr, "lit-tui: --claim-lease: 2h is longer than 1h0m0s") {
+		t.Fatalf("invalid flag: %d %q", code, stderr)
+	}
+}

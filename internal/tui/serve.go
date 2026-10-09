@@ -14,6 +14,8 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/claims"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/edit"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/lifecycle"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/prefs"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
@@ -45,8 +47,9 @@ func serve(endpoint string, pref prefs.Prefs, stdin, stdout *os.File, stderr io.
 	}
 	// The holder is the lifecycle's renewer: shutdown stops and joins it
 	// before the disconnect that releases its claims.
-	h := claims.Start(l, claims.Config{Idle: pref.ClaimIdle})
-	p := tea.NewProgram(NewModel(endpoint).WithPrefs(pref).WithLifecycle(l).WithClaims(h),
+	h := claims.Start(l, claims.Config{Idle: pref.ClaimIdle, Lease: pref.ClaimLease})
+	ed := edit.New(l, h, drafts.New(stateDir))
+	p := tea.NewProgram(NewModel(endpoint).WithPrefs(pref).WithLifecycle(l).WithClaims(h).WithEditor(ed),
 		tea.WithInput(stdin), tea.WithOutput(stdout), tea.WithoutSignalHandler())
 	l.Attach(p)
 	if l.Started() { // a signal arrived while connecting

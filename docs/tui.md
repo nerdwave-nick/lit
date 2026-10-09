@@ -313,6 +313,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | tree | `clear_filters` | `F` | clear the filters and the search |
 | tree | `claim` | `c` | claim the issue, or reacquire a lost claim |
 | tree | `release` | `u` | release the issue's claim |
+| tree | `edit` | `e` | edit the body, or resume, apply or discard its draft |
+| tree | `edit_detached` | `E` | edit the body in any editor (shows the draft path) |
 | detail | `up` | `up`, `k` | scroll up |
 | detail | `down` | `down`, `j` | scroll down |
 | detail | `left` | `left`, `h` | scroll a wide block left |
@@ -326,6 +328,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | detail | `bottom` | `end`, `G` | go to the bottom |
 | detail | `claim` | `c` | claim the issue, or reacquire a lost claim |
 | detail | `release` | `u` | release the issue's claim |
+| detail | `edit` | `e` | edit the body, or resume, apply or discard its draft |
+| detail | `edit_detached` | `E` | edit the body in any editor (shows the draft path) |
 | menu | `up` | `up`, `k` | previous item |
 | menu | `down` | `down`, `j` | next item |
 | menu | `open` | `enter` | choose the item |

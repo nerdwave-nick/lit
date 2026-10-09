@@ -32,6 +32,7 @@ type Model struct {
 	l             *lifecycle.Lifecycle
 	uv            *uncertain.Model // the uncertain-requests view, when open
 	cl            *claimsView      // held claims and the idle question; nil without a holder
+	ed            *editing         // body drafts and the draft panel; nil without an editor
 }
 
 // NewModel returns the root model for the service at endpoint, with the
@@ -98,7 +99,7 @@ func (m Model) Init() tea.Cmd {
 
 // context is the keymap context of the focused view.
 func (m Model) context() keys.Context {
-	if m.help || m.b != nil && (m.b.menu != nil || m.b.filt.panel != nil) {
+	if m.help || m.b != nil && (m.b.menu != nil || m.b.filt.panel != nil) || m.ed != nil && m.ed.panel != nil {
 		return keys.Menu
 	}
 	return m.view()
@@ -139,6 +140,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
 	if cmd, handled := m.claimsUpdate(msg); handled {
+		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
+	}
+	if cmd, handled := m.editUpdate(msg); handled {
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
 	switch msg := msg.(type) {
@@ -221,6 +225,8 @@ func (m Model) dispatch(action keys.Action, msg tea.Msg) (Model, tea.Cmd) {
 		return m, m.claimAction(action)
 	case action == keys.UncertainRequests:
 		return m.openUncertain()
+	case m.ed != nil && (action == keys.Edit || action == keys.EditDetached):
+		return m, m.editAction(action == keys.EditDetached)
 	case m.b != nil:
 		return m, m.b.dispatch(m.view(), action, msg, m.detail)
 	case msg != nil:

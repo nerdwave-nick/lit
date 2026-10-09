@@ -121,7 +121,7 @@ func (m Model) footer() []string {
 			lines = append(lines, l)
 		}
 	}
-	return append(lines, m.claimLines()...)
+	return append(append(lines, m.claimLines()...), m.editLines()...)
 }
 
 func (m Model) View() tea.View {
@@ -135,6 +135,8 @@ func (m Model) View() tea.View {
 		content = strings.TrimRight(overlay+"\n\n"+lines, "\n")
 	case m.claimsPrompt() != "":
 		content = strings.TrimRight(m.claimsPrompt()+"\n\n"+strings.Join(m.footer(), "\n"), "\n")
+	case m.ed != nil && m.ed.panel != nil:
+		content = m.draftPanelView()
 	case m.help:
 		content = strings.Join(km.Help(m.view()), "\n") + "\n\n" + km.Hint(keys.Menu, keys.Cancel)
 	case m.doc != nil:
