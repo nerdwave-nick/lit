@@ -117,6 +117,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | detail | `down` | `down`, `j` | scroll down |
 | detail | `left` | `left`, `h` | scroll a wide block left |
 | detail | `right` | `right`, `l` | scroll a wide block right |
+| detail | `next_block` | `tab`, `]` | focus the next wide block |
+| detail | `prev_block` | `shift+tab`, `[` | focus the previous wide block |
 | detail | `back` | `esc` | back to the tree |
 | detail | `page_up` | `pgup`, `ctrl+u` | page up |
 | detail | `page_down` | `pgdown`, `ctrl+d` | page down |
