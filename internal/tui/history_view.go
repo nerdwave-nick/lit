@@ -9,6 +9,7 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/history"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/cells"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/sanitize"
 )
 
 // excerpt is how many cells of a comment's first line its chooser entry
@@ -45,7 +46,7 @@ func commentLabel(c protocol.Comment) string {
 	label := "comment by " + c.Author + " · " + c.CreatedAt
 	for _, l := range strings.Split(c.Body, "\n") {
 		if l = strings.TrimSpace(l); l != "" {
-			return label + " · " + cells.Clip(cells.Default, l, excerpt, "…")
+			return label + " · " + cells.Clip(cells.Default, sanitize.Title(l), excerpt, "…")
 		}
 	}
 	return label

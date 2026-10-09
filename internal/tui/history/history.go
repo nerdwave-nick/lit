@@ -69,8 +69,8 @@ type Model struct {
 	seen    map[string]bool
 	logical []line
 
-	offset, height int // first body row shown, body rows of the last View
-	rows           int // body rows of the last View, at least the logical lines since
+	offset, height int // the first body row shown; the body rows that fit in the last View
+	rows           int // the body's rows at the last View, plus the logical lines read since
 	wrapped        wrapCache
 }
 

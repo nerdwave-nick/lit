@@ -45,7 +45,7 @@ func (m *Model) View(method cells.Method, w, h int, km keys.Keymap, plain bool) 
 		m.rows = len(body)
 		m.clamp()
 	}
-	offset := 0
+	offset := max(m.cursor-m.height+1, 0) // the chooser keeps its cursor visible
 	if m.shown {
 		offset = m.offset
 	}

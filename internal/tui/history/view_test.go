@@ -107,3 +107,23 @@ func TestViewScrollsWithinTheBody(t *testing.T) {
 		t.Fatalf("top again:\n%s", v)
 	}
 }
+
+// A long chooser scrolls so the cursor stays visible.
+func TestChooserKeepsTheCursorVisible(t *testing.T) {
+	targets := []Target{{Type: "issues", ID: issueID, Label: "issue"}}
+	for i := 0; i < 30; i++ {
+		targets = append(targets, Target{Type: "comments", ID: commentID, Label: "comment " + string(rune('A'+i%26)) + strings.Repeat("x", i)})
+	}
+	m, _ := New(nil, targets...)
+	for i := 0; i < 25; i++ {
+		m.Do(keys.Down)
+	}
+	v := m.View(cells.Default, 80, 10, keys.Default(), true)
+	if !strings.Contains(v, "> comment Y"+strings.Repeat("x", 24)) || len(strings.Split(v, "\n")) != 10 {
+		t.Fatalf("cursor not visible:\n%s", v)
+	}
+	m.Do(keys.Top)
+	if v := m.View(cells.Default, 80, 10, keys.Default(), true); !strings.Contains(v, "> issue") {
+		t.Fatalf("top:\n%s", v)
+	}
+}
