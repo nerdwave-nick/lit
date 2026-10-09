@@ -168,7 +168,7 @@ func (m *Model) body(method cells.Method, w int) []string {
 			for _, f := range [][2]string{{"operation", op}, {"service", it.ServiceID}, {"client", client}, {"endpoint", it.Endpoint},
 				{"recorded", it.CreatedAt}, {"evidence", it.Evidence}, {"problem", it.Problem}} {
 				if strings.TrimSpace(f[1]) != "" {
-					add(15, "    "+f[0]+strings.Repeat(" ", 9-len(f[0]))+f[1])
+					add(15, "    "+f[0]+strings.Repeat(" ", 10-len(f[0]))+f[1])
 				}
 			}
 		}

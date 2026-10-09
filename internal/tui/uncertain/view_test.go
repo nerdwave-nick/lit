@@ -71,9 +71,9 @@ func TestViewShowsEveryRequestAndTheGuidance(t *testing.T) {
 		"Uncertain requests", "read-only",
 		"This session · client eccd071b", "checked now", "Orphaned session 1234abcd (pid 77)", "checked at launch",
 		reqA, "uncertain (acquisition_token_not_received)", "POST /v1/operations · claims.acquire", "/state/pending/" + reqA + ".json",
-		"service  " + service, "client   " + client, "http://127.0.0.1:9", "2026-10-09T08:00:00Z",
+		"operation POST", "service   " + service, "client    " + client, "http://127.0.0.1:9", "2026-10-09T08:00:00Z",
 		reqB, "committed: applied (immutable_history)", "POST /v1/transactions · issue.update",
-		reqC, "registration_identity_not_received", "client   (no identity received)",
+		reqC, "registration_identity_not_received", "client    (no identity received)",
 		"never replays", "docs/recovery.md", "lit transactions status", "escalate",
 	} {
 		if !strings.Contains(text, want) {
