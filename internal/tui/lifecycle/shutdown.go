@@ -213,8 +213,10 @@ func (l *Lifecycle) held() []string {
 // retained lists this instance's retained requests from local state only.
 func (l *Lifecycle) retained() []recovery.Request {
 	l.mu.Lock()
-	m := l.s.Mapping
+	m := l.mapping // never l.s: the session belongs to whoever holds the gate
 	l.mu.Unlock()
+	// Best effort: an unreadable pending directory leaves the list empty, and
+	// the kept registry entry still sends the next launch to check it.
 	found, _ := recovery.Find(l.cfg.StateDir, m.ServiceID, m.ClientID, l.entry.ID)
 	out := make([]recovery.Request, 0, len(found))
 	for _, ev := range found {

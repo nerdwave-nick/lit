@@ -107,6 +107,7 @@ type Lifecycle struct {
 	renewer  Renewer
 	stopping bool
 	status   Status
+	mapping  litclient.Mapping // the session's mapping once connected, for local reports
 	done     chan struct{}
 	forced   chan struct{}
 	code     int
@@ -144,7 +145,7 @@ func (l *Lifecycle) Connect(ctx context.Context) error {
 			return err
 		}
 		l.mu.Lock()
-		l.status.Client = s.Mapping.ClientID
+		l.status.Client, l.mapping = s.Mapping.ClientID, s.Mapping
 		st := l.status
 		l.mu.Unlock()
 		l.Post(statusKey, StatusMsg(st))
