@@ -43,7 +43,9 @@ func TestTUIUncertainRequestsInTmux(t *testing.T) {
 			return strings.Contains(s, id) && strings.Contains(s, "not disconnected") && strings.Contains(s, "U view the uncertain requests")
 		})
 		b.keys("U")
-		view := b.await("the view", func(s string) bool { return strings.Contains(s, "Uncertain requests · read-only") && strings.Contains(s, "claims.acquire") })
+		view := b.await("the view", func(s string) bool {
+			return strings.Contains(s, "Uncertain requests · read-only") && strings.Contains(s, "claims.acquire")
+		})
 		for _, want := range []string{"Orphaned lit-tui session " + a.entry.ID[:8], "checked at launch", id, "uncertain (acquisition_token_not_received)",
 			"POST /v1/operations · claims.acquire", a.m.ServiceID, a.m.ClientID, path, "never replays", "docs/recovery.md"} {
 			if !strings.Contains(flat(view), flat(want)) {
@@ -52,7 +54,9 @@ func TestTUIUncertainRequestsInTmux(t *testing.T) {
 		}
 		sameEvidence(t, path, before)
 		b.keys("Escape")
-		b.await("the panel again", func(s string) bool { return strings.Contains(s, "not disconnected") && !strings.Contains(s, "Uncertain requests · read-only") })
+		b.await("the panel again", func(s string) bool {
+			return strings.Contains(s, "not disconnected") && !strings.Contains(s, "Uncertain requests · read-only")
+		})
 		b.keys("Escape")
 		b.await("the panel to close", func(s string) bool { return !strings.Contains(s, "not disconnected") })
 		b.keys("m")
@@ -61,7 +65,9 @@ func TestTUIUncertainRequestsInTmux(t *testing.T) {
 			b.keys("Down")
 		}
 		b.keys("Enter")
-		b.await("the view from the menu", func(s string) bool { return strings.Contains(s, "Uncertain requests · read-only") && strings.Contains(s, id) })
+		b.await("the view from the menu", func(s string) bool {
+			return strings.Contains(s, "Uncertain requests · read-only") && strings.Contains(s, id)
+		})
 		b.keys("Escape")
 		b.await("the view to close", func(s string) bool { return !strings.Contains(s, "Uncertain requests · read-only") })
 		b.keys("q")
