@@ -13,6 +13,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 )
 
@@ -78,8 +79,8 @@ func TestDynamicCompletionRoutingAndNoLocalWrites(t *testing.T) {
 	path, prefix = "/v1/completions/issues", ""
 	runCompletionTest(t, "issues", "get", "--session", "missing", "")
 	// Existing mappings supply identity and endpoint without touching a lock or cache.
-	mapping := Mapping{1, protocol.UUID(), serviceID, srv.URL}
-	if err := WriteJSON(mappingPath(state, "saved"), mapping); err != nil {
+	mapping := Mapping{SchemaVersion: 1, ClientID: protocol.UUID(), ServiceID: serviceID, Endpoint: srv.URL}
+	if err := litclient.WriteJSON(litclient.MappingPath(state, "saved"), mapping); err != nil {
 		t.Fatal(err)
 	}
 	t.Setenv("LIT_ENDPOINT", "")
@@ -139,8 +140,8 @@ func TestDynamicCompletionFailsQuietly(t *testing.T) {
 			defer srv.Close()
 			t.Setenv("LIT_ENDPOINT", srv.URL)
 			if scenario == "wrong-service" {
-				dir, _ := StateDir()
-				if err := WriteJSON(mappingPath(dir, "saved"), Mapping{1, protocol.UUID(), protocol.UUID(), srv.URL}); err != nil {
+				dir, _ := litclient.StateDir()
+				if err := litclient.WriteJSON(litclient.MappingPath(dir, "saved"), Mapping{SchemaVersion: 1, ClientID: protocol.UUID(), ServiceID: protocol.UUID(), Endpoint: srv.URL}); err != nil {
 					t.Fatal(err)
 				}
 				t.Setenv("LIT_SESSION", "saved")

@@ -2,33 +2,26 @@
 package cli
 
 import (
-	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/clientendpoint"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"io"
 	"net/http"
 	"os"
 	"os/user"
-	"path/filepath"
 	"strings"
 	"time"
 )
 
+// App runs one CLI invocation over a client session. Like the session it
+// embeds, it is not safe for concurrent use.
 type App struct {
+	litclient.Session
 	Args           Args
 	Out, Err       io.Writer
-	StateDir       string
-	Mapping        Mapping
-	Meta           protocol.Meta
-	Client         protocol.Client
-	Endpoint       string
 	Format         string
-	HTTP           *http.Client
-	Context        context.Context
-	ServerTime     string
 	LogicalSession string
 }
 type Result struct {
@@ -67,7 +60,8 @@ func runTracker(argv []string, out, errOut io.Writer) int {
 	defer cancel()
 	app.Context = ctx
 	app.HTTP = &http.Client{Timeout: timeout}
-	app.StateDir, e = StateDir()
+	app.Warnings = errOut
+	app.StateDir, e = litclient.StateDir()
 	if e != nil {
 		return app.Error(protocol.E(500, "local_state_error", e.Error()))
 	}
@@ -85,69 +79,52 @@ func runTracker(argv []string, out, errOut io.Writer) int {
 		name = "throwaway-" + protocol.UUID()
 	}
 	app.LogicalSession = name
-	path := mappingPath(app.StateDir, name) // Serialize a mapping across reads, registration, updates and disconnect.
-	unlock, e := acquireLocal(path+".lock", time.Now().Add(timeout))
-	if e != nil {
-		return app.Error(protocol.E(409, "session_locked", e.Error()))
+	if e = app.Lock(name, time.Now().Add(timeout)); e != nil {
+		return app.Error(e)
 	}
-	defer unlock()
-	app.Mapping, e = readMapping(path)
-	if e != nil && !os.IsNotExist(e) {
-		return app.Error(protocol.E(500, "invalid_local_state", e.Error()))
-	}
-	exists := e == nil
+	defer app.Close()
+	exists := app.Mapping.ClientID != ""
 	if !a.Has("format") {
 		if f := cachedFormat(app.Mapping); f != "" {
 			app.Format = f
 		}
 	}
-	app.Endpoint, e = clientendpoint.Resolve(a.One("endpoint"), a.Has("endpoint"), os.Getenv("LIT_ENDPOINT"), app.Mapping.Endpoint)
-	if e != nil {
-		return app.Error(protocol.E(400, "invalid_endpoint", e.Error()))
-	}
-	var meta protocol.Meta
-	if e = app.Call("GET", "/v1/meta", nil, nil, &meta, false); e != nil {
-		return app.Error(e)
-	}
-	if meta.APIMajor != 1 || !protocol.ValidUUID(meta.ServiceID) {
-		return app.Error(protocol.E(500, "incompatible_service", "unsupported API major or invalid service identity"))
-	}
-	app.Meta = meta
-	if exists && app.Mapping.ServiceID != meta.ServiceID {
-		return app.Error(protocol.E(409, "wrong_service", "endpoint is bound to a different service"))
-	}
-	if a.Command != "connect" && !exists {
-		return app.Error(protocol.E(400, "not_connected", "connect this session explicitly first"))
-	}
-	if exists {
-		if e = app.Call("GET", "/v1/clients/"+app.Mapping.ClientID, nil, nil, &app.Client, false); e != nil {
-			return app.Error(e)
-		}
+	e = app.Open(litclient.OpenOptions{
+		Endpoint: a.One("endpoint"), EndpointSet: a.Has("endpoint"), EnvEndpoint: os.Getenv("LIT_ENDPOINT"),
+		AllowUnmapped: a.Command == "connect", AllowDisconnected: true,
+	})
+	if e == nil && exists {
+		// The client's stored preference formats everything after its record is
+		// read, including the disconnected-client refusal.
 		app.usePreference()
 	}
+	if e == nil && a.Command != "connect" && a.Command != "disconnect" {
+		e = app.RequireConnected()
+	}
+	if e != nil {
+		return app.Error(e)
+	}
+	meta := app.Meta
+	path := litclient.MappingPath(app.StateDir, name)
 	var result Result
 	if a.Command == "connect" {
 		result, e = app.connect(exists)
 		if e == nil {
-			app.Mapping = Mapping{1, app.Client.ClientID, meta.ServiceID, app.Endpoint}
-			if x := WriteJSON(path, app.Mapping); x != nil {
+			app.Mapping = Mapping{SchemaVersion: 1, ClientID: app.Client.ClientID, ServiceID: meta.ServiceID, Endpoint: app.Endpoint}
+			if x := litclient.WriteJSON(path, app.Mapping); x != nil {
 				failure := protocol.E(500, "local_state_error", fmt.Sprintf("connected logical session %q (client %s), but could not save its mapping: %s; after repairing local state, recover with connect --session %q --client-id %s --endpoint %q", name, app.Client.ClientID, x, name, app.Client.ClientID, app.Endpoint))
 				failure.Details = map[string]string{"logical_session": name, "client_id": app.Client.ClientID, "service_id": meta.ServiceID, "endpoint": app.Endpoint}
 				e = failure
 			}
 		}
 	} else {
-		if app.Client.Status != "connected" && a.Command != "disconnect" {
-			e = protocol.E(409, "client_disconnected", "connect explicitly to resume this client")
-		} else {
-			result, e = app.dispatch()
-		}
+		result, e = app.dispatch()
 	}
 	if e != nil {
 		return app.Error(e)
 	}
 	app.usePreference()
-	if x := WriteJSON(cachePath(app.Mapping.ClientID), Cache{1, app.Mapping.ClientID, meta.ServiceID, app.preference()}); x != nil {
+	if x := litclient.WriteJSON(cachePath(app.Mapping.ClientID), Cache{1, app.Mapping.ClientID, meta.ServiceID, app.preference()}); x != nil {
 		fmt.Fprintln(errOut, "warning: operation succeeded; output cache could not be written:", x)
 	}
 	if a.Command == "connect" && a.Has("session-id-only") {
@@ -211,169 +188,6 @@ func (a *App) usePreference() {
 	if !a.Args.Has("format") {
 		a.Format = a.preference()
 	}
-}
-func (a *App) Call(method, path string, body any, headers map[string]string, dest any, mutation bool) (callErr error) {
-	var b []byte
-	var e error
-	if body != nil {
-		b, e = json.Marshal(body)
-		if e != nil {
-			return e
-		}
-	}
-	req, e := http.NewRequestWithContext(a.Context, method, a.Endpoint+path, bytes.NewReader(b))
-	if e != nil {
-		return protocol.E(400, "invalid_endpoint", e.Error())
-	}
-	req.Header.Set("Content-Type", "application/json")
-	if a.Mapping.ClientID != "" {
-		req.Header.Set("X-Lit-Client-ID", a.Mapping.ClientID)
-	}
-	for k, v := range headers {
-		req.Header.Set(k, v)
-	}
-	pending := ""
-	var retained Pending
-	var unlockPending func()
-	defer func() {
-		if unlockPending != nil {
-			unlockPending()
-		}
-	}()
-	defer func() {
-		if pending == "" || callErr == nil {
-			return
-		}
-		pe, ok := callErr.(*protocol.Error)
-		if !ok || pe.Code != "outcome_uncertain" {
-			return
-		}
-		pe.Details = map[string]any{"request_id": retained.RequestID}
-		if a.Context.Err() != nil {
-			return
-		}
-		status, e := a.reconcile(retained)
-		if e != nil || status.Status == "uncertain" {
-			return
-		}
-		if status.Status == "uncommitted" {
-			callErr = protocol.E(503, "mutation_uncommitted", "read-only reconciliation found the request uncommitted at the observed snapshot; it was not retried")
-			if e = os.Remove(pending); e != nil {
-				fmt.Fprintln(a.Err, "warning: pending record cleanup failed:", e)
-			}
-			return
-		}
-		var obj map[string]json.RawMessage
-		if json.Unmarshal(status.Response, &obj) != nil || !mutationResponseMatches(retained, status.Response) {
-			return
-		}
-		if dest != nil && decodeResponseData(status.Response, dest) != nil {
-			return
-		}
-		if e = os.Remove(pending); e != nil {
-			fmt.Fprintln(a.Err, "warning: confirmed operation; pending record cleanup failed:", e)
-		}
-		callErr = nil
-	}()
-	if mutation {
-		id := protocol.UUID()
-		h := map[string]string{}
-		for k, v := range req.Header {
-			h[k] = v[0]
-		}
-		p := Pending{1, id, a.Meta.ServiceID, a.Mapping.ClientID, a.Endpoint, method, path, b, h, protocol.Now()}
-		retained = p
-		pending = filepath.Join(a.StateDir, "pending", id+".json")
-		deadline := time.Now().Add(30 * time.Second)
-		if d, ok := a.Context.Deadline(); ok {
-			deadline = d
-		}
-		unlock, lockErr := acquireLocal(filepath.Join(a.StateDir, "locks", "pending", id+".lock"), deadline)
-		if lockErr != nil {
-			pending = ""
-			return protocol.E(500, "pending_write_failed", "mutation was not sent: "+lockErr.Error())
-		}
-		unlockPending = unlock
-		if e = WriteJSON(pending, p); e != nil {
-			return protocol.E(500, "pending_write_failed", "mutation was not sent: "+e.Error())
-		}
-	}
-	resp, e := a.HTTP.Do(req)
-	if e != nil {
-		if mutation {
-			return protocol.E(0, "outcome_uncertain", "mutation outcome is uncertain; pending request retained")
-		}
-		return protocol.E(503, "service_unavailable", "cannot reach lit: "+e.Error())
-	}
-	defer resp.Body.Close()
-	raw, e := io.ReadAll(io.LimitReader(resp.Body, 32<<20+1))
-	if e != nil || len(raw) > 32<<20 {
-		if mutation {
-			return protocol.E(0, "outcome_uncertain", "response incomplete; pending request retained")
-		}
-		return protocol.E(500, "invalid_response", "invalid service response")
-	}
-	var wire struct {
-		Data       json.RawMessage `json:"data"`
-		Items      json.RawMessage `json:"items"`
-		NextCursor *string         `json:"next_cursor"`
-		Error      *protocol.Error `json:"error"`
-		ServerTime string          `json:"server_time"`
-	}
-	var checked map[string]json.RawMessage
-	if e = protocol.Decode(raw, &checked); e == nil {
-		e = decodeResponseData(raw, &wire)
-	}
-	if e != nil {
-		if mutation {
-			return protocol.E(0, "outcome_uncertain", "invalid mutation response; pending request retained")
-		}
-		return protocol.E(500, "invalid_response", "invalid JSON response")
-	}
-	if wire.Error != nil {
-		if mutation && (!validErrorResponse(resp.StatusCode, wire.Error) || len(wire.Data) > 0 || wire.Items != nil) {
-			return pendingError("invalid mutation error response")
-		}
-		wire.Error.Status = resp.StatusCode
-		if mutation && resp.StatusCode >= 500 {
-			return protocol.E(0, "outcome_uncertain", "service could not establish mutation outcome; pending request retained")
-		}
-		if pending != "" {
-			_ = os.Remove(pending)
-		}
-		return wire.Error
-	}
-	if len(wire.Data) == 0 && wire.Items != nil {
-		wire.Data, _ = json.Marshal(map[string]any{"items": wire.Items, "next_cursor": wire.NextCursor})
-	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 || len(wire.Data) == 0 {
-		if mutation {
-			return protocol.E(0, "outcome_uncertain", "unexpected mutation response; pending request retained")
-		}
-		return protocol.E(500, "invalid_response", "unexpected service response")
-	}
-	if dest != nil {
-		if e = decodeResponseData(wire.Data, dest); e != nil {
-			if mutation {
-				return protocol.E(0, "outcome_uncertain", "cannot decode mutation response; pending request retained")
-			}
-			return protocol.E(500, "invalid_response", e.Error())
-		}
-	}
-
-	if mutation {
-		var obj map[string]json.RawMessage
-		if json.Unmarshal(wire.Data, &obj) != nil || !mutationResponseMatches(retained, wire.Data) {
-			return protocol.E(0, "outcome_uncertain", "unrecognized mutation result; pending request retained")
-		}
-	}
-	a.ServerTime = wire.ServerTime
-	if pending != "" {
-		if e = os.Remove(pending); e != nil {
-			fmt.Fprintln(a.Err, "warning: confirmed operation; pending record cleanup failed:", e)
-		}
-	}
-	return nil
 }
 func (a *App) Error(e error) int {
 	pe, ok := e.(*protocol.Error)
@@ -584,77 +398,6 @@ func (a *App) clientItem(selection map[string][]string) map[string]any {
 	return v
 }
 
-func validMutationResponse(path string, obj map[string]json.RawMessage) bool {
-	if raw, ok := obj["outcome"]; ok {
-		var outcome string
-		if json.Unmarshal(raw, &outcome) != nil {
-			return false
-		}
-		switch outcome {
-		case "applied", "already_satisfied", "already_disconnected", "no_active_claim":
-		default:
-			return false
-		}
-	}
-	if path == "/v1/connect" || path == "/v1/disconnect" || strings.HasPrefix(path, "/v1/clients/") {
-		raw := obj["client"]
-		if strings.HasPrefix(path, "/v1/clients/") {
-			raw, _ = json.Marshal(obj)
-		}
-		var c protocol.Client
-		if json.Unmarshal(raw, &c) != nil || c.SchemaVersion != 1 || !protocol.ValidUUID(c.ClientID) || c.StateRevision < 1 || (c.Status != "connected" && c.Status != "disconnected") {
-			return false
-		}
-		return true
-	}
-	if path == "/v1/operations" {
-		var outcome string
-		var items []claimView
-		if json.Unmarshal(obj["outcome"], &outcome) != nil || (outcome != "applied" && outcome != "already_satisfied" && outcome != "no_active_claim") || json.Unmarshal(obj["items"], &items) != nil || items == nil {
-			return false
-		}
-		var rawItems []map[string]json.RawMessage
-		if json.Unmarshal(obj["items"], &rawItems) != nil {
-			return false
-		}
-		for _, raw := range rawItems {
-			if _, ok := raw["claim"]; !ok {
-				return false
-			}
-		}
-		seen := map[string]bool{}
-		for _, item := range items {
-			if !protocol.ValidUUID(item.IssueID) || seen[item.IssueID] {
-				return false
-			}
-			seen[item.IssueID] = true
-			if c := item.Claim; c != nil {
-				if c.SchemaVersion != 1 || c.IssueID != item.IssueID || !protocol.ValidUUID(c.OwnerClientID) || !protocol.ValidUUID(c.Token) {
-					return false
-				}
-				start, e := time.Parse(time.RFC3339Nano, c.AcquiredAt)
-				if e != nil {
-					return false
-				}
-				end, e := time.Parse(time.RFC3339Nano, c.ExpiresAt)
-				if e != nil || !end.After(start) {
-					return false
-				}
-			}
-		}
-		return true
-	}
-	if path == "/v1/transactions" || strings.HasPrefix(path, "/v1/projects") {
-		var outcome, hash string
-		var results []protocol.ChangedObject
-		if json.Unmarshal(obj["outcome"], &outcome) != nil || (outcome != "applied" && outcome != "already_satisfied") || json.Unmarshal(obj["request_hash"], &hash) != nil || len(hash) != 64 || json.Unmarshal(obj["results"], &results) != nil || results == nil {
-			return false
-		}
-		return true
-	}
-	return len(obj) > 0
-}
-
 // Syntax failures also honor explicit output and this cwd's confirmed cache,
 // without contacting a service or creating local state.
 func offlineFormat(argv []string) string {
@@ -687,22 +430,13 @@ func offlineFormat(argv []string) string {
 	if name == "" {
 		return ""
 	}
-	dir, e := StateDir()
+	dir, e := litclient.StateDir()
 	if e != nil {
 		return ""
 	}
-	m, e := readMapping(mappingPath(dir, name))
+	m, e := litclient.ReadMapping(litclient.MappingPath(dir, name))
 	if e != nil {
 		return ""
 	}
 	return cachedFormat(m)
-}
-
-// Response maps retain exact JSON numbers; typed protocol fields still decode
-// into their declared integer types. Share this with reconciliation so recovered
-// responses do not lose precision compared with direct responses.
-func decodeResponseData(raw []byte, dest any) error {
-	decoder := json.NewDecoder(bytes.NewReader(raw))
-	decoder.UseNumber()
-	return decoder.Decode(dest)
 }

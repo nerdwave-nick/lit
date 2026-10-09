@@ -8,6 +8,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
@@ -73,12 +74,12 @@ func TestEndpointSelectionAndServiceBinding(t *testing.T) {
 					t.Fatalf("request to %q want %q", endpoint, tc.want)
 				}
 			}
-			saved, err := readMapping(mappingPath(state, "endpoint-test"))
+			saved, err := litclient.ReadMapping(litclient.MappingPath(state, "endpoint-test"))
 			if err != nil || saved.Endpoint != tc.want {
 				t.Fatalf("mapping: %+v %v", saved, err)
 			}
 			saved.ServiceID = protocol.UUID()
-			if err := WriteJSON(mappingPath(state, "endpoint-test"), saved); err != nil {
+			if err := litclient.WriteJSON(litclient.MappingPath(state, "endpoint-test"), saved); err != nil {
 				t.Fatal(err)
 			}
 			out.Reset()

@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
@@ -117,7 +118,7 @@ func TestConnectLogicalSessions(t *testing.T) {
 	if !protocol.ValidUUID(strings.TrimPrefix(first, "throwaway-")) {
 		t.Fatal(first)
 	}
-	if _, err := readMapping(mappingPath(state, "default")); !os.IsNotExist(err) {
+	if _, err := litclient.ReadMapping(litclient.MappingPath(state, "default")); !os.IsNotExist(err) {
 		t.Fatalf("implicit default mapping: %v", err)
 	}
 	t.Setenv("LIT_SESSION", first)
@@ -187,11 +188,11 @@ func TestMissingSessionDoesNotUseDefaultOrContactService(t *testing.T) {
 	state := t.TempDir()
 	t.Setenv("LIT_STATE_DIR", state)
 	t.Setenv("LIT_SESSION", "")
-	m := Mapping{1, protocol.UUID(), protocol.UUID(), "http://127.0.0.1:7411"}
-	if err := WriteJSON(mappingPath(state, "default"), m); err != nil {
+	m := Mapping{SchemaVersion: 1, ClientID: protocol.UUID(), ServiceID: protocol.UUID(), Endpoint: "http://127.0.0.1:7411"}
+	if err := litclient.WriteJSON(litclient.MappingPath(state, "default"), m); err != nil {
 		t.Fatal(err)
 	}
-	if err := WriteJSON(cachePath(m.ClientID), Cache{1, m.ClientID, m.ServiceID, "markdown"}); err != nil {
+	if err := litclient.WriteJSON(cachePath(m.ClientID), Cache{1, m.ClientID, m.ServiceID, "markdown"}); err != nil {
 		t.Fatal(err)
 	}
 	if got := offlineFormat([]string{"projects", "list"}); got != "" {
@@ -276,7 +277,7 @@ func TestConnectMappingSaveFailureCanRecoverRegisteredClient(t *testing.T) {
 	if failure.Error.Code != "local_state_error" || !protocol.ValidUUID(details["client_id"]) || !protocol.ValidUUID(details["service_id"]) || !strings.HasPrefix(details["logical_session"], "throwaway-") || details["endpoint"] != "http://127.0.0.1:7411" {
 		t.Fatalf("missing recovery identity: %s", &stderr)
 	}
-	if mappingPath(state, details["logical_session"]) != blockedPath {
+	if litclient.MappingPath(state, details["logical_session"]) != blockedPath {
 		t.Fatalf("wrong recovery name: %v", details)
 	}
 	if err := os.Remove(blockedPath); err != nil {
@@ -288,7 +289,7 @@ func TestConnectMappingSaveFailureCanRecoverRegisteredClient(t *testing.T) {
 	if code := Run([]string{"connect", "--session", details["logical_session"], "--client-id", details["client_id"], "--endpoint", details["endpoint"], "--format", "json"}, &out, &stderr); code != 0 {
 		t.Fatalf("recover: %d %s", code, &stderr)
 	}
-	mapping, err := readMapping(blockedPath)
+	mapping, err := litclient.ReadMapping(blockedPath)
 	if err != nil || mapping.ClientID != details["client_id"] || mapping.ServiceID != details["service_id"] || mapping.Endpoint != details["endpoint"] {
 		t.Fatalf("recovered wrong identity: %+v %v", mapping, err)
 	}

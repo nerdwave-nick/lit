@@ -3,6 +3,7 @@ package cli
 import (
 	"bytes"
 	"encoding/json"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"os"
 	"path/filepath"
@@ -36,8 +37,8 @@ func TestOutputFormatPreferencesAndLegacyCache(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { os.Chdir(cwd) })
-	m := Mapping{1, protocol.UUID(), protocol.UUID(), "http://127.0.0.1:7411"}
-	if err := WriteJSON(mappingPath(filepath.Join(root, "state"), "default"), m); err != nil {
+	m := Mapping{SchemaVersion: 1, ClientID: protocol.UUID(), ServiceID: protocol.UUID(), Endpoint: "http://127.0.0.1:7411"}
+	if err := litclient.WriteJSON(litclient.MappingPath(filepath.Join(root, "state"), "default"), m); err != nil {
 		t.Fatal(err)
 	}
 	for _, stored := range []string{"cli", "markdown", "json", "human"} {
@@ -45,13 +46,13 @@ func TestOutputFormatPreferencesAndLegacyCache(t *testing.T) {
 		if want == "human" {
 			want = "cli"
 		}
-		if err := WriteJSON(cachePath(m.ClientID), Cache{1, m.ClientID, m.ServiceID, stored}); err != nil {
+		if err := litclient.WriteJSON(cachePath(m.ClientID), Cache{1, m.ClientID, m.ServiceID, stored}); err != nil {
 			t.Fatal(err)
 		}
 		if got := offlineFormat(nil); got != want {
 			t.Errorf("cache %s => %s, want %s", stored, got, want)
 		}
-		a := App{Client: protocol.Client{OutputFormat: &stored}}
+		a := App{Session: litclient.Session{Client: protocol.Client{OutputFormat: &stored}}}
 		if got := a.preference(); got != want {
 			t.Errorf("preference %s => %s", stored, got)
 		}
@@ -64,7 +65,7 @@ func TestOutputFormatPreferencesAndLegacyCache(t *testing.T) {
 	if got := (&App{}).preference(); got != "cli" {
 		t.Fatal("default", got)
 	}
-	if err := WriteJSON(cachePath(m.ClientID), Cache{1, m.ClientID, protocol.UUID(), "markdown"}); err != nil {
+	if err := litclient.WriteJSON(cachePath(m.ClientID), Cache{1, m.ClientID, protocol.UUID(), "markdown"}); err != nil {
 		t.Fatal(err)
 	}
 	if got := offlineFormat(nil); got != "" {

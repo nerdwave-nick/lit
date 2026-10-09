@@ -12,6 +12,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 )
 
@@ -128,7 +129,7 @@ func TestMilestoneListFileScopeOverridesSessionFallback(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			app := App{Args: args, Endpoint: srv.URL, HTTP: srv.Client(), Context: context.Background(), StateDir: dir, Meta: protocol.Meta{ServiceID: protocol.UUID()}, Client: protocol.Client{ProjectID: &selected}}
+			app := App{Session: litclient.Session{Endpoint: srv.URL, HTTP: srv.Client(), Context: context.Background(), StateDir: dir, Meta: protocol.Meta{ServiceID: protocol.UUID()}, Client: protocol.Client{ProjectID: &selected}}, Args: args}
 			_, err = app.records()
 			if (err != nil) != testCase.wantErr {
 				t.Fatalf("records error=%v want error=%v", err, testCase.wantErr)
@@ -183,7 +184,7 @@ func TestMilestoneUpdateResolvesMembersInEachTargetProject(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	app := App{Args: args, Endpoint: srv.URL, HTTP: srv.Client(), Context: context.Background(), StateDir: t.TempDir(), Mapping: Mapping{ClientID: protocol.UUID()}, Meta: protocol.Meta{ServiceID: protocol.UUID()}}
+	app := App{Session: litclient.Session{Endpoint: srv.URL, HTTP: srv.Client(), Context: context.Background(), StateDir: t.TempDir(), Mapping: Mapping{ClientID: protocol.UUID()}, Meta: protocol.Meta{ServiceID: protocol.UUID()}}, Args: args}
 	items, err := app.recordInputs()
 	if err != nil {
 		t.Fatal(err)
@@ -199,7 +200,7 @@ func TestResolveIssueRefsAcceptsSnapshotDeduplication(t *testing.T) {
 		_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"items": []any{map[string]any{"id": issue}}, "next_cursor": nil}})
 	}))
 	defer srv.Close()
-	app := App{Endpoint: srv.URL, HTTP: srv.Client(), Context: context.Background(), StateDir: t.TempDir(), Meta: protocol.Meta{ServiceID: protocol.UUID()}}
+	app := App{Session: litclient.Session{Endpoint: srv.URL, HTTP: srv.Client(), Context: context.Background(), StateDir: t.TempDir(), Meta: protocol.Meta{ServiceID: protocol.UUID()}}}
 	got, err := app.resolveIssueRefs([]string{"Alias A", "Alias B"}, protocol.UUID())
 	if err != nil || len(got) != 1 || got[0] != issue {
 		t.Fatalf("deduplicated target snapshot: ids=%v err=%v", got, err)
@@ -228,7 +229,7 @@ func TestMilestoneHistoryKeepsExplicitProjectAcrossPages(t *testing.T) {
 			if err != nil {
 				t.Fatal(err)
 			}
-			app := App{Args: parsed, Endpoint: srv.URL, HTTP: srv.Client(), Context: context.Background(), StateDir: t.TempDir(), Mapping: Mapping{ClientID: protocol.UUID()}, Meta: protocol.Meta{ServiceID: protocol.UUID()}, Client: protocol.Client{ProjectID: &selected}}
+			app := App{Session: litclient.Session{Endpoint: srv.URL, HTTP: srv.Client(), Context: context.Background(), StateDir: t.TempDir(), Mapping: Mapping{ClientID: protocol.UUID()}, Meta: protocol.Meta{ServiceID: protocol.UUID()}, Client: protocol.Client{ProjectID: &selected}}, Args: parsed}
 			if _, err = app.records(); err != nil {
 				t.Fatal(err)
 			}

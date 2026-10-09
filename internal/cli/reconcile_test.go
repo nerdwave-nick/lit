@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"net/http"
 	"net/http/httptest"
@@ -54,11 +55,11 @@ func TestTransactionsStatusPreservesUncertainAndUserFiles(t *testing.T) {
 	dir := t.TempDir()
 	p := Pending{SchemaVersion: 1, RequestID: protocol.UUID(), ServiceID: sid, ClientID: cid, Endpoint: server.URL, Method: "POST", Path: "/v1/disconnect", Body: json.RawMessage(`{}`), Headers: map[string]string{"If-Match": "\"client:1\"", "X-Lit-Client-Id": cid}, CreatedAt: protocol.Now()}
 	path := filepath.Join(dir, "pending", p.RequestID+".json")
-	if e := WriteJSON(path, p); e != nil {
+	if e := litclient.WriteJSON(path, p); e != nil {
 		t.Fatal(e)
 	}
 	var out, errs bytes.Buffer
-	app := &App{Args: Args{Command: "transactions", Verb: "status", Values: map[string][]string{}}, Out: &out, Err: &errs, StateDir: dir, Format: "json", HTTP: server.Client(), Context: context.Background()}
+	app := &App{Session: litclient.Session{StateDir: dir, HTTP: server.Client(), Context: context.Background()}, Args: Args{Command: "transactions", Verb: "status", Values: map[string][]string{}}, Out: &out, Err: &errs, Format: "json"}
 	if code := app.transactionStatus(); code != 4 || errs.Len() != 0 {
 		t.Fatal(code, out.String(), errs.String())
 	}
@@ -137,9 +138,9 @@ func TestMalformedReconciliationNeverDeletesEvidence(t *testing.T) {
 			dir := t.TempDir()
 			p := Pending{SchemaVersion: 1, RequestID: protocol.UUID(), ServiceID: sid, ClientID: cid, Endpoint: server.URL, Method: "POST", Path: "/v1/transactions", Body: body, Headers: map[string]string{"X-Lit-Client-ID": cid}, CreatedAt: protocol.Now()}
 			path := filepath.Join(dir, "pending", p.RequestID+".json")
-			WriteJSON(path, p)
+			litclient.WriteJSON(path, p)
 			before, _ := os.ReadFile(path)
-			app := &App{Args: Args{Command: "transactions", Verb: "status", Values: map[string][]string{}}, StateDir: dir, Out: new(bytes.Buffer), Err: new(bytes.Buffer), Format: "json", HTTP: server.Client(), Context: context.Background()}
+			app := &App{Session: litclient.Session{StateDir: dir, HTTP: server.Client(), Context: context.Background()}, Args: Args{Command: "transactions", Verb: "status", Values: map[string][]string{}}, Out: new(bytes.Buffer), Err: new(bytes.Buffer), Format: "json"}
 			if code := app.transactionStatus(); code != 4 {
 				t.Fatal(code)
 			}
@@ -158,7 +159,7 @@ func TestMalformedMutationErrorsRetainPending(t *testing.T) {
 		t.Run(tc.body, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.WriteHeader(tc.status); w.Write([]byte(tc.body)) }))
 			defer server.Close()
-			a := &App{StateDir: t.TempDir(), Endpoint: server.URL, Meta: protocol.Meta{ServiceID: protocol.UUID()}, Mapping: Mapping{ClientID: protocol.UUID()}, Context: context.Background(), HTTP: server.Client(), Err: new(bytes.Buffer)}
+			a := &App{Session: litclient.Session{StateDir: t.TempDir(), Endpoint: server.URL, Meta: protocol.Meta{ServiceID: protocol.UUID()}, Mapping: Mapping{ClientID: protocol.UUID()}, Context: context.Background(), HTTP: server.Client()}, Err: new(bytes.Buffer)}
 			e := a.Call("POST", "/v1/disconnect", map[string]any{}, nil, nil, true)
 			if pe, ok := e.(*protocol.Error); !ok || pe.Code != "outcome_uncertain" {
 				t.Fatal(e)
@@ -177,7 +178,7 @@ func TestCorruptPendingFailsClosedWithoutNetwork(t *testing.T) {
 			dir := t.TempDir()
 			p := Pending{SchemaVersion: 1, RequestID: protocol.UUID(), ServiceID: protocol.UUID(), ClientID: protocol.UUID(), Endpoint: "http://127.0.0.1:1", Method: "POST", Path: "/v1/disconnect", Body: json.RawMessage(`{}`), Headers: map[string]string{}, CreatedAt: protocol.Now()}
 			path := filepath.Join(dir, "pending", p.RequestID+".json")
-			WriteJSON(path, p)
+			litclient.WriteJSON(path, p)
 			raw, _ := os.ReadFile(path)
 			switch kind {
 			case "version":
@@ -205,7 +206,7 @@ func TestCorruptPendingFailsClosedWithoutNetwork(t *testing.T) {
 				os.WriteFile(path, raw, 0600)
 			}
 			var out, errs bytes.Buffer
-			a := &App{Args: Args{Command: "transactions", Verb: "status", Values: map[string][]string{}}, StateDir: dir, Context: context.Background(), Format: "json", Out: &out, Err: &errs}
+			a := &App{Session: litclient.Session{StateDir: dir, Context: context.Background()}, Args: Args{Command: "transactions", Verb: "status", Values: map[string][]string{}}, Format: "json", Out: &out, Err: &errs}
 			if code := a.transactionStatus(); code != 1 || out.Len() != 0 {
 				t.Fatal(code, out.String(), errs.String())
 			}
@@ -217,85 +218,13 @@ func TestCorruptPendingFailsClosedWithoutNetwork(t *testing.T) {
 	}
 }
 
-func TestMutationResponseMustMatchRetainedOperationalEffect(t *testing.T) {
-	cid, sid, id, token := protocol.UUID(), protocol.UUID(), protocol.UUID(), protocol.UUID()
-	client := protocol.Client{SchemaVersion: 1, ClientID: cid, StateRevision: 2, Status: "connected", Actor: protocol.Actor{Name: "test", Kind: "human"}}
-	p := Pending{ClientID: cid, ServiceID: sid, Method: "PATCH", Path: "/v1/clients/" + cid, Body: json.RawMessage(`{"runtime":null}`), Headers: map[string]string{"If-Match": "\"client:1\""}}
-	raw, _ := json.Marshal(client)
-	if !mutationResponseMatches(p, raw) {
-		t.Fatal("valid runtime clear rejected")
-	}
-	client.Runtime = protocol.Runtime{Vendor: "still present"}
-	raw, _ = json.Marshal(client)
-	if mutationResponseMatches(p, raw) {
-		t.Fatal("uncleared runtime accepted")
-	}
-	client.Runtime = protocol.Runtime{}
-	client.StateRevision = 100
-	raw, _ = json.Marshal(client)
-	if mutationResponseMatches(p, raw) {
-		t.Fatal("unrelated client revision accepted")
-	}
-	p.Path = "/v1/disconnect"
-	p.Method = "POST"
-	p.Body = json.RawMessage(`{}`)
-	client.Status = "disconnected"
-	raw, _ = json.Marshal(map[string]any{"outcome": "applied", "client": client})
-	if mutationResponseMatches(p, raw) {
-		t.Fatal("unrelated disconnect revision accepted")
-	}
-	p.Path = "/v1/connect"
-	p.ClientID = ""
-	p.Headers = map[string]string{}
-	p.Body = json.RawMessage(`{"actor":{"name":"test","kind":"human"}}`)
-	client.Status = "connected"
-	client.StateRevision = 2
-	raw, _ = json.Marshal(map[string]any{"client": client, "meta": protocol.Meta{ServiceID: sid, APIMajor: 1}})
-	if mutationResponseMatches(p, raw) {
-		t.Fatal("new registration with revision2 accepted")
-	}
-	p.ClientID = cid
-	p.Path = "/v1/operations"
-	op := protocol.ClaimOperation{Operation: "claims.acquire", OwnerClientID: cid, Selection: "explicit", Items: []protocol.ClaimItem{{IssueID: id, ExtendTo: "2026-09-29T15:30:00Z"}}}
-	p.Body, _ = json.Marshal(op)
-	claim := protocol.Claim{SchemaVersion: 1, IssueID: id, OwnerClientID: cid, Token: token, AcquiredAt: "2026-09-29T15:00:00Z", ExpiresAt: op.Items[0].ExtendTo}
-	result := protocol.ClaimResult{Outcome: "applied", Items: []protocol.RequiredClaim{{IssueID: id, Claim: &claim}}}
-	raw, _ = json.Marshal(result)
-	if !mutationResponseMatches(p, raw) {
-		t.Fatal("valid acquire rejected")
-	}
-	claim.ExpiresAt = "2026-09-29T15:40:00Z"
-	raw, _ = json.Marshal(result)
-	if mutationResponseMatches(p, raw) {
-		t.Fatal("different acquisition expiry accepted")
-	}
-}
-
-func TestAcquireResponseAcceptsOnlyExactCappedGrant(t *testing.T) {
-	cid, id := protocol.UUID(), protocol.UUID()
-	op := protocol.ClaimOperation{Operation: "claims.acquire", OwnerClientID: cid, Selection: "explicit", Items: []protocol.ClaimItem{{IssueID: id, ExtendTo: "2026-09-29T18:00:00Z"}}}
-	body, _ := json.Marshal(op)
-	p := Pending{ClientID: cid, Path: "/v1/operations", Body: body}
-	claim := protocol.Claim{SchemaVersion: 1, IssueID: id, OwnerClientID: cid, Token: protocol.UUID(), AcquiredAt: "2026-09-29T15:00:00Z", ExpiresAt: "2026-09-29T16:00:00Z"}
-	v := protocol.ClaimResult{Outcome: "applied", Items: []protocol.RequiredClaim{{IssueID: id, Claim: &claim}}}
-	raw, _ := json.Marshal(v)
-	if !mutationResponseMatches(p, raw) {
-		t.Fatal("legitimate one-hour capped grant rejected")
-	}
-	claim.ExpiresAt = "2026-09-29T16:01:00Z"
-	raw, _ = json.Marshal(v)
-	if mutationResponseMatches(p, raw) {
-		t.Fatal("grant over cap accepted")
-	}
-}
-
 func TestStatusCannotDiscardEvidenceOwnedByActiveCommand(t *testing.T) {
 	dir := t.TempDir()
 	p := Pending{SchemaVersion: 1, RequestID: protocol.UUID(), ServiceID: protocol.UUID(), ClientID: protocol.UUID(), Endpoint: "http://127.0.0.1:1", Method: "POST", Path: "/v1/disconnect", Body: json.RawMessage(`{}`), Headers: map[string]string{"If-Match": "\"client:1\""}, CreatedAt: protocol.Now()}
 	path := filepath.Join(dir, "pending", p.RequestID+".json")
-	WriteJSON(path, p)
+	litclient.WriteJSON(path, p)
 	before, _ := os.ReadFile(path)
-	unlock, e := acquireLocal(filepath.Join(dir, "locks", "pending", p.RequestID+".lock"), time.Now().Add(time.Second))
+	unlock, e := litclient.AcquireLock(filepath.Join(dir, "locks", "pending", p.RequestID+".lock"), time.Now().Add(time.Second))
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -303,7 +232,7 @@ func TestStatusCannotDiscardEvidenceOwnedByActiveCommand(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Millisecond)
 	defer cancel()
 	var out, errs bytes.Buffer
-	a := &App{Args: Args{Command: "transactions", Verb: "status", Values: map[string][]string{"timeout": {"10ms"}}}, StateDir: dir, Context: ctx, Format: "json", Out: &out, Err: &errs}
+	a := &App{Session: litclient.Session{StateDir: dir, Context: ctx}, Args: Args{Command: "transactions", Verb: "status", Values: map[string][]string{"timeout": {"10ms"}}}, Format: "json", Out: &out, Err: &errs}
 	if code := a.transactionStatus(); code != 4 || errs.Len() != 0 {
 		t.Fatal(code, out.String(), errs.String())
 	}

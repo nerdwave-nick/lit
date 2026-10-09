@@ -46,12 +46,17 @@ Deferred archives, editing windows, drafts, and saved plans have no routes.
   transmitted afterwards. Resource handlers belong in separate files and are
   dispatched from `route`. Mutations must check bounded success output before
   committing; never return a definite limit rejection after changing state.
-- `internal/cli.App` holds arguments, client/service binding, deadline, output
-  preference, and last observed service time. `Call` persists exact outgoing
+- `internal/litclient.Session` is the client safety core shared by every Go
+  client: it holds the client/service binding, deadline, last observed service
+  time and an injected warning writer. `Lock` holds a logical session's mapping
+  lock until `Close`; `Open` resolves the endpoint, checks the service's API
+  major and identity, and reads the client. `Call` persists exact outgoing
   operational requests before transmission. Failed local persistence prevents
-  sending. Uncertain transport or response results retain pending evidence and
-  exit 4. Ticket 06 supplies complete operational reconciliation/status; this
-  foundation deliberately never blindly replays a pending request.
+  sending. Uncertain transport or response results retain pending evidence (the
+  CLI exits 4) and are reconciled read-only, never blindly replayed. A `Session`
+  is not safe for concurrent use.
+- `internal/cli.App` embeds that session and adds arguments and output
+  preference; it passes its stderr as the warning writer.
 - Resource CLI verbs should live in separate files, expanding argument validation
   and dispatch. Session selections are property selectors, distinct from the
   global project context used by later resource commands. Grouped resource flags

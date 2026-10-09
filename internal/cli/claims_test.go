@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"net/http"
 	"net/http/httptest"
@@ -56,7 +57,7 @@ func TestClaimMalformedSuccessRetainsPending(t *testing.T) {
 		t.Run(data, func(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { w.Write([]byte(`{"data":` + data + `}`)) }))
 			defer server.Close()
-			app := &App{StateDir: t.TempDir(), Endpoint: server.URL, HTTP: server.Client(), Context: context.Background(), Err: new(bytes.Buffer)}
+			app := &App{Session: litclient.Session{StateDir: t.TempDir(), Endpoint: server.URL, HTTP: server.Client(), Context: context.Background()}, Err: new(bytes.Buffer)}
 			if e := app.Call("POST", "/v1/operations", map[string]any{}, nil, nil, true); e == nil {
 				t.Fatal("accepted malformed success")
 			}
@@ -103,7 +104,7 @@ func TestClaimRenewAllFencesExactSnapshot(t *testing.T) {
 	}))
 	defer server.Close()
 	args, _ := Parse([]string{"claims", "renew", "--all"})
-	app := &App{Args: args, Mapping: Mapping{ClientID: owner}, StateDir: t.TempDir(), Endpoint: server.URL, HTTP: server.Client(), Context: context.Background(), Err: new(bytes.Buffer)}
+	app := &App{Session: litclient.Session{Mapping: Mapping{ClientID: owner}, StateDir: t.TempDir(), Endpoint: server.URL, HTTP: server.Client(), Context: context.Background()}, Args: args, Err: new(bytes.Buffer)}
 	result, e := app.claims()
 	if e != nil || result.Outcome != "applied" || calls != 2 {
 		t.Fatal(result, e, calls)
@@ -111,20 +112,5 @@ func TestClaimRenewAllFencesExactSnapshot(t *testing.T) {
 	pending, _ := filepath.Glob(filepath.Join(app.StateDir, "pending", "*.json"))
 	if len(pending) != 0 {
 		t.Fatal(pending)
-	}
-}
-
-func TestClaimResponseRequiresExplicitClaimState(t *testing.T) {
-	for _, raw := range []string{
-		`{"outcome":"applied","items":[{"issue_id":"00000000-0000-4000-8000-000000000001"}]}`,
-		`{"outcome":"applied","items":[{"issue_id":"00000000-0000-4000-8000-000000000001","claim":null},{"issue_id":"00000000-0000-4000-8000-000000000001","claim":null}]}`,
-	} {
-		var obj map[string]json.RawMessage
-		if e := json.Unmarshal([]byte(raw), &obj); e != nil {
-			t.Fatal(e)
-		}
-		if validMutationResponse("/v1/operations", obj) {
-			t.Fatal("ambiguous claim result accepted", raw)
-		}
 	}
 }

@@ -48,10 +48,11 @@ func TestReleaseArchives(t *testing.T) {
 	for _, target := range []string{"linux-amd64", "linux-arm64", "darwin-amd64", "darwin-arm64", "windows-amd64"} {
 		t.Run(target, func(t *testing.T) {
 			suffix := ".tar.gz"
-			binary := "lit"
+			binary, tui := "lit", "lit-tui"
 			if target == "windows-amd64" {
 				suffix = ".zip"
 				binary += ".exe"
+				tui += ".exe"
 			}
 			name := "lit-" + version + "-" + target + suffix
 			data, err := os.ReadFile(filepath.Join(dir, name))
@@ -61,7 +62,7 @@ func TestReleaseArchives(t *testing.T) {
 			if fmt.Sprintf("%x", sha256.Sum256(data)) != checksums[name] {
 				t.Fatal("checksum mismatch")
 			}
-			expected := map[string]bool{binary: true, "INSTALL.md": true}
+			expected := map[string]bool{binary: true, tui: true, "INSTALL.md": true}
 			if strings.HasPrefix(target, "linux-") {
 				expected["lit-server"] = true
 				expected["lit.service.in"] = true
@@ -122,7 +123,7 @@ func TestReleaseArchives(t *testing.T) {
 					if h.Typeflag != tar.TypeReg {
 						t.Fatal("nonregular member", h.Name)
 					}
-					if (h.Name == "lit" || h.Name == "lit-server") && h.Mode&0111 == 0 {
+					if (h.Name == "lit" || h.Name == "lit-server" || h.Name == "lit-tui") && h.Mode&0111 == 0 {
 						t.Fatal("binary not executable", h.Name)
 					}
 					add(h.Name, tr)
@@ -135,7 +136,7 @@ func TestReleaseArchives(t *testing.T) {
 				t.Fatalf("members: %v; want %v", members, expected)
 			}
 			if runtime.GOOS == "linux" && runtime.GOARCH == "amd64" && target == "linux-amd64" {
-				for binary, arg := range map[string]string{"lit-server": "--version", "lit": "version"} {
+				for binary, arg := range map[string]string{"lit-server": "--version", "lit": "version", "lit-tui": "--version"} {
 					path := filepath.Join(t.TempDir(), binary)
 					if err := os.WriteFile(path, contents[binary], 0700); err != nil {
 						t.Fatal(err)
