@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -18,7 +19,7 @@ func TestCallPreservesLargeResponseNumbers(t *testing.T) {
 			server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) { fmt.Fprint(w, payload) }))
 			defer server.Close()
 			var out bytes.Buffer
-			app := App{Args: Args{Command: "projects", Verb: "get"}, Context: context.Background(), HTTP: server.Client(), Endpoint: server.URL, Format: "markdown", Out: &out, Err: &out}
+			app := App{Session: litclient.Session{Context: context.Background(), HTTP: server.Client(), Endpoint: server.URL}, Args: Args{Command: "projects", Verb: "get"}, Format: "markdown", Out: &out, Err: &out}
 			var result Result
 			if err := app.Call("GET", "/read", nil, nil, &result, false); err != nil {
 				t.Fatal(err)

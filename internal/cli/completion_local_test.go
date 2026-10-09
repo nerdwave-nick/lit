@@ -6,6 +6,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 )
@@ -94,13 +95,13 @@ func TestCompletionOffersNothingForFreeFormOperands(t *testing.T) {
 
 func TestCompletionOffersSavedSessionsAndEndpoints(t *testing.T) {
 	offlineCompletion(t)
-	dir, _ := StateDir()
+	dir, _ := litclient.StateDir()
 	for name, endpoint := range map[string]string{"alpha": "http://127.0.0.1:7411", "throwaway-1f2e": "http://127.0.0.1:7500"} {
-		if err := WriteJSON(mappingPath(dir, name), Mapping{1, protocol.UUID(), protocol.UUID(), endpoint}); err != nil {
+		if err := litclient.WriteJSON(litclient.MappingPath(dir, name), Mapping{SchemaVersion: 1, ClientID: protocol.UUID(), ServiceID: protocol.UUID(), Endpoint: endpoint}); err != nil {
 			t.Fatal(err)
 		}
 	}
-	if err := os.WriteFile(mappingPath(dir, "alpha")+".lock", nil, 0600); err != nil {
+	if err := os.WriteFile(litclient.MappingPath(dir, "alpha")+".lock", nil, 0600); err != nil {
 		t.Fatal(err)
 	}
 	if err := os.WriteFile(filepath.Join(dir, "sessions", "not base64!.json"), []byte("{}"), 0600); err != nil {

@@ -1,4 +1,4 @@
-package cli
+package litclient
 
 import (
 	"bytes"

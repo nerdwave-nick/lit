@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 )
 
@@ -44,7 +45,7 @@ func TestWireErrorNumbersRemainExact(t *testing.T) {
 	}))
 	defer server.Close()
 	var out bytes.Buffer
-	app := App{Context: context.Background(), Endpoint: server.URL, HTTP: server.Client(), Format: "json", Err: &out}
+	app := App{Session: litclient.Session{Context: context.Background(), Endpoint: server.URL, HTTP: server.Client()}, Format: "json", Err: &out}
 	err := app.Call("GET", "/record", nil, nil, nil, false)
 	if err == nil {
 		t.Fatal("missing error")

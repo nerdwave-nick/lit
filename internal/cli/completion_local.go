@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/clientendpoint"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
 )
 
@@ -44,7 +45,7 @@ func runCompletion(argv []string, out io.Writer) int {
 // savedSessions lists logical session names from the client state directory,
 // described by their remembered endpoint.
 func savedSessions() []string {
-	dir, err := StateDir()
+	dir, err := litclient.StateDir()
 	if err != nil {
 		return nil
 	}
@@ -56,7 +57,7 @@ func savedSessions() []string {
 			continue
 		}
 		value := string(name)
-		if m, err := readMapping(path); err == nil && m.Endpoint != "" {
+		if m, err := litclient.ReadMapping(path); err == nil && m.Endpoint != "" {
 			value += "\t" + m.Endpoint
 		}
 		out = append(out, value)
