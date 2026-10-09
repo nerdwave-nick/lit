@@ -85,6 +85,10 @@ func startBinary(t *testing.T, bin, data string, env ...string) *server {
 }
 func (s *server) stop(t *testing.T) {
 	t.Helper()
+	// The test clients share http.DefaultTransport. A connection it dialed
+	// but never used is new to the server, and Shutdown waits up to 5s for
+	// new connections: close them so the drain is not held up.
+	http.DefaultTransport.(*http.Transport).CloseIdleConnections()
 	s.cmd.Process.Signal(os.Interrupt)
 	done := make(chan error, 1)
 	go func() { done <- s.cmd.Wait() }()
