@@ -56,6 +56,7 @@ type browser struct {
 	memory    map[string]tree.State // per project, for switching back
 	focus     focusPane
 	menu      *actionMenu
+	filt      filtering
 	method    cells.Method
 	// menuItem, when set, adjusts or hides (false) an action menu item.
 	menuItem func(keys.Binding) (keys.Binding, bool)
@@ -70,7 +71,9 @@ type browser struct {
 	lastAt   time.Time
 	note     string
 	selected string // the issue whose detail is shown
-	choose1  bool   // choose the only project of the first page
+	wide     bool   // the detail is laid out beside the tree
+	full     fullDetail
+	choose1  bool // choose the only project of the first page
 }
 
 type (
@@ -143,6 +146,7 @@ func (b *browser) choose(p protocol.Project, d *detail.Model) tea.Cmd {
 		b.memory[b.project.ID] = b.tree.State()
 	}
 	b.project, b.focus, b.loaded, b.note, b.selected = &p, paneTree, false, "", ""
+	b.resetFilters()
 	b.tree.Restore(b.memory[p.ID])
 	b.tree.SetFocused(true)
 	b.loading = false
@@ -189,11 +193,15 @@ func (b *browser) update(msg tea.Msg, d *detail.Model) (tea.Cmd, bool) {
 			return nil, true
 		}
 		return b.loadedIssues(msg.issues, d), true
+	case searchMsg, tea.PasteMsg:
+		return b.filterUpdate(msg, d)
 	case refreshMsg:
 		if msg.timer != b.timer || b.src.Started() {
 			return nil, true
 		}
 		return b.refresh(), true
+	case detailMsg:
+		return b.loadedFull(msg, d), true
 	}
 	return nil, false
 }
@@ -204,13 +212,16 @@ func (b *browser) loadedIssues(got browse.Issues, d *detail.Model) tea.Cmd {
 	if shown {
 		b.last, b.lastAt, b.loaded = got, time.Now(), true
 		b.note = ""
-		if ch := b.tree.SetIssues(got.Items); ch.Missing {
+		switch ch := b.tree.SetIssues(got.Items); {
+		case ch.Missing:
 			b.note = "The previously selected issue is no longer listed."
+		case ch.Hidden:
+			b.note = "The previously selected issue no longer matches the filters."
 		}
 	} else {
 		b.last.Err = got.Err
 	}
-	cmds := []tea.Cmd{b.showSelected(d, true)}
+	cmds := []tea.Cmd{b.showSelected(d, true), b.researchAfterLoad()}
 	if b.again {
 		cmds = append(cmds, b.refresh())
 	} else {
@@ -245,6 +256,9 @@ func (b *browser) dispatch(ctx keys.Context, action keys.Action, msg tea.Msg, d 
 		r := b.switcher.Do(action)
 		return b.switched(r, d)
 	case keys.Tree:
+		if cmd, ok := b.filterAction(action, d); ok {
+			return cmd
+		}
 		ch := b.tree.Do(action)
 		if ch.Open {
 			b.focus = paneDetail
@@ -277,20 +291,4 @@ func (b *browser) switched(r projects.Result, d *detail.Model) tea.Cmd {
 		b.switching = false
 	}
 	return nil
-}
-
-// showSelected shows the selected issue in the detail. It is the seam for
-// the issue detail: the selection changed, the detail was opened, or a load
-// may have changed the issue (reload).
-func (b *browser) showSelected(d *detail.Model, reload bool) tea.Cmd {
-	issue, ok := b.tree.Selected()
-	if !ok {
-		b.selected = ""
-		return d.SetSections()
-	}
-	if issue.ID == b.selected && !reload {
-		return nil
-	}
-	b.selected = issue.ID
-	return d.SetSections(detail.Section{RecordID: issue.ID, Revision: issue.Revision, Content: issueMarkdown(issue, b.project, b.tree)})
 }

@@ -57,7 +57,14 @@ func (m Model) relayout() tea.Cmd {
 	g := m.geometry()
 	m.b.tree.SetSize(g.treeW, g.height)
 	m.b.switcher.SetSize(m.width, g.height)
-	return m.detail.SetSize(g.detailW, g.height)
+	cmd := m.detail.SetSize(g.detailW, g.height)
+	if g.wide != m.b.wide {
+		m.b.wide = g.wide
+		if g.wide && m.b.project != nil {
+			cmd = tea.Batch(cmd, m.b.showSelected(m.detail, false))
+		}
+	}
+	return cmd
 }
 
 // mouse handles clicks and the wheel (only delivered with the mouse
@@ -65,7 +72,7 @@ func (m Model) relayout() tea.Cmd {
 func (m Model) mouse(msg tea.MouseMsg) tea.Cmd {
 	b, g, ms := m.b, m.geometry(), msg.Mouse()
 	y := ms.Y - g.top
-	if y < 0 || y >= g.height || b.menu != nil {
+	if y < 0 || y >= g.height || b.menu != nil || b.filt.modal() {
 		return nil
 	}
 	_, wheel := msg.(tea.MouseWheelMsg)
@@ -108,6 +115,11 @@ func (m Model) footer() []string {
 	lines := m.life.Lines()
 	if m.b != nil && m.b.note != "" {
 		lines = append(lines, m.b.note)
+	}
+	if m.b != nil && m.b.project != nil && !m.b.switching {
+		if l := m.b.filterLine(); l != "" {
+			lines = append(lines, l)
+		}
 	}
 	return append(lines, m.claimLines()...)
 }
@@ -153,6 +165,8 @@ func (m Model) browserView() string {
 	switch {
 	case b.menu != nil:
 		out = append(out, b.menu.lines(b.method, m.width, g.height, b.tree.Plain())...)
+	case b.filt.panel != nil:
+		out = append(out, b.filt.panel.Lines(b.method, m.width, g.height, b.tree.Plain())...)
 	case b.switching:
 		out = append(out, splitLines(b.switcher.View(), g.height)...)
 	case b.project == nil:
@@ -243,12 +257,14 @@ func (m Model) crumb() string {
 func (m Model) hint() string {
 	km, ctx := m.prefs.Keymap, m.view()
 	switch {
-	case m.b.menu != nil:
+	case m.b.filt.input != nil:
+		return m.b.filt.input.Line(m.b.method, m.width, km)
+	case m.b.menu != nil || m.b.filt.panel != nil:
 		return km.Hint(keys.Menu, keys.Open, keys.Cancel)
 	case ctx == keys.Menu:
 		return km.Hint(keys.Menu, keys.Open, keys.Cancel, keys.Quit)
 	case ctx == keys.Tree:
-		return km.Hint(keys.Tree, keys.Open, keys.Expand, keys.Collapse, keys.SwitchProject, keys.Refresh, keys.ActionMenu, keys.Help, keys.Quit)
+		return km.Hint(keys.Tree, keys.Open, keys.Expand, keys.Collapse, keys.Search, keys.Filter, keys.SwitchProject, keys.Refresh, keys.ActionMenu, keys.Help, keys.Quit)
 	case ctx == keys.Detail:
 		return km.Hint(keys.Detail, keys.Back, keys.NextBlock, keys.Refresh, keys.Help, keys.Quit)
 	}

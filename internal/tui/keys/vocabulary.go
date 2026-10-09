@@ -44,6 +44,9 @@ const (
 	Bottom        Action = "bottom"
 	NextBlock     Action = "next_block"
 	PrevBlock     Action = "prev_block"
+	Search        Action = "search"
+	Filter        Action = "filter"
+	ClearFilters  Action = "clear_filters"
 	Claim         Action = "claim"
 	Release       Action = "release"
 	// UncertainRequests opens the read-only view of retained requests whose
@@ -88,6 +91,9 @@ var vocabulary = map[Context][]entry{
 		{PageDown, "page down", []string{"pgdown", "ctrl+d"}},
 		{Top, "select the first issue", []string{"home", "g"}},
 		{Bottom, "select the last issue", []string{"end", "G"}},
+		{Search, "search issue content", []string{"/"}},
+		{Filter, "filter the tree", []string{"f"}},
+		{ClearFilters, "clear the filters and the search", []string{"F"}},
 		{Claim, "claim the issue, or reacquire a lost claim", []string{"c"}},
 		{Release, "release the issue's claim", []string{"u"}},
 	},

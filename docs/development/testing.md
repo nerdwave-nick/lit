@@ -42,7 +42,15 @@ synthetic issues (40 transactions of 25, seeded by the non-race helper
 logs the seeding and load times; a server configured with small read limits
 shows the partial indicator; a deep branch shows its breadcrumb, and a narrow
 terminal opens the detail and returns to the same selection; switching back to
-a project keeps its selection. `integration/tui_uncertain_test.go` opens the
+a project keeps its selection. `integration/tui_detail_test.go` runs bare `lit`
+in the tmux pane, expands a deep branch and opens an issue whose body and
+comment try to clear the screen, retitle the window, write the clipboard (with
+tmux `set-clipboard on`), leave the alternate screen and reorder text; it
+checks the rendered body and comment, the visible markers, and with
+`capture-pane -e` that the terminal is unchanged. `integration/tui_filter_test.go` searches and
+filters the same way: a deep match keeps its ancestors, typed letters belong to
+the search input, no match shows the empty state, filters combine with the
+search, and one key clears them. `integration/tui_uncertain_test.go` opens the
 uncertain-requests view with fabricated uncertain evidence: from an orphan's
 launch panel and the action menu, and from its key and the exit report of the
 instance itself, checking that the evidence stays byte-identical.

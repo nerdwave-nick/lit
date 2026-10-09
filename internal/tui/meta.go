@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/issue"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/tree"
 )
 
@@ -98,25 +99,8 @@ func ordered(parent string, ids []string, t *tree.Model) []string {
 	return out
 }
 
-// escape backslash-escapes the ASCII punctuation that forms Markdown
-// syntax, so tracker text renders as literal text, and keeps it on one
-// line. Only escapes the renderer removes are used: others would show their
-// backslash.
-func escape(s string) string {
-	var b strings.Builder
-	for _, r := range s {
-		switch {
-		case r == '\n' || r == '\r':
-			b.WriteRune(' ')
-		case r < 0x80 && strings.ContainsRune("\\`*_{}[]<>()#+-.!|", r):
-			b.WriteByte('\\')
-			b.WriteRune(r)
-		default:
-			b.WriteRune(r)
-		}
-	}
-	return b.String()
-}
+// escape makes tracker text literal Markdown on one line (issue.Escape).
+func escape(s string) string { return issue.Escape(s) }
 
 // code is s as a code span; code spans take no escapes, so backticks are
 // dropped.

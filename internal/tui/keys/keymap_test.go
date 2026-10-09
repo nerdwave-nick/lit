@@ -179,7 +179,7 @@ func TestNewRejectsInvalidKeymaps(t *testing.T) {
 		{"unknown context", map[string]map[string][]string{"sidebar": {"up": {"k"}}},
 			`keymap: unknown context "sidebar" (contexts: global, tree, detail, menu)`},
 		{"unknown action", map[string]map[string][]string{"tree": {"jump": {"J"}}},
-			`keymap.tree: unknown action "jump" (tree actions: up, down, collapse, expand, open, page_up, page_down, top, bottom, claim, release)`},
+			`keymap.tree: unknown action "jump" (tree actions: up, down, collapse, expand, open, page_up, page_down, top, bottom, search, filter, clear_filters, claim, release)`},
 		{"action of another context", map[string]map[string][]string{"global": {"up": {"k"}}},
 			`keymap.global: unknown action "up"`},
 		{"empty key", map[string]map[string][]string{"tree": {"up": {""}}},

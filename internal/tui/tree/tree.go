@@ -20,6 +20,7 @@ type Change struct {
 	Selection bool // the selected issue changed
 	Open      bool // the user asked to open the selected issue
 	Missing   bool // the previously selected issue is no longer listed
+	Hidden    bool // the previously selected issue no longer matches the filter
 }
 
 // State is a project's tree state, kept while the user looks at another
@@ -39,6 +40,13 @@ type Model struct {
 	selected string
 	cursor   int // row of the selection; kept when the selection vanishes
 	offset   int // first row shown
+
+	// A filter (match non-nil) shows its hits and their ancestors (keep),
+	// with its own expansion, so the tree's expansion is kept for after.
+	match     func(protocol.IssueSummary) bool
+	hits      map[string]bool
+	keep      map[string]bool
+	fexpanded map[string]bool
 
 	width, height  int
 	plain, focused bool
@@ -61,14 +69,27 @@ func (m *Model) SetMarks(marks map[string]string) { m.marks = marks }
 // its screen row when it can, and its ancestors are expanded if it moved
 // under a collapsed parent. A selection that is no longer listed moves to the
 // row in its place and is reported as Missing.
+//
+// With a filter set, the new issues are filtered too; a selection that no
+// longer matches is reported as Hidden instead.
 func (m *Model) SetIssues(items []protocol.IssueSummary) Change {
 	prev, screen := m.selected, m.cursor-m.offset
 	m.f = build(items)
+	if m.match != nil {
+		m.refilter()
+	}
+	return m.reselect(prev, screen)
+}
+
+// reselect shows prev again after the rows changed: its ancestors expand and
+// it keeps its screen row when it can. A selection that is not shown moves
+// to the row in its place.
+func (m *Model) reselect(prev string, screen int) Change {
 	var ch Change
-	if prev != "" && m.f.nodes[prev] != nil {
+	if m.shown(prev) {
 		for _, a := range m.f.path(prev) {
 			if a.ID != prev {
-				m.expanded[a.ID] = true
+				m.expansion()[a.ID] = true
 			}
 		}
 		m.reindex()
@@ -81,7 +102,8 @@ func (m *Model) SetIssues(items []protocol.IssueSummary) Change {
 			m.selected = m.rows[m.cursor].id
 		}
 		ch.Selection = m.selected != prev
-		ch.Missing = prev != ""
+		ch.Hidden = prev != "" && m.f.nodes[prev] != nil
+		ch.Missing = prev != "" && !ch.Hidden
 	}
 	m.offset = m.cursor - screen
 	m.clamp()
@@ -127,17 +149,16 @@ func (m *Model) Do(a keys.Action) Change {
 	case keys.Bottom:
 		return m.move(len(m.rows) - 1)
 	case keys.Expand:
-		n := m.f.nodes[m.selected]
-		if len(n.children) == 0 {
+		if len(m.children(m.selected)) == 0 {
 			return Change{}
 		}
-		if !m.expanded[m.selected] {
+		if !m.expansion()[m.selected] {
 			m.setExpanded(m.selected, true)
 			return Change{}
 		}
 		return m.move(m.cursor + 1)
 	case keys.Collapse:
-		if m.expanded[m.selected] && len(m.f.nodes[m.selected].children) > 0 {
+		if m.expansion()[m.selected] && len(m.children(m.selected)) > 0 {
 			m.setExpanded(m.selected, false)
 			return Change{}
 		}
@@ -158,7 +179,7 @@ func (m *Model) Click(y int) Change {
 		return Change{}
 	}
 	if r == m.cursor {
-		m.setExpanded(m.selected, !m.expanded[m.selected])
+		m.setExpanded(m.selected, !m.expansion()[m.selected])
 		return Change{}
 	}
 	return m.move(r)
@@ -210,9 +231,11 @@ func (m *Model) State() State {
 	return State{Selected: m.selected, Expanded: maps.Clone(m.expanded), Row: m.cursor - m.offset}
 }
 
-// Restore resets the tree to s; the next SetIssues applies it.
+// Restore resets the tree to s, without a filter; the next SetIssues applies
+// it.
 func (m *Model) Restore(s State) {
 	m.f = build(nil)
+	m.match, m.hits, m.keep, m.fexpanded = nil, nil, nil, nil
 	m.selected, m.offset, m.cursor = s.Selected, 0, max(s.Row, 0)
 	m.expanded = maps.Clone(s.Expanded)
 	if m.expanded == nil {
@@ -230,17 +253,17 @@ func (m *Model) move(r int) Change {
 }
 
 func (m *Model) setExpanded(id string, open bool) {
-	if len(m.f.nodes[id].children) == 0 {
+	if len(m.children(id)) == 0 {
 		return
 	}
-	m.expanded[id] = open
+	m.expansion()[id] = open
 	m.reindex()
 	m.cursor = m.index[m.selected]
 	m.clamp()
 }
 
 func (m *Model) reindex() {
-	m.rows = m.f.visible(m.expanded)
+	m.rows = m.f.visible(m.expansion(), m.keep)
 	m.index = make(map[string]int, len(m.rows))
 	for i, r := range m.rows {
 		m.index[r.id] = i
