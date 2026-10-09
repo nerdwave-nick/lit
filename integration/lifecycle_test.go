@@ -47,6 +47,12 @@ type server struct {
 
 func start(t *testing.T, data string, env ...string) *server {
 	t.Helper()
+	return startBinary(t, litBin, data, env...)
+}
+
+// startBinary starts the lit-server binary bin.
+func startBinary(t *testing.T, bin, data string, env ...string) *server {
+	t.Helper()
 	l, e := net.Listen("tcp", "127.0.0.1:0")
 	if e != nil {
 		t.Fatal(e)
@@ -54,7 +60,7 @@ func start(t *testing.T, data string, env ...string) *server {
 	addr := l.Addr().String()
 	l.Close()
 	b := new(safeBuffer)
-	c := exec.Command(litBin, "--data-dir", data, "--listen", addr)
+	c := exec.Command(bin, "--data-dir", data, "--listen", addr)
 	c.Env = append(append(os.Environ(), "GORACE=atexit_sleep_ms=0"), env...)
 	c.Stderr = b
 	if e = c.Start(); e != nil {

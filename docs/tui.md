@@ -71,6 +71,64 @@ first wide block on screen, and `next_block`/`prev_block` move it. The scroll
 position follows the text across resizes and re-renders. A body that takes
 longer than about 100 ms to render shows `rendering…` meanwhile.
 
+## Browsing projects
+
+`lit-tui` starts with the project switcher, a list of every project read 50 at
+a time (more load as the selection reaches the end). Enter chooses a project;
+if there is only one, it opens at once. `switch_project` (`p`) opens the
+switcher again, with the current project marked; `r` reloads the list. Each
+project keeps its own selection and expanded branches for the session, so
+switching back returns to where you were.
+
+The tree shows the project's issues by hierarchy, at any depth. Roots are shown
+first, each collapsed; `right` expands an issue and then moves to its first
+child, and `left` collapses it and then moves to its parent. Siblings are in
+creation order (issues created together by title). Very deep rows stop
+indenting at half the pane and show their depth instead (`12›`). Titles are
+cut to fit, with `…`; the state of a closed issue and the owner of a claim
+(`⚑ Claude`) stay visible. The line under the header is the breadcrumb: the
+project, then the selected issue's ancestors and the issue itself. When it is
+too long, its start is cut, so the nearest ancestors stay visible. The
+selection follows the issue, not the row: after a refresh it stays on the same
+issue, even if that issue moved. If the issue is gone, the selection moves to
+the row in its place and a note says so.
+
+At 100 columns and more, the detail is shown beside the tree. Enter moves the
+focus to the detail, so the detail keys scroll it, and Escape (`back`) returns
+to the tree. On narrower terminals the tree and the detail are separate views:
+Enter opens the detail full screen, and Escape returns to the tree with the
+same selection. The detail shows the issue's title, state, labels, assignee,
+claim (owner name and kind, and lease end), parent, children, links and last
+update.
+
+`action_menu` (`m`) lists the commands of the current view with their keys
+(open or back, refresh, switch project, help and quit); Enter runs one, Escape
+closes the menu. With the `mouse` preference on, a click selects a row, a click
+on the selected row expands or collapses it, a click on the detail pane focuses
+it, and the wheel moves the selection or scrolls the detail.
+
+### Loading and refresh
+
+A project loads without issue bodies, through one bounded read of all its
+issue summaries. The header then shows the number of issues and the time of
+the load (`1000 issues · as of 10:31:02`). When the project is too large for
+one read (the service answers `limit_exceeded`), `lit-tui` reads it page by
+page instead. Those pages are not one consistent snapshot, so the header says
+`partial: may have changed between pages` and shows no count. If a page
+fails, the issues read so far stay shown and the header names the error.
+
+`refresh` (`r`) reloads the current project. In the background, the project is
+reloaded 30 s after the previous load ended, or after ten times as long as
+that load took, whichever is longer, so a busy service sees fewer reads.
+Refreshes never overlap: pressing `r` while a load runs asks for one more load
+after it. While `lit-tui` is applying a change to the tracker, refresh waits
+(the header says `refresh waits for a running change`) and runs once the change
+is finished. Only the current project is ever reloaded.
+
+The first release targets projects of up to about 1,000 issues, with bodies of
+up to 64 KB. Larger projects still load, page by page, but every request
+currently makes lit-server read its whole store, so they are slow.
+
 ## Keymap
 
 Every binding belongs to a **context**:

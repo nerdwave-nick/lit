@@ -53,6 +53,7 @@ func litTUI(t *testing.T) string {
 
 type tuiEnv struct {
 	t        *testing.T
+	bin      string // the lit-tui binary; litTUI's race build by default
 	srv      *server
 	endpoint string // what lit-tui connects to: the server or a delaying proxy
 	root     string
@@ -70,7 +71,7 @@ func newTUIEnv(t *testing.T) *tuiEnv {
 	}
 	litTUI(t)
 	root := t.TempDir()
-	e := &tuiEnv{t: t, root: root, state: filepath.Join(root, "state"), socket: fmt.Sprintf("lit-tui-%d-%d", os.Getpid(), tuiSockets.Add(1))}
+	e := &tuiEnv{t: t, bin: litTUI(t), root: root, state: filepath.Join(root, "state"), socket: fmt.Sprintf("lit-tui-%d-%d", os.Getpid(), tuiSockets.Add(1))}
 	e.srv = start(t, filepath.Join(root, "data"))
 	e.endpoint = e.srv.endpoint
 	t.Cleanup(func() { _ = exec.Command("tmux", "-L", e.socket, "kill-server").Run() })
@@ -122,7 +123,7 @@ func (e *tuiEnv) launch(name string) *pane {
 	home := filepath.Join(e.root, "home")
 	env := []string{"env", "-i", "HOME=" + home, "USER=tester", "PATH=" + os.Getenv("PATH"), "TERM=xterm-256color",
 		"XDG_CONFIG_HOME=" + filepath.Join(home, "config"), "XDG_STATE_HOME=" + filepath.Join(home, "xdg-state"),
-		"LIT_STATE_DIR=" + e.state, "LIT_ENDPOINT=" + e.endpoint, "GORACE=atexit_sleep_ms=0", litTUI(e.t)}
+		"LIT_STATE_DIR=" + e.state, "LIT_ENDPOINT=" + e.endpoint, "GORACE=atexit_sleep_ms=0", e.bin}
 	script := strings.Join(quoteAll(env), " ") + "; echo EXIT=$? > " + quoteAll([]string{filepath.Join(e.root, name+".exit")})[0] + "; exec sleep 600"
 	e.tmux("new-session", "-d", "-s", name, "-x", "200", "-y", "50", "sh -c "+quoteAll([]string{script})[0])
 	p := &pane{e: e, name: name}

@@ -36,7 +36,14 @@ killed), SIGTERM, `kill -9` then relaunch (the orphan is disconnected), an orpha
 with fabricated uncertain evidence (not disconnected), a second live instance
 (never disconnected) and an uncertain exit (entry kept, second keypress). The
 SIGHUP and SIGTERM runs delay the disconnect behind a proxy, so the process must
-wait for it. These scenarios skip without tmux or with `-short`. The lifecycle,
+wait for it. `integration/tui_browse_test.go` drives browsing the same way: about 1,000
+synthetic issues (40 transactions of 25, seeded by the non-race helper
+`integration/testdata/seed`) load in one consistent bodiless read, and the test
+logs the seeding and load times; a server configured with small read limits
+shows the partial indicator; a deep branch shows its breadcrumb, and a narrow
+terminal opens the detail and returns to the same selection; switching back to
+a project keeps its selection. These scenarios skip without tmux or with
+`-short`. The lifecycle,
 registry and recovery packages are tested in-process against a temporary
 service (`internal/tui/tuitest`).
 
