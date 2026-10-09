@@ -280,30 +280,3 @@ func (b *browser) switched(r projects.Result, d *detail.Model) tea.Cmd {
 	}
 	return nil
 }
-
-// showSelected shows the selected issue in the detail: its metadata at once,
-// and its body and comments once the detail is shown. It runs when the
-// selection changed, the detail was opened, the layout widened, or a load
-// may have changed the issue (reload, which also reloads the body and
-// comments).
-func (b *browser) showSelected(d *detail.Model, reload bool) tea.Cmd {
-	issue, ok := b.tree.Selected()
-	if !ok {
-		b.selected = ""
-		b.dropFull()
-		return d.SetSections()
-	}
-	changed := issue.ID != b.selected
-	if changed {
-		b.selected = issue.ID
-		b.dropFull()
-	}
-	var load tea.Cmd
-	if b.detailShown() && (reload || b.full.got == nil && !b.full.running) {
-		load = b.loadFull(issue)
-	}
-	if !changed && !reload && load == nil {
-		return nil
-	}
-	return tea.Batch(d.SetSections(b.sections(issue)...), load)
-}

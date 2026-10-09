@@ -33,6 +33,33 @@ type detailMsg struct {
 // detailShown reports whether the detail is on screen.
 func (b *browser) detailShown() bool { return b.wide || b.focus == paneDetail }
 
+// showSelected shows the selected issue in the detail: its metadata at once,
+// and its body and comments once the detail is shown. It runs when the
+// selection changed, the detail was opened, the layout widened, or a load
+// may have changed the issue (reload, which also reloads the body and
+// comments).
+func (b *browser) showSelected(d *detail.Model, reload bool) tea.Cmd {
+	sel, ok := b.tree.Selected()
+	if !ok {
+		b.selected = ""
+		b.dropFull()
+		return d.SetSections()
+	}
+	changed := sel.ID != b.selected
+	if changed || reload && !b.detailShown() {
+		b.selected = sel.ID
+		b.dropFull() // a hidden detail reloads when it is shown
+	}
+	var load tea.Cmd
+	if b.detailShown() && (reload || b.full.got == nil && !b.full.running) {
+		load = b.loadFull(sel)
+	}
+	if !changed && !reload && load == nil {
+		return nil
+	}
+	return tea.Batch(d.SetSections(b.sections(sel)...), load)
+}
+
 // sections are the detail of the selection sel: its metadata, then, once
 // the detail is shown, its body and comments or a loading note.
 func (b *browser) sections(sel protocol.IssueSummary) []detail.Section {

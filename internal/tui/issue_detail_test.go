@@ -69,6 +69,30 @@ func TestNarrowDetailLoadsWhenItOpens(t *testing.T) {
 	b.expect("widening shows the new selection's body beside the tree", strings.Contains(b.bodyLine("body of Second root"), "│"))
 }
 
+// A refresh while the narrow detail is closed reads no body, but the next
+// opening shows the current one, not the body read before the refresh.
+func TestNarrowDetailReopensWithTheCurrentBody(t *testing.T) {
+	srv := tuitest.Service(t)
+	s, id := discussion(t, srv, "test/one")
+	b := startBrowsing(t, srv, 80, 30, false)
+	b.press("enter")
+	b.expect("loaded", b.bodyLine("The body of the plan.") != "")
+	b.press("esc")
+	issues, err := litclient.Get[protocol.Issue](t.Context(), s, "test/one", id)
+	if err != nil {
+		t.Fatal(err)
+	}
+	body := "A rewritten body."
+	tuitest.Apply(t, s, litclient.UpdateIssue("test/one", id, issues[0].Revision, litclient.IssueChange{Body: &body}))
+	reads := srv.Count("POST /v1/snapshots")
+	b.press("r")
+	if got := srv.Count("POST /v1/snapshots"); got != reads {
+		t.Fatalf("the refresh read %d snapshots for a closed detail", got-reads)
+	}
+	b.press("enter")
+	b.expect("the current body", b.bodyLine("A rewritten body.") != "" && b.bodyLine("The body of the plan.") == "")
+}
+
 // A load for an issue that is no longer selected is dropped: its result
 // never replaces the detail of the current selection.
 func TestStaleDetailLoadsAreDropped(t *testing.T) {
