@@ -49,7 +49,8 @@ Deferred archives, editing windows, drafts, and saved plans have no routes.
 - `internal/litclient.Session` is the client safety core shared by every Go
   client: it holds the client/service binding, deadline, last observed service
   time and an injected warning writer. `Lock` holds a logical session's mapping
-  lock until `Close`; `Open` resolves the endpoint, checks the service's API
+  lock until `Close` (`LockPath` does the same for a mapping outside the
+  `sessions/` namespace, which lit-tui uses for its per-instance registry); `Open` resolves the endpoint, checks the service's API
   major and identity, and reads the client. `Call` persists exact outgoing
   operational requests before transmission. Failed local persistence prevents
   sending. Uncertain transport or response results retain pending evidence (the

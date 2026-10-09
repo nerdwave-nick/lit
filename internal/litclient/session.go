@@ -58,7 +58,15 @@ type OpenOptions struct {
 // until Close, serializing the mapping across reads, registration, updates and
 // disconnect.
 func (s *Session) Lock(name string, deadline time.Time) error {
-	path := MappingPath(s.StateDir, name)
+	return s.LockPath(MappingPath(s.StateDir, name), deadline)
+}
+
+// LockPath is Lock for a mapping stored at path rather than in the named
+// sessions namespace of StateDir. Connect then saves the mapping at path.
+// lit-tui keeps its per-instance sessions there, so the CLI never adopts
+// them; the lock on path+".lock" doubles as the instance's liveness lock. A
+// deadline that has passed tries the lock exactly once.
+func (s *Session) LockPath(path string, deadline time.Time) error {
 	unlock, e := AcquireLock(path+".lock", deadline)
 	if e != nil {
 		return protocol.E(409, "session_locked", e.Error())

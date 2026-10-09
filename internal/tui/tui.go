@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/detail"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/lifecycle"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/prefs"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/cells"
@@ -24,6 +25,7 @@ type Model struct {
 	detail   *detail.Model
 	doc      *detail.Section // shown in the detail viewport when set
 	width    int
+	life     lifecycle.UI // session line, recovery notes and exit prompts
 }
 
 // NewModel returns the root model for the service at endpoint, with the
@@ -45,12 +47,19 @@ func (m Model) WithDocument(s detail.Section) Model {
 	return m
 }
 
+// WithLifecycle routes quit and Ctrl-C into l's orderly shutdown and shows
+// its status, recovery notes and exit prompts. Without it they quit directly.
+func (m Model) WithLifecycle(l *lifecycle.Lifecycle) Model {
+	m.life = lifecycle.NewUI(l)
+	return m
+}
+
 // Prefs returns the effective preferences: theme, mouse and keymap.
 func (m Model) Prefs() prefs.Prefs { return m.prefs }
 
 // Init starts background detection and, with a document, its render.
 func (m Model) Init() tea.Cmd {
-	cmds := []tea.Cmd{m.theme.Init()}
+	cmds := []tea.Cmd{m.theme.Init(), m.life.Init()}
 	if m.theme.Ready() {
 		cmds = append(cmds, m.detail.SetStyle(m.theme.Style()))
 	}
@@ -81,18 +90,22 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.theme.Update(msg) && m.theme.Ready() {
 		cmds = append(cmds, m.detail.SetStyle(m.theme.Style()))
 	}
+	if life, cmd, handled := m.life.Update(msg, m.prefs.Keymap); handled {
+		m.life = life
+		return m, tea.Batch(append(cmds, cmd)...)
+	}
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
 		m.width = msg.Width
 		cmds = append(cmds, m.detail.SetSize(msg.Width, max(0, msg.Height-2)))
 	case tea.KeyPressMsg:
 		if keys.IsShutdown(msg.Key()) {
-			return m, tea.Quit
+			return m, m.life.Interrupt()
 		}
 		action, _ := m.prefs.Keymap.Lookup(m.context(), msg.Key())
 		switch action {
 		case keys.Quit:
-			return m, tea.Quit
+			return m, m.life.Quit()
 		case keys.Help:
 			m.help = !m.help
 		case keys.Cancel:
@@ -111,7 +124,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() tea.View {
 	km := m.prefs.Keymap
 	content := "lit-tui\n\nService: " + m.endpoint + "\n\n" + km.Hint(keys.Global, keys.Quit, keys.Help)
-	switch {
+	lines := strings.Join(m.life.Lines(), "\n")
+	if lines != "" {
+		content += "\n\n" + lines
+	}
+	switch overlay := m.life.Overlay(km); {
+	case overlay != "":
+		content = strings.TrimRight(overlay+"\n\n"+lines, "\n")
 	case m.help:
 		content = strings.Join(km.Help(m.view()), "\n") + "\n\n" + km.Hint(keys.Menu, keys.Cancel)
 	case m.doc != nil:
