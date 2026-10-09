@@ -42,6 +42,8 @@ const (
 	PageDown      Action = "page_down"
 	Top           Action = "top"
 	Bottom        Action = "bottom"
+	NextBlock     Action = "next_block"
+	PrevBlock     Action = "prev_block"
 )
 
 // Required actions must keep at least one key, so the way out, help and
@@ -86,6 +88,8 @@ var vocabulary = map[Context][]entry{
 		{Down, "scroll down", []string{"down", "j"}},
 		{Left, "scroll a wide block left", []string{"left", "h"}},
 		{Right, "scroll a wide block right", []string{"right", "l"}},
+		{NextBlock, "focus the next wide block", []string{"tab", "]"}},
+		{PrevBlock, "focus the previous wide block", []string{"shift+tab", "["}},
 		{Back, "back to the tree", []string{"esc"}},
 		{PageUp, "page up", []string{"pgup", "ctrl+u"}},
 		{PageDown, "page down", []string{"pgdown", "ctrl+d"}},

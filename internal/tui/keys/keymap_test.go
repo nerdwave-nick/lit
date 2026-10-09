@@ -97,6 +97,11 @@ func TestLookupResolvesTheContextThenGlobal(t *testing.T) {
 		{"tree esc unbound", Tree, keyEsc, "", false},
 		{"detail esc goes back", Detail, keyEsc, Back, true},
 		{"detail left scrolls", Detail, keyLeft, Left, true},
+		{"detail tab focuses the next wide block", Detail, press(tea.KeyTab, 0, ""), NextBlock, true},
+		{"detail ] focuses the next wide block", Detail, char(']'), NextBlock, true},
+		{"detail shift+tab focuses the previous wide block", Detail, press(tea.KeyTab, tea.ModShift, ""), PrevBlock, true},
+		{"detail [ focuses the previous wide block", Detail, char('['), PrevBlock, true},
+		{"tree tab unbound", Tree, press(tea.KeyTab, 0, ""), "", false},
 		{"menu esc cancels", Menu, keyEsc, Cancel, true},
 		{"menu inherits help", Menu, char('?'), Help, true},
 		{"global has no tree keys", Global, char('j'), "", false},
@@ -327,13 +332,14 @@ func TestBindingsListTheContextThenGlobalForTheActionMenu(t *testing.T) {
 	for _, x := range b {
 		names = append(names, string(x.Context)+"."+string(x.Action))
 	}
-	want := []string{"detail.up", "detail.down", "detail.left", "detail.right", "detail.back", "detail.page_up", "detail.page_down", "detail.top", "detail.bottom",
+	want := []string{"detail.up", "detail.down", "detail.left", "detail.right", "detail.next_block", "detail.prev_block", "detail.back", "detail.page_up", "detail.page_down", "detail.top", "detail.bottom",
 		"global.quit", "global.help", "global.refresh", "global.switch_project", "global.action_menu"}
 	if !slices.Equal(names, want) {
 		t.Errorf("bindings %v, want %v", names, want)
 	}
-	if b[11].Keys == nil || len(b[11].Keys) != 0 || b[11].Description != "refresh" {
-		t.Errorf("unbound refresh: %+v", b[11])
+	refresh := b[slices.Index(names, "global.refresh")]
+	if refresh.Keys == nil || len(refresh.Keys) != 0 || refresh.Description != "refresh" {
+		t.Errorf("unbound refresh: %+v", refresh)
 	}
 	if got := Default().Bindings(Global); len(got) != 5 {
 		t.Errorf("global bindings %v", got)
