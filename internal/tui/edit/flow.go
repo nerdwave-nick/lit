@@ -50,6 +50,9 @@ func (e *Editor) Store() drafts.Store { return e.store }
 // claims' idle pause.
 func (e *Editor) Touch() { e.h.Touch() }
 
+// Hold is this session's hold on issue's claim now, if any.
+func (e *Editor) Hold(issue string) (claims.Hold, bool) { return e.h.Snapshot().Hold(issue) }
+
 // Started is the result of Start or Resume.
 type Started struct {
 	Draft drafts.Draft

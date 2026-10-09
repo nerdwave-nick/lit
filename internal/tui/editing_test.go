@@ -291,3 +291,25 @@ func waitFor(t *testing.T, what string, ok func() bool) {
 		time.Sleep(10 * time.Millisecond)
 	}
 }
+
+// A preview taken while the edit claim was held is not committed once the
+// claim is lost: it is previewed again, so the warning comes before the
+// optimistic apply (and no stale claim token is sent).
+func TestAClaimLostAfterThePreviewIsWarnedAboutFirst(t *testing.T) {
+	u := startEditing(t, claims.Config{})
+	u.content = "after the loss\n"
+	u.press("e")
+	u.expect("held at the preview", u.line("The edit claim on “Root issue” is held") != "")
+	if r := u.h.Release(context.Background(), u.root); r.Err != nil {
+		t.Fatal(r.Err)
+	}
+	u.choose("Apply this change")
+	u.expect("warned first", u.line("Warning: this session holds no claim on “Root issue”") != "" && u.line("Apply the draft of “Root issue”?") != "")
+	if got := u.issue(u.root); got.Body == "after the loss\n" {
+		t.Fatal("applied without the warning")
+	}
+	u.choose("Apply this change")
+	if got := u.issue(u.root); got.Body != "after the loss\n" {
+		t.Fatalf("optimistic apply: %q", got.Body)
+	}
+}

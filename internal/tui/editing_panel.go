@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/claims"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/edit"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
@@ -110,6 +111,10 @@ func (m Model) choose(k choiceKind) tea.Cmd {
 		return nil
 	case chPreview:
 		return e.previewCmd(d)
+	case chCommit:
+		if m.claimLostSince(*p.preview) {
+			return e.previewCmd(d) // show the warning before an optimistic apply
+		}
 	}
 	if e.busy {
 		e.note = "Wait for the running edit action to finish."
@@ -225,4 +230,14 @@ func (m Model) applied(a edit.Applied) tea.Cmd {
 	e.untrack(a.Draft.IssueID)
 	e.panel, e.note = nil, appliedNote(a)
 	return m.refreshTree()
+}
+
+// claimLostSince reports that p was previewed while this session held the
+// edit claim and the claim has been lost or released since.
+func (m Model) claimLostSince(p edit.Preview) bool {
+	if p.Lost() {
+		return false
+	}
+	h, ok := m.ed.ed.Hold(p.Draft.IssueID)
+	return !ok || h.State == claims.Lost
 }
