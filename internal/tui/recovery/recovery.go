@@ -201,7 +201,7 @@ func recoverEntry(ctx context.Context, o Options, e registry.Entry, untrusted st
 	mapped := s.Mapping.ClientID != ""
 	if mapped {
 		if err := s.Open(litclient.OpenOptions{AllowDisconnected: true}); err != nil {
-			orphan.Outcome, orphan.Reason = Unknown, describe(err)
+			orphan.Outcome, orphan.Reason = Unknown, Describe(err)
 			return orphan, abandoned
 		}
 	}
@@ -210,7 +210,7 @@ func recoverEntry(ctx context.Context, o Options, e registry.Entry, untrusted st
 	requests, err := Inspect(ctx, s, info.InstanceID)
 	switch {
 	case err != nil:
-		orphan.Outcome, orphan.Reason = Unknown, "its retained requests could not be checked: "+describe(err)
+		orphan.Outcome, orphan.Reason = Unknown, "its retained requests could not be checked: "+Describe(err)
 		return orphan, abandoned
 	case len(requests) > 0:
 		orphan.Outcome, orphan.Requests = Uncertain, requests
@@ -224,10 +224,9 @@ func recoverEntry(ctx context.Context, o Options, e registry.Entry, untrusted st
 		orphan.Outcome = Disconnected
 	default:
 		if _, err := s.Disconnect(ctx); err != nil {
-			orphan.Outcome, orphan.Reason = Unknown, "disconnect not confirmed: "+describe(err)
-			if id := requestID(err); id != "" {
-				orphan.Outcome = Uncertain
-				orphan.Requests = []Request{{ID: id, Status: "uncertain", Proof: litclient.Code(err), Path: filepath.Join(o.StateDir, "pending", id+".json")}}
+			orphan.Outcome, orphan.Reason = Unknown, "disconnect not confirmed: "+Describe(err)
+			if r, ok := UncertainRequest(o.StateDir, err); ok {
+				orphan.Outcome, orphan.Requests = Uncertain, []Request{r}
 			}
 			return orphan, abandoned
 		}
@@ -242,8 +241,8 @@ func recoverEntry(ctx context.Context, o Options, e registry.Entry, untrusted st
 	return orphan, abandoned
 }
 
-// describe is an error's code and message for the user.
-func describe(err error) string {
+// Describe is an error's code and message for the user.
+func Describe(err error) string {
 	var pe *protocol.Error
 	if errors.As(err, &pe) {
 		return pe.Code + ": " + pe.Message
@@ -251,14 +250,16 @@ func describe(err error) string {
 	return err.Error()
 }
 
-// requestID is the retained request of an uncertain mutation.
-func requestID(err error) string {
+// UncertainRequest is the retained request of a mutation whose outcome is
+// uncertain (outcome_uncertain carries its request ID).
+func UncertainRequest(stateDir string, err error) (Request, bool) {
 	var pe *protocol.Error
 	if errors.As(err, &pe) && pe.Code == "outcome_uncertain" {
 		if d, ok := pe.Details.(map[string]any); ok {
-			id, _ := d["request_id"].(string)
-			return id
+			if id, _ := d["request_id"].(string); protocol.ValidUUID(id) {
+				return Request{ID: id, Status: "uncertain", Proof: pe.Code, Path: filepath.Join(stateDir, "pending", id+".json")}, true
+			}
 		}
 	}
-	return ""
+	return Request{}, false
 }
