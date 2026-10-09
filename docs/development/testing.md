@@ -23,6 +23,12 @@ Installer and workflow-session regression tests live in
 `integration/tui_dispatch_test.go` covers how `lit` finds and starts `lit-tui`
 (sibling first, then PATH, process replacement, endpoint pass-through, the missing
 binary error, and bare `lit` on a pseudo-terminal via util-linux `script`).
+`internal/tui/tmux_test.go` drives the detail viewport in a private tmux server:
+the `internal/tui` test binary re-executes itself as a demo program showing a
+Markdown file (no service is contacted). It covers resizing mid-scroll, per-block
+horizontal scroll and the plain markers under `TERM=dumb` and `NO_COLOR`. These
+tests skip when tmux is not installed or with `-short`.
+
 `cmd/lit/deps_test.go` uses `go list -deps` to prove that only `lit-tui` links the
 Charm, Glamour and chroma packages.
 

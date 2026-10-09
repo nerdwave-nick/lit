@@ -119,3 +119,8 @@ func chromaEntry(p gansi.StylePrimitive) string {
 	}
 	return s
 }
+
+// Margin is the document margin in cells that every rendered line of style s
+// starts with: Glamour's prose margin, which Render also prepends to the
+// lines of unwrapped blocks. A viewport keeps it fixed while a block scrolls.
+func (s Style) Margin() int { return int(docMargin(styleConfig(s))) }

@@ -301,3 +301,24 @@ func TestPreserveNewLinesOption(t *testing.T) {
 		t.Errorf("soft break: default %q, preserved %q", a, b)
 	}
 }
+
+// Every line, wrapped or not, starts with the style's document margin, so a
+// viewport can keep it in place while it scrolls a wide block.
+func TestEveryLineStartsWithTheStyleMargin(t *testing.T) {
+	for _, s := range []Style{Dark, Light, ASCII} {
+		if s.Margin() < 2 {
+			t.Errorf("%s: margin %d, want at least 2 for the focus and overflow markers", s, s.Margin())
+		}
+		d, err := Render(Job{RecordID: "m", Revision: 1, Content: polyglotBody + wideTableBody, Width: 60, Style: s})
+		if err != nil {
+			t.Fatal(err)
+		}
+		for _, b := range d.Blocks {
+			for _, l := range b.Lines {
+				if plain := ansi.Strip(l); strings.TrimSpace(plain) != "" && !strings.HasPrefix(plain, strings.Repeat(" ", s.Margin())) {
+					t.Errorf("%s %s line lacks the %d-cell margin: %q", s, b.Kind, s.Margin(), plain)
+				}
+			}
+		}
+	}
+}
