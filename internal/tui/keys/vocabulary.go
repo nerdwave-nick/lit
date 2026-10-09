@@ -49,6 +49,9 @@ const (
 	ClearFilters  Action = "clear_filters"
 	Claim         Action = "claim"
 	Release       Action = "release"
+	// History opens the read-only history of the selected issue or of one
+	// of its comments.
+	History Action = "history"
 	// UncertainRequests opens the read-only view of retained requests whose
 	// outcome is not established.
 	UncertainRequests Action = "uncertain_requests"
@@ -100,6 +103,7 @@ var vocabulary = map[Context][]entry{
 		{ClearFilters, "clear the filters and the search", []string{"F"}},
 		{Claim, "claim the issue, or reacquire a lost claim", []string{"c"}},
 		{Release, "release the issue's claim", []string{"u"}},
+		{History, "show the issue's history", []string{"H"}},
 		{Edit, "edit the body, or resume, apply or discard its draft", []string{"e"}},
 		{EditDetached, "edit the body in any editor (shows the draft path)", []string{"E"}},
 	},
@@ -117,6 +121,7 @@ var vocabulary = map[Context][]entry{
 		{Bottom, "go to the bottom", []string{"end", "G"}},
 		{Claim, "claim the issue, or reacquire a lost claim", []string{"c"}},
 		{Release, "release the issue's claim", []string{"u"}},
+		{History, "show the history of the issue or a comment", []string{"H"}},
 		{Edit, "edit the body, or resume, apply or discard its draft", []string{"e"}},
 		{EditDetached, "edit the body in any editor (shows the draft path)", []string{"E"}},
 	},

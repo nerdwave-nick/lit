@@ -9,6 +9,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/detail"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/history"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/lifecycle"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/prefs"
@@ -31,6 +32,7 @@ type Model struct {
 	b             *browser     // the project tree; nil without a lifecycle
 	l             *lifecycle.Lifecycle
 	uv            *uncertain.Model // the uncertain-requests view, when open
+	hv            *history.Model   // the history view, when open
 	cl            *claimsView      // held claims and the idle question; nil without a holder
 	ed            *editing         // body drafts and the draft panel; nil without an editor
 }
@@ -142,6 +144,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if cmd, handled := m.claimsUpdate(msg); handled {
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
+	if m, cmd, handled = m.historyKey(msg); handled {
+		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
+	}
 	if cmd, handled := m.editUpdate(msg); handled {
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
@@ -225,6 +230,8 @@ func (m Model) dispatch(action keys.Action, msg tea.Msg) (Model, tea.Cmd) {
 		return m, m.claimAction(action)
 	case action == keys.UncertainRequests:
 		return m.openUncertain()
+	case action == keys.History:
+		return m.openHistory()
 	case m.ed != nil && (action == keys.Edit || action == keys.EditDetached):
 		return m, m.editAction(action == keys.EditDetached)
 	case m.b != nil:
