@@ -65,7 +65,18 @@ commits at the recorded revision and releases the claim. With a short
 `claim_idle` the claim lapses unanswered, and the later optimistic apply
 conflicts on an agent's revision, reloads, and is refused by the agent's claim
 with the draft kept. A detached edit is applied after another program saves
-the file. `internal/tui/editing_test.go` covers the same flows in the model,
+the file. `integration/tui_drafts_test.go` keeps drafts across exits with
+`nvim --clean`: quitting with a draft shows the one prompt, releases the claim
+and keeps the draft, and the next launch shows `1 unapplied draft`, marks the
+issue an agent changed meanwhile and opens its draft from the Drafts view as a
+conflict (story 8). Killing the tmux session while suspended in nvim still
+disconnects cleanly (story 9). SIGTERM with nvim open releases the claim and
+disconnects while nvim keeps running, then `lit-tui` exits cleanly after nvim
+does; a second SIGTERM exits at once with status 143, reports the editor on
+stderr and leaves nvim running (story 10). `internal/tui/drafts_view_test.go`
+covers the banner, the Drafts view, marks, conflicts, the quit prompt and
+drafts surviving a crash in the model, and `internal/tui/draftsview` tests the
+listing, marks and prompt. `internal/tui/editing_test.go` covers the same flows in the model,
 with the editor simulated, and `internal/tui/edit` and `internal/tui/drafts`
 test the claim-on-edit flow and the draft store against a temporary service.
 `integration/tui_history_test.go` opens the history

@@ -10,6 +10,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/draftsview"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/edit"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
 )
@@ -28,6 +29,7 @@ type editing struct {
 	// post delivers a watcher's message through the lifecycle's forwarder;
 	// the watcher never calls Program.Send itself.
 	post  func(key string, msg tea.Msg)
+	susp  *suspension // the editor holding the terminal, if any
 	panel *draftPanel
 	open  map[string]*openDraft // by issue ID
 	note  string
@@ -73,12 +75,15 @@ type (
 // WithEditor edits issue bodies through e: the edit and edit_detached
 // actions, the draft panel and the open drafts' footer lines.
 func (m Model) WithEditor(e *edit.Editor) Model {
-	m.ed = nil
+	m.ed, m.dv = nil, nil
 	if e != nil {
-		m.ed = &editing{ed: e, getenv: os.Getenv, goos: runtime.GOOS, isFile: edit.IsFile, exec: tea.ExecProcess, open: map[string]*openDraft{}}
+		m.ed = &editing{ed: e, getenv: os.Getenv, goos: runtime.GOOS, isFile: edit.IsFile, open: map[string]*openDraft{}, susp: &suspension{}}
+		m.ed.exec = m.ed.susp.exec
+		var g draftsview.Gate
 		if m.l != nil {
-			m.ed.post = m.l.Post
+			m.ed.post, g = m.l.Post, m.l
 		}
+		m.dv = newDraftsState(e, g)
 	}
 	m.wireClaims()
 	return m
@@ -94,6 +99,9 @@ func (m Model) wireClaims() {
 	}
 	b, claimItem, ed := m.b, m.b.menuItem, m.ed
 	b.menuItem = func(bd keys.Binding) (keys.Binding, bool) {
+		if bd.Action == keys.Drafts {
+			return bd, ed != nil
+		}
 		if bd.Action == keys.Edit || bd.Action == keys.EditDetached {
 			_, selected := b.tree.Selected()
 			return bd, ed != nil && selected && b.project != nil
@@ -128,8 +136,7 @@ func (m Model) editAction(detached bool) tea.Cmd {
 		e.note = "Cannot read the drafts: " + describe(err) + "."
 		return nil
 	case found:
-		e.panel = m.offerPanel(d)
-		return nil
+		return m.openBodyDraft(d) // a changed revision opens as a conflict
 	}
 	e.busy, e.note = true, "Claiming "+titled(issue.Title)+" for editing…"
 	ed, project, id, title := e.ed, b.project.ID, issue.ID, issue.Title
@@ -202,7 +209,7 @@ func (m Model) editUpdate(msg tea.Msg) (tea.Cmd, bool) {
 		action, _ := m.prefs.Keymap.Lookup(keys.Menu, msg.Key())
 		switch action {
 		case keys.Quit:
-			return m.life.Quit(), true
+			return m.quit(), true
 		case keys.UncertainRequests:
 			return nil, false
 		}

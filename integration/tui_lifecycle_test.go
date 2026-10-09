@@ -60,6 +60,7 @@ type tuiEnv struct {
 	state    string
 	socket   string
 	env      []string // extra environment for lit-tui, such as EDITOR
+	stderr   string   // when set, lit-tui's stderr goes to this file
 }
 
 func newTUIEnv(t *testing.T) *tuiEnv {
@@ -126,7 +127,11 @@ func (e *tuiEnv) launch(name string) *pane {
 		"XDG_CONFIG_HOME=" + filepath.Join(home, "config"), "XDG_STATE_HOME=" + filepath.Join(home, "xdg-state"),
 		"LIT_STATE_DIR=" + e.state, "LIT_ENDPOINT=" + e.endpoint, "GORACE=atexit_sleep_ms=0"}
 	env = append(append(env, e.env...), e.bin)
-	script := strings.Join(quoteAll(env), " ") + "; echo EXIT=$? > " + quoteAll([]string{filepath.Join(e.root, name+".exit")})[0] + "; exec sleep 600"
+	script := strings.Join(quoteAll(env), " ")
+	if e.stderr != "" {
+		script += " 2>" + quoteAll([]string{e.stderr})[0]
+	}
+	script += "; echo EXIT=$? > " + quoteAll([]string{filepath.Join(e.root, name+".exit")})[0] + "; exec sleep 600"
 	e.tmux("new-session", "-d", "-s", name, "-x", "200", "-y", "50", "sh -c "+quoteAll([]string{script})[0])
 	p := &pane{e: e, name: name}
 	eventually(e.t, 30*time.Second, "lit-tui "+name+" to register", func() bool {
