@@ -186,7 +186,9 @@ func walkAway(t *testing.T, editor string) {
 	p.keys("e")
 	p.inEditor("body of Edited body")
 	p.replaceAndSave("Written before walking away.")
-	p.await("the idle question", func(s string) bool { return strings.Contains(s, "Claim renewal paused: no input or draft change for 2s") })
+	p.await("the idle question", func(s string) bool {
+		return strings.Contains(s, "Claim renewal paused: no input or draft change for 2s")
+	})
 	p.await("the lapse, unanswered", func(s string) bool {
 		return strings.Contains(s, "“Edited body”: lost: the lease ended without confirmation to keep holding")
 	})
@@ -238,7 +240,9 @@ func editDetached(t *testing.T) {
 	p := x.launch("detached")
 	p.await("the tree", func(s string) bool { return strings.Contains(s, "Edited body") })
 	p.keys("E")
-	p.await("the path", func(s string) bool { return strings.Contains(s, "Draft open: “Edited body”") && strings.Contains(s, "edited-body--"+x.issue[:8]+".md") })
+	p.await("the path", func(s string) bool {
+		return strings.Contains(s, "Draft open: “Edited body”") && strings.Contains(s, "edited-body--"+x.issue[:8]+".md")
+	})
 	files := x.draftFiles()
 	if len(files) != 1 {
 		t.Fatalf("draft files %v", files)
