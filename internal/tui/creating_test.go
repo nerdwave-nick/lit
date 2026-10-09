@@ -171,3 +171,42 @@ func TestAKeptNewIssueIsRetitledAfterItsTitleWasTaken(t *testing.T) {
 	u.expect("the Drafts view closes on the new issue", u.line("Unapplied drafts") == "" && u.line("Created “Racing again”.") != "" &&
 		strings.HasPrefix(u.crumb(), "test/one › Racing again"))
 }
+
+// This session's claim on the parent is shown as passed on in the preview
+// and is still held after the child is created.
+func TestNewChildPassesOnOwnClaimOnTheParent(t *testing.T) {
+	u := startCreating(t)
+	u.press("c")
+	u.expect("claimed", u.ours(u.root))
+	rev := u.issue(u.root).Revision
+	u.press("C")
+	u.typeText("Claimed parent's child")
+	u.press("enter")
+	u.expect("passed on", u.line(fmt.Sprintf("issue “Root issue” at revision %d (changed) · claimed by you: your claim is passed on", rev)) != "")
+	u.choose("Apply")
+	u.expect("created", u.line("Created “Claimed parent's child” under “Root issue”.") != "")
+	u.expect("still claimed", u.ours(u.root))
+}
+
+// A kept draft whose issue exists already (an apply whose answer was lost
+// went through) opens from the Drafts view as created already and only
+// offers to discard it.
+func TestAKeptNewIssueThatExistsOpensAsCreatedAlready(t *testing.T) {
+	u := startCreating(t)
+	u.press("N")
+	u.typeText("Lost answer")
+	u.press("enter")
+	u.press("esc")
+	kept := u.drafts(drafts.IssueNew)
+	if len(kept) != 1 {
+		t.Fatalf("drafts %+v", kept)
+	}
+	req := litclient.CreateIssue("test/one", "Lost answer", "", "")
+	req.Items[0].ID = kept[0].RecordID
+	tuitest.Apply(t, u.agent, req)
+	u.press("D", "enter")
+	u.expect("created already", u.line("The new issue “Lost answer” was created already") != "" &&
+		u.line("An issue with this draft's ID exists") != "" && u.line("Apply this change") == "")
+	u.choose("Discard")
+	u.expect("discarded", len(u.drafts(drafts.IssueNew)) == 0 && len(u.titled("Lost answer")) == 1)
+}
