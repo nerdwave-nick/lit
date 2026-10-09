@@ -285,7 +285,7 @@ func (m Model) hint() string {
 	case m.b.menu != nil || m.b.filt.panel != nil:
 		return km.Hint(keys.Menu, keys.Open, keys.Cancel)
 	case ctx == keys.Menu:
-		return km.Hint(keys.Menu, keys.Open, keys.Cancel, keys.Quit)
+		return km.Hint(keys.Menu, keys.Open, keys.NewProject, keys.Cancel, keys.Quit)
 	case ctx == keys.Tree:
 		return km.Hint(keys.Tree, keys.Open, keys.Expand, keys.Collapse, keys.Search, keys.Filter, keys.SwitchProject, keys.Refresh, keys.ActionMenu, keys.Help, keys.Quit)
 	case ctx == keys.Detail:

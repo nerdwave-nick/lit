@@ -186,6 +186,9 @@ func (b *browser) update(msg tea.Msg, d *detail.Model) (tea.Cmd, bool) {
 	if cmd, ok := b.quickUpdate(msg); ok {
 		return cmd, true
 	}
+	if cmd, ok := b.adminUpdate(msg, d); ok {
+		return cmd, true
+	}
 	switch msg := msg.(type) {
 	case projectsMsg:
 		b.switcher.AddPage(msg.page, msg.err)

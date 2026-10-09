@@ -7,6 +7,7 @@ import (
 	"strings"
 	"testing"
 
+	tea "charm.land/bubbletea/v2"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/claims"
@@ -135,9 +136,19 @@ func TestTheTitlePromptRefusesATakenTitleAndCancels(t *testing.T) {
 	if len(u.ran) != 0 || len(u.drafts(drafts.IssueNew)) != 0 {
 		t.Fatal("a draft was started")
 	}
+	u.send(tea.WindowSizeMsg{Width: 120, Height: 60}) // room for the whole menu
 	if v := u.menu(); !strings.Contains(v, "create a top-level issue") || !strings.Contains(v, "create a child of the issue") {
 		t.Fatalf("the action menu:\n%s", v)
 	}
+}
+
+// A menu longer than the screen scrolls to keep its cursor shown.
+func TestTheActionMenuScrollsToTheCursor(t *testing.T) {
+	u := startCreating(t)
+	u.press("m", "G")
+	u.expect("the last item shown and chosen", u.line("create a child of the issue") != "" && u.line("Actions") != "")
+	u.press("g")
+	u.expect("back at the top", u.line("open the detail") != "" && u.line("create a child of the issue") == "")
 }
 
 // A kept draft whose title another client took meanwhile is refused at

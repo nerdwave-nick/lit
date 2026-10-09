@@ -55,6 +55,7 @@ type Model struct {
 	preview  Preview
 	outcome  Outcome
 	gen      int
+	form     *form // set when a form (StartText, StartSet) started the model
 }
 
 // Result tells the browser what happened.
@@ -173,6 +174,8 @@ func (m *Model) choose(k tea.KeyPressMsg, km keys.Keymap) Result {
 			return Result{Closed: true}
 		case !submit:
 			return Result{}
+		case m.form != nil:
+			return m.formChange(m.form.text(m.field.value()))
 		case m.field.value() == m.env.Issue.Title:
 			m.note = "The title is unchanged."
 			return Result{}
@@ -185,6 +188,8 @@ func (m *Model) choose(k tea.KeyPressMsg, km keys.Keymap) Result {
 		return Result{Closed: true}
 	case chosen == nil:
 		return Result{}
+	case m.form != nil:
+		return m.formChange(m.form.set(m.pick.diff()))
 	}
 	return m.chosen(*chosen)
 }
@@ -268,6 +273,11 @@ func (m *Model) Update(msg tea.Msg) (Result, bool) {
 			if a.Type == "projects" && a.ID == m.env.Project {
 				m.preview.Affected[n].Title = m.env.ProjectTitle
 			}
+			for _, it := range m.preview.Change.Request.Items { // a created record is named by its title
+				if it.ID != "" && it.ID == a.ID && it.Title != nil {
+					m.preview.Affected[n].Title = *it.Title
+				}
+			}
 		}
 		// A stale or refused preview may mean the tree is out of date.
 		return Result{Reload: msg.p.Err != nil}, true
@@ -277,7 +287,11 @@ func (m *Model) Update(msg tea.Msg) (Result, bool) {
 		}
 		m.outcome = msg.out
 		if msg.out.Err == nil {
-			return Result{Closed: true, Reload: true, Note: "Applied: " + m.preview.Change.Summary + "."}, true
+			r := Result{Closed: true, Reload: true, Note: "Applied: " + m.preview.Change.Summary + "."}
+			if m.form != nil && m.form.applied != nil {
+				r.Cmd = m.form.applied(msg.out.Result)
+			}
+			return r, true
 		}
 		m.stage = failed
 		return Result{Reload: true}, true

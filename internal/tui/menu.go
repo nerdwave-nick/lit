@@ -13,7 +13,7 @@ import (
 // stays on its keys. Later screens add their commands (claim, edit, …) here.
 var menuCommands = []keys.Action{keys.Open, keys.Back, keys.Refresh, keys.SwitchProject, keys.UncertainRequests, keys.Search, keys.Filter, keys.ClearFilters, keys.Claim, keys.Release,
 	keys.EditTitle, keys.SetState, keys.SetLabels, keys.SetAssignee, keys.SetParent, keys.Link, keys.Unlink, keys.Help, keys.Quit, keys.History, keys.Edit, keys.EditDetached, keys.Drafts,
-	keys.NewComment, keys.EditComment, keys.NewIssue, keys.NewChild}
+	keys.NewComment, keys.EditComment, keys.EditSpec, keys.EditRepositories, keys.NewIssue, keys.NewChild}
 
 // actionMenu lists the commands of one view with their effective keys.
 type actionMenu struct {
@@ -61,14 +61,19 @@ func (b *browser) menuKey(a keys.Action) (keys.Action, bool) {
 	return "", false
 }
 
-// lines draws the menu in a w×h pane.
+// lines draws the menu in a w×h pane, scrolled to show the cursor.
 func (m *actionMenu) lines(method cells.Method, w, h int, plain bool) []string {
 	out := []string{pad(method, "Actions", w)}
 	width := 0
 	for _, it := range m.items {
 		width = max(width, len(it.Description))
 	}
+	// Scroll to keep the cursor shown under the heading.
+	first := max(m.cursor-(h-1)+1, 0)
 	for i, it := range m.items {
+		if i < first {
+			continue
+		}
 		if len(out) >= h {
 			break
 		}

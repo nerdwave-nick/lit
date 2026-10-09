@@ -22,6 +22,8 @@ func nameOf(k drafts.Kind, title string) string {
 		return "the new comment on " + titled(title)
 	case drafts.CommentBody:
 		return "the comment on " + titled(title)
+	case drafts.ProjectSpec:
+		return "the specification of " + titled(title)
 	case drafts.IssueNew:
 		return "the new issue " + titled(title)
 	}
@@ -47,6 +49,8 @@ func noun(k drafts.Kind) string {
 		return "comment"
 	case drafts.IssueBody:
 		return "body"
+	case drafts.ProjectSpec:
+		return "specification"
 	case drafts.IssueNew:
 		return "issue"
 	}
@@ -77,6 +81,8 @@ func (m Model) keyFor(k drafts.Kind) string {
 		return firstKey(m, keys.Tree, keys.NewComment)
 	case drafts.CommentBody:
 		return firstKey(m, keys.Tree, keys.EditComment)
+	case drafts.ProjectSpec:
+		return firstKey(m, keys.Tree, keys.EditSpec)
 	case drafts.IssueNew:
 		return firstKey(m, keys.Global, keys.Drafts) + " (the Drafts view)"
 	}
@@ -84,10 +90,14 @@ func (m Model) keyFor(k drafts.Kind) string {
 }
 
 // resumeHint says how to come back to a kept draft of kind k: its key on
-// the issue, or for a new issue (which has no issue yet) the Drafts view.
+// the issue or in the project, or for a new issue (which has no issue yet)
+// the Drafts view.
 func (m Model) resumeHint(k drafts.Kind) string {
-	if k == drafts.IssueNew {
+	switch k {
+	case drafts.IssueNew:
 		return m.keyFor(k) + " resumes, creates or discards it."
+	case drafts.ProjectSpec:
+		return m.keyFor(k) + " in the project resumes, applies or discards it."
 	}
 	return m.keyFor(k) + " on the issue resumes, applies or discards it."
 }

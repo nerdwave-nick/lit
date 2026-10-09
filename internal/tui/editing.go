@@ -108,6 +108,9 @@ func (m Model) wireClaims() {
 		if bd.Action == keys.Drafts {
 			return bd, ed != nil
 		}
+		if bd.Action == keys.EditSpec || bd.Action == keys.EditRepositories {
+			return bd, ed != nil && b.project != nil
+		}
 		if bd.Action == keys.Edit || bd.Action == keys.EditDetached || bd.Action == keys.NewComment || bd.Action == keys.EditComment {
 			_, selected := b.tree.Selected()
 			return bd, ed != nil && selected && b.project != nil

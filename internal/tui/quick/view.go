@@ -18,6 +18,8 @@ import (
 func (m *Model) Lines(method cells.Method, w, h int, plain bool) []string {
 	var out []string
 	switch {
+	case m.stage == choosing && m.field != nil && m.form != nil:
+		out = m.formLines()
 	case m.stage == choosing && m.field != nil:
 		out = append(out, "Edit the title of "+quoted(m.env.Issue.Title), "Title: "+sanitize.Title(m.field.value())+"▏")
 	case m.stage == choosing:
