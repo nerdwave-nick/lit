@@ -88,7 +88,8 @@ a time (more load as the selection reaches the end). Enter chooses a project;
 if there is only one, it opens at once. `switch_project` (`p`) opens the
 switcher again, with the current project marked; `r` reloads the list. Each
 project keeps its own selection and expanded branches for the session, so
-switching back returns to where you were.
+switching back returns to where you were. `new_project` (`n`) in the switcher
+creates a project (see [Projects](#projects)).
 
 The tree shows the project's issues by hierarchy, at any depth. Roots are shown
 first, each collapsed; `right` expands an issue and then moves to its first
@@ -487,6 +488,49 @@ in the Drafts view (`new comment`, `comment`) and open there as from `a` and
 whose comment changed opens as a conflict. A comment draft started or
 resumed in this session makes quit ask, and `Apply now` previews it.
 
+## Projects
+
+Projects have no claims, so every project change is optimistic and
+revision-fenced: it applies exactly what was previewed, or is refused when
+the project changed meanwhile.
+
+`new_project` (`n`) in the project switcher asks for the new project's
+title. The title is checked before anything is previewed, as lit-server
+checks it: an allowed prefix from the service's `title_prefixes` (shown above
+the field, from `/v1/meta`), then one or more parts separated by slashes, each
+of ASCII letters, digits, `-` and `_` and starting with a letter or digit, at
+most 128 characters. An invalid title is refused under the field (`“nope” is
+not an allowed prefix; the service allows feat, fix, …`) and nothing is
+sent. A valid title previews the creation (`Create the project “feat/x”`),
+which still refuses a title that exists already; Enter creates the project,
+with an empty specification and no repositories, and browses it. Escape
+returns to the switcher.
+
+`edit_spec` (`S`, in the tree or the detail) edits the current project's
+shared specification, its description, in the editor. The draft
+(`spec-<project-slug>--<id8>.md`, sidecar `.lit/project_spec-<project-id>.json`)
+holds exactly the description at the project's current revision and takes no
+claim. When the editor exits, the panel shows the diff against that revision
+and the project as the affected record; `Apply this change` commits exactly
+that preview at the recorded revision. If the project changed after the draft
+was started (its description, title, repositories or issues), the apply is
+refused and the draft is kept: `S` then opens it as a conflict (`The
+specification of “feat/x” changed since the draft was started: revision 3 →
+4`), with `Diff against the current specification` and `Reload` (record the
+current revision, keep the draft's text, preview again). `S` with an existing
+draft offers it (resume, diff, apply, discard) instead of starting another.
+Specification drafts are listed in the Drafts view (`project spec`) and open
+there as from `S`.
+
+`edit_repositories` (`R`, in the tree or the detail) reads the current
+project and lists its repositories, checked. Enter toggles one; typing filters,
+or offers the typed text as a new repository (`add the repository “…”`).
+`Preview the change` lists the additions and removals (`Change the
+repositories of “feat/x”: +https://… −https://…`) and the project fenced at
+the revision read when the list opened; Enter applies exactly that, and a
+change of the project meanwhile refuses it with `revision_conflict`, writing
+nothing.
+
 ## Keymap
 
 Every binding belongs to a **context**:
@@ -565,6 +609,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | tree | `edit_detached` | `E` | edit the body in any editor (shows the draft path) |
 | tree | `new_comment` | `a` | add a comment, or resume its draft |
 | tree | `edit_comment` | `o` | edit one of the issue's comments |
+| tree | `edit_spec` | `S` | edit the project's specification, or resume its draft |
+| tree | `edit_repositories` | `R` | change the project's repositories |
 | detail | `up` | `up`, `k` | scroll up |
 | detail | `down` | `down`, `j` | scroll down |
 | detail | `left` | `left`, `h` | scroll a wide block left |
@@ -590,6 +636,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | detail | `edit_detached` | `E` | edit the body in any editor (shows the draft path) |
 | detail | `new_comment` | `a` | add a comment, or resume its draft |
 | detail | `edit_comment` | `o` | edit one of the issue's comments |
+| detail | `edit_spec` | `S` | edit the project's specification, or resume its draft |
+| detail | `edit_repositories` | `R` | change the project's repositories |
 | menu | `up` | `up`, `k` | previous item |
 | menu | `down` | `down`, `j` | next item |
 | menu | `open` | `enter` | choose the item |
@@ -598,6 +646,7 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | menu | `page_down` | `pgdown`, `ctrl+d` | page down |
 | menu | `top` | `home`, `g` | first item |
 | menu | `bottom` | `end`, `G` | last item |
+| menu | `new_project` | `n` | create a project (in the project switcher) |
 | (all) | | `ctrl+c` | orderly shutdown and quit (reserved) |
 
 ## Sessions, exit and recovery

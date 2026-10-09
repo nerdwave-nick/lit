@@ -143,7 +143,7 @@ func (m *Model) trailer() string {
 	case m.next != nil:
 		return "More projects…"
 	case len(m.items) == 0:
-		return "No projects. Create one with lit projects create."
+		return "No projects yet."
 	}
 	return ""
 }

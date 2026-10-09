@@ -255,6 +255,10 @@ func (m Model) dispatch(action keys.Action, msg tea.Msg) (Model, tea.Cmd) {
 		return m.openDraftsView()
 	case m.ed != nil && (action == keys.NewComment || action == keys.EditComment):
 		return m, m.commentAction(action)
+	case m.b != nil && action == keys.NewProject, m.b != nil && m.ed != nil && action == keys.EditRepositories:
+		return m, m.b.projectAction(action)
+	case m.ed != nil && action == keys.EditSpec:
+		return m, m.specAction()
 	case m.b != nil:
 		return m, m.b.dispatch(m.view(), action, msg, m.detail)
 	case msg != nil:
