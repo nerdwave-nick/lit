@@ -150,3 +150,95 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | menu | `top` | `home`, `g` | first item |
 | menu | `bottom` | `end`, `G` | last item |
 | (all) | | `ctrl+c` | orderly shutdown and quit (reserved) |
+
+## Sessions, exit and recovery
+
+Every launch of `lit-tui` registers a fresh client, with actor kind `human`
+and runtime vendor `lit-tui`, for a new logical session of its own. It never
+reuses or adopts your named CLI sessions. Each running instance records an
+entry in a registry inside the client state directory (`LIT_STATE_DIR`, or
+the platform default), separate from the CLI's `sessions/`:
+
+```text
+<state>/tui/instances/<instance-id>.json           the session mapping (client, service, endpoint)
+<state>/tui/instances/<instance-id>.json.lock      the liveness lock, held while the instance runs
+<state>/tui/instances/<instance-id>.instance.json  pid, host, start time and endpoint
+```
+
+Pending request evidence stays in `<state>/pending/`, where
+`lit transactions status` sees it. `lit-tui` never removes, moves or replays
+it (see [recovery](recovery.md)).
+
+`lit-tui` connects before it takes over the terminal. If the service cannot be
+reached, it prints the error, removes its entry and exits with status 1. If the
+registration's answer is lost, its outcome is uncertain: the request ID and
+evidence path are printed, the entry is kept and the exit status is 4.
+
+### Leaving
+
+`q` (or your `quit` key), Ctrl-C, SIGINT, SIGTERM and SIGHUP (for example when
+the terminal closes) all start the same orderly shutdown. The status line shows
+`Disconnecting…`, or `Releasing N claim(s), disconnecting…` when claims are held.
+Shutdown then:
+
+1. refuses new requests;
+2. waits for a request that is already running, up to its timeout (10 s),
+   without cancelling or replaying it;
+3. stops the claim renewer;
+4. checks this session's retained requests read-only (5 s), and, when none is
+   uncertain, disconnects once (5 s). The disconnect releases every claim the
+   client holds;
+5. removes this instance's own registry entry and lock, and nothing else, then
+   restores the terminal.
+
+If the program ends first, for example because the terminal went away, `lit-tui`
+still finishes shutdown before it exits, waiting at most about 30 s.
+
+When something is uncertain (a retained request, or a disconnect whose answer
+never arrived) or cannot be verified, nothing more is disconnected: doing so could
+make an uncertain outcome permanently unprovable. The screen lists the request
+IDs and evidence paths, the registry entry is kept for the next launch, and
+leaving takes a second keypress. The same lines are printed to stderr after the
+terminal is restored, and `lit-tui` exits with status 4. Claims that were not
+released stay until their leases expire (at most one hour).
+
+A second Ctrl-C or signal during shutdown exits at once, with status 128 plus the
+signal number (130 for Ctrl-C). It prints the retained request IDs and the claims
+left to lease expiry, and keeps the registry entry.
+
+### The next launch
+
+At startup `lit-tui` scans the whole registry. An entry whose lock is held
+belongs to a running instance and is never touched. A one-line note says how many
+others are running. For an orphan, left behind by a crash or `kill -9`, it checks
+the orphan's retained requests first:
+
+- **Nothing uncertain:** it disconnects the orphan's client, which releases its
+  leftover claims, removes the orphan's entry, and shows a one-line note.
+- **Something uncertain:** it never disconnects. A panel shows the orphan, its
+  request IDs and evidence paths. Inspect them with `lit transactions status`
+  and decide; Escape closes the panel. The entry stays, so later launches
+  report it again until the outcome is resolved.
+- **Cannot verify** (the service is unreachable, or a disconnect is not
+  confirmed): it reports the orphan as unknown, never as clean, and keeps the
+  entry.
+
+Advisory locks cannot be trusted on network and user-space file systems (NFS,
+SMB/CIFS, AFS, 9P, Ceph, GFS2, OCFS2 and FUSE file systems such as sshfs; on
+macOS also smbfs, afpfs, webdav and macFUSE; on Windows UNC shares). The same is
+true for an entry recorded on another host. In those cases `lit-tui` cleans up
+nothing on its own. It asks about each orphan instead: Enter disconnects it,
+Escape keeps it. Confirm only if that instance is really gone.
+
+The registry is local to the state directory. An instance that crashed on
+another machine with a different state directory is not seen; its claims
+lapse at lease expiry.
+
+### After `kill -9`, a crash or a lost connection
+
+Nothing can run after SIGKILL. The client stays connected until the next launch
+cleans it up, and its claims last until their leases expire. The terminal may be
+left in the alternate screen with input settings changed, and an editor that
+`lit-tui` started may keep running. Run `reset` (or close the terminal) to
+restore the terminal, and end an orphaned editor yourself, after saving what you
+need.

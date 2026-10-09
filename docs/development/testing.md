@@ -29,6 +29,17 @@ Markdown file (no service is contacted). It covers resizing mid-scroll, per-bloc
 horizontal scroll and the plain markers under `TERM=dumb` and `NO_COLOR`. These
 tests skip when tmux is not installed or with `-short`.
 
+`integration/tui_lifecycle_test.go` builds `lit-tui` and drives it in a private
+tmux server against a temporary `lit-server`, with its own HOME, XDG directories,
+`LIT_STATE_DIR` and `LIT_ENDPOINT`: quit, Ctrl-C, SIGHUP (the tmux session is
+killed), SIGTERM, `kill -9` then relaunch (the orphan is disconnected), an orphan
+with fabricated uncertain evidence (not disconnected), a second live instance
+(never disconnected) and an uncertain exit (entry kept, second keypress). The
+SIGHUP and SIGTERM runs delay the disconnect behind a proxy, so the process must
+wait for it. These scenarios skip without tmux or with `-short`. The lifecycle,
+registry and recovery packages are tested in-process against a temporary
+service (`internal/tui/tuitest`).
+
 `cmd/lit/deps_test.go` uses `go list -deps` to prove that only `lit-tui` links the
 Charm, Glamour and chroma packages.
 

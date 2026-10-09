@@ -124,12 +124,13 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 func (m Model) View() tea.View {
 	km := m.prefs.Keymap
 	content := "lit-tui\n\nService: " + m.endpoint + "\n\n" + km.Hint(keys.Global, keys.Quit, keys.Help)
-	if lines := m.life.Lines(); len(lines) > 0 {
-		content += "\n\n" + strings.Join(lines, "\n")
+	lines := strings.Join(m.life.Lines(), "\n")
+	if lines != "" {
+		content += "\n\n" + lines
 	}
-	switch {
-	case m.life.Overlay(km) != "":
-		content = m.life.Overlay(km)
+	switch overlay := m.life.Overlay(km); {
+	case overlay != "":
+		content = strings.TrimRight(overlay+"\n\n"+lines, "\n")
 	case m.help:
 		content = strings.Join(km.Help(m.view()), "\n") + "\n\n" + km.Hint(keys.Menu, keys.Cancel)
 	case m.doc != nil:
