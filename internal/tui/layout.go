@@ -135,6 +135,8 @@ func (m Model) View() tea.View {
 		content = strings.TrimRight(overlay+"\n\n"+lines, "\n")
 	case m.claimsPrompt() != "":
 		content = strings.TrimRight(m.claimsPrompt()+"\n\n"+strings.Join(m.footer(), "\n"), "\n")
+	case m.hv != nil:
+		content = m.historyView()
 	case m.help:
 		content = strings.Join(km.Help(m.view()), "\n") + "\n\n" + km.Hint(keys.Menu, keys.Cancel)
 	case m.doc != nil:
