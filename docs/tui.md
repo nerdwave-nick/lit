@@ -126,7 +126,7 @@ sequences, other control characters and bidi overrides show as visible markers
 
 `action_menu` (`m`) lists the commands of the current view with their keys
 (open or back, refresh, switch project, uncertain requests, search, filter,
-clear filters, claim or release, help and quit); Enter runs one, Escape
+clear filters, claim or release, help, quit and history); Enter runs one, Escape
 closes the menu. With the `mouse` preference on, a click selects a row, a click
 on the selected row expands or collapses it, a click on the detail pane focuses
 it, and the wheel moves the selection or scrolls the detail.
@@ -196,6 +196,42 @@ is finished. Only the current project is ever reloaded.
 The first release targets projects of up to about 1,000 issues, with bodies of
 up to 64 KB. Larger projects still load, page by page, but every request
 currently makes lit-server read its whole store, so they are slow.
+
+### History
+
+`history` (`H`, also in the action menu) shows the immutable mutation history
+of the selected issue, read-only. In the tree it opens the issue's history at
+once. In the detail it first offers the issue and each of its loaded comments
+(author, time and the start of the comment); Enter shows the chosen record's
+history. Escape steps back to that choice and then to the same selection and
+scroll position; `H` closes the view at once.
+
+Entries come oldest first, as `lit issues history` lists them. Each says:
+
+- its number, the revisions (`rev 1 → 2`, or `created` for the first), the
+  time in UTC, who made it (actor name and kind, for example
+  `Claude (agent)`) and the client;
+- the operations of its transaction (for example `issue update`, or
+  `comment create 28dfb5ca` on the issue a comment was added to), the request
+  hash, and the other records the transaction changed;
+- every changed field with its JSON value before and after
+  (`title: "Old" → "New"`; at creation only the values that were set). The
+  revision and timestamps are left out, since the heading gives them;
+- the body as a line diff: `-` before, `+` after, two unchanged lines of
+  context around each change, and `…` for longer unchanged runs. Removed and
+  added lines are coloured unless styling is off.
+
+Every title, name, value and body line is sanitized like the detail's, so
+control characters show as visible markers. Long lines wrap.
+
+The history is read in pages of 10 entries (fewer if the service's maximum page
+is smaller), following the service's cursors. A page is read only when the
+view's end comes within one screen of the last entry read, so scrolling down
+(`end` included) reads more; the header says `N entries so far · more below`
+until the last page, and `N entries` once it is complete. If a page fails, the
+entries read so far stay, the header names the error, and `refresh` (`r`)
+reads the history again from the start. The view never writes: each page is
+one read through the same gate as every other request.
 
 ## Claims
 
@@ -313,6 +349,7 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | tree | `clear_filters` | `F` | clear the filters and the search |
 | tree | `claim` | `c` | claim the issue, or reacquire a lost claim |
 | tree | `release` | `u` | release the issue's claim |
+| tree | `history` | `H` | show the issue's history |
 | detail | `up` | `up`, `k` | scroll up |
 | detail | `down` | `down`, `j` | scroll down |
 | detail | `left` | `left`, `h` | scroll a wide block left |
@@ -326,6 +363,7 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | detail | `bottom` | `end`, `G` | go to the bottom |
 | detail | `claim` | `c` | claim the issue, or reacquire a lost claim |
 | detail | `release` | `u` | release the issue's claim |
+| detail | `history` | `H` | show the history of the issue or a comment |
 | menu | `up` | `up`, `k` | previous item |
 | menu | `down` | `down`, `j` | next item |
 | menu | `open` | `enter` | choose the item |
