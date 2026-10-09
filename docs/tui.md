@@ -131,8 +131,8 @@ sequences, other control characters and bidi overrides show as visible markers
 
 `action_menu` (`m`) lists the commands of the current view with their keys
 (open or back, refresh, switch project, uncertain requests, search, filter,
-clear filters, claim or release, help, quit, history, edit and edit detached);
-Enter runs one, Escape
+clear filters, claim or release, the [quick actions](#quick-actions), help,
+quit, history, edit and edit detached); Enter runs one, Escape
 closes the menu. With the `mouse` preference on, a click selects a row, a click
 on the selected row expands or collapses it, a click on the detail pane focuses
 it, and the wheel moves the selection or scrolls the detail.
@@ -291,6 +291,51 @@ Quitting releases every claim this session holds (see [leaving](#leaving)).
 After a crash, a claim lasts until its lease ends: at most 15 minutes for a claim
 `lit-tui` took.
 
+## Quick actions
+
+Quick actions change one thing about the selected issue, in the tree or in the
+detail, without a draft. Each is one transaction:
+
+| Action | Key | Change |
+| --- | --- | --- |
+| `edit_title` | `t` | an inline title field, filled with the current title |
+| `set_state` | `s` | open or closed (closing ends the issue's claim) |
+| `set_labels` | `#` | toggle labels; typing a new one offers to add it |
+| `set_assignee` | `A` | an assignee, unassigned, or a typed new name |
+| `set_parent` | `P` | another issue of the project, or no parent |
+| `link` | `b` | is blocked by, blocks, or is related to another issue |
+| `unlink` | `B` | remove one of the issue's links |
+
+The pickers offer the labels and assignees the loaded project already uses, and
+its issues (an issue's own descendants cannot become its parent). Typing filters
+them, so letters such as `j`, `k` and `q` are text there; the arrows, page keys
+and Home/End move, Enter chooses (for labels it toggles, and **Preview the
+change** at the top previews), and Escape cancels. In the title field Backspace
+deletes and Ctrl-U clears.
+
+Choosing previews the change first, through lit-server, and nothing is written
+yet. The preview lists every record the transaction would write, at the
+revision it is fenced at, and those it only reads: for a parent or a link these
+include the other issues whose relationship fields change. Each issue's claim
+is shown. A claim this session holds is passed on with the change
+(`claimed by you: your claim is passed on`). Enter applies exactly that
+preview, once; Escape cancels it. After an apply the footer says
+`Applied: …` and the tree reloads.
+
+A refusal is shown with its error code, and nothing is written:
+
+- **`claim_conflict`:** another client holds a claim on an affected issue. The
+  preview names it and its owner, for example
+  `Refused (claim_conflict): “Fix the parser” is claimed by Claude (agent) until 14:05:12. Nothing was written.`
+  The same is shown when the claim was taken after the preview. `lit-tui` never
+  forces.
+- **`revision_conflict`:** an affected record changed since it was shown (in
+  the tree, or after the preview). The tree reloads; try again.
+- Any other refusal, such as `validation_failed` for an invalid title, names
+  its code and message. An uncertain outcome (`outcome_uncertain`) is kept for
+  recovery and never replayed; the [uncertain-requests view](#uncertain-requests)
+  lists it.
+
 ## Editing issue bodies
 
 `edit` (`e`) edits the selected issue's body in your editor, in the tree or the
@@ -427,6 +472,13 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | tree | `claim` | `c` | claim the issue, or reacquire a lost claim |
 | tree | `release` | `u` | release the issue's claim |
 | tree | `history` | `H` | show the issue's history |
+| tree | `edit_title` | `t` | edit the title |
+| tree | `set_state` | `s` | close or reopen the issue |
+| tree | `set_labels` | `#` | change the labels |
+| tree | `set_assignee` | `A` | change the assignee |
+| tree | `set_parent` | `P` | change the parent |
+| tree | `link` | `b` | add a link: blocker, blocked or related issue |
+| tree | `unlink` | `B` | remove a link |
 | tree | `edit` | `e` | edit the body, or resume, apply or discard its draft |
 | tree | `edit_detached` | `E` | edit the body in any editor (shows the draft path) |
 | detail | `up` | `up`, `k` | scroll up |
@@ -443,6 +495,13 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | detail | `claim` | `c` | claim the issue, or reacquire a lost claim |
 | detail | `release` | `u` | release the issue's claim |
 | detail | `history` | `H` | show the history of the issue or a comment |
+| detail | `edit_title` | `t` | edit the title |
+| detail | `set_state` | `s` | close or reopen the issue |
+| detail | `set_labels` | `#` | change the labels |
+| detail | `set_assignee` | `A` | change the assignee |
+| detail | `set_parent` | `P` | change the parent |
+| detail | `link` | `b` | add a link: blocker, blocked or related issue |
+| detail | `unlink` | `B` | remove a link |
 | detail | `edit` | `e` | edit the body, or resume, apply or discard its draft |
 | detail | `edit_detached` | `E` | edit the body in any editor (shows the draft path) |
 | menu | `up` | `up`, `k` | previous item |

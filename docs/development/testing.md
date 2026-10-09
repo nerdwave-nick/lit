@@ -73,10 +73,18 @@ view of an issue edited a few times (title, a body with an escape sequence, a
 label, the state) and of a comment edited by another client, from the tree and
 from the detail's chooser: it checks the actors, field changes, the body diff
 and its visible markers, that Escape returns to the same selection, and that
-nothing was written. These
+nothing was written.
+`integration/tui_quick_test.go` is user story 7:
+adding a blocker previews the other issue, an agent's claim on it refuses the
+action with `claim_conflict` naming the owner while nothing is written (no
+commit, no pending evidence, no revision change), and after the claim is
+released the same action applies its preview. These
 scenarios skip without tmux or with `-short`. The lifecycle,
-registry, recovery and claims packages are tested in-process against a temporary
-service (`internal/tui/tuitest`). The claims tests use leases of about a second;
+registry, recovery, claims and quick-action packages are tested in-process
+against a temporary service (`internal/tui/tuitest`); `internal/tui/quick`
+covers every quick action's preview and exact commit, the affected-issue list,
+claim refusals at preview and at commit, revision fences and own claim tokens
+on the wire. The claims tests use leases of about a second;
 one renews a claim across several leases while the program's event loop is
 blocked inside Update.
 

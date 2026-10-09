@@ -72,7 +72,7 @@ func (m Model) relayout() tea.Cmd {
 func (m Model) mouse(msg tea.MouseMsg) tea.Cmd {
 	b, g, ms := m.b, m.geometry(), msg.Mouse()
 	y := ms.Y - g.top
-	if y < 0 || y >= g.height || b.menu != nil || b.filt.modal() {
+	if y < 0 || y >= g.height || b.menu != nil || b.filt.modal() || b.qa.m != nil {
 		return nil
 	}
 	_, wheel := msg.(tea.MouseWheelMsg)
@@ -115,6 +115,9 @@ func (m Model) footer() []string {
 	lines := m.life.Lines()
 	if m.b != nil && m.b.note != "" {
 		lines = append(lines, m.b.note)
+	}
+	if m.b != nil && m.b.qa.note != "" {
+		lines = append(lines, m.b.qa.note)
 	}
 	if m.b != nil && m.b.project != nil && !m.b.switching {
 		if l := m.b.filterLine(); l != "" {
@@ -167,6 +170,8 @@ func (m Model) browserView() string {
 		out = append(out, m.crumb())
 	}
 	switch {
+	case b.qa.m != nil:
+		out = append(out, b.qa.m.Lines(b.method, m.width, g.height, b.tree.Plain())...)
 	case b.menu != nil:
 		out = append(out, b.menu.lines(b.method, m.width, g.height, b.tree.Plain())...)
 	case b.filt.panel != nil:
@@ -261,6 +266,8 @@ func (m Model) crumb() string {
 func (m Model) hint() string {
 	km, ctx := m.prefs.Keymap, m.view()
 	switch {
+	case m.b.qa.m != nil:
+		return m.b.qa.m.Hint(km)
 	case m.b.filt.input != nil:
 		return m.b.filt.input.Line(m.b.method, m.width, km)
 	case m.b.menu != nil || m.b.filt.panel != nil:
