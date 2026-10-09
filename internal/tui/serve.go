@@ -19,6 +19,7 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/edit"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/lifecycle"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/milestones"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/prefs"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/projectadmin"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
@@ -55,6 +56,7 @@ func serve(endpoint string, pref prefs.Prefs, stdin, stdout *os.File, stderr io.
 	comments.Register(ed)
 	projectadmin.Register(ed)
 	create.Register(ed)
+	milestones.Register(ed)
 	m := NewModel(endpoint).WithPrefs(pref).WithLifecycle(l).WithClaims(h).WithEditor(ed)
 	p := tea.NewProgram(m, tea.WithInput(stdin), tea.WithOutput(stdout), tea.WithoutSignalHandler())
 	l.Attach(p)

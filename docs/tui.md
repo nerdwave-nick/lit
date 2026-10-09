@@ -132,11 +132,11 @@ sequences, other control characters and bidi overrides show as visible markers
 
 `action_menu` (`m`) lists the commands of the current view with their keys
 (open or back, refresh, switch project, uncertain requests, search, filter,
-clear filters, claim or release, the [quick actions](#quick-actions), help,
-quit, history, edit and edit detached, new comment and edit comment, edit
-the specification and the repositories, new issue and new child); Enter runs
-one, Escape
-closes the menu; a menu taller than the screen scrolls with its selection. With the `mouse` preference on, a click selects a row, a click
+clear filters, claim or release, the [quick actions](#quick-actions), the
+[milestone](#milestones) commands, help, quit, history, edit and edit
+detached, new comment and edit comment, edit the specification and the
+repositories, new issue and new child); Enter runs one, Escape closes the
+menu; a menu taller than the screen scrolls with its selection. With the `mouse` preference on, a click selects a row, a click
 on the selected row expands or collapses it, a click on the detail pane focuses
 it, and the wheel moves the selection or scrolls the detail.
 
@@ -420,8 +420,8 @@ recovery never removes one; only a successful apply or a discard does.
 project, for example `1 unapplied draft · D opens the Drafts view`. `drafts`
 (`D`, also in the action menu) opens the **Drafts view** at any time; opening
 it ends the banner. It lists every draft, the current project's first, with
-its kind (`issue body`, `new comment`, `comment`, `project spec` or `new
-issue`; later kinds are listed the same way),
+its kind (`issue body`, `new comment`, `comment`, `project spec`, `new
+issue` or `milestone description`; later kinds are listed the same way),
 title, project, recorded revision and start time; the selected draft's file
 is shown below. Enter opens the selected draft: it is compared with its own
 record first (an issue body with its issue, a comment draft with the comment),
@@ -579,6 +579,57 @@ shows the new issue. The sidecar is `.lit/issue_new-<draft-id>.json`; it
 records the title and, for a child, the parent (`parent_id`). A new-issue draft
 started or resumed in this session makes quit ask, like other drafts.
 
+## Milestones
+
+A milestone is a named workset of the project's issues. Membership is
+explicit: adding an issue does not add its children, and a milestone creates
+no blockers. Milestones have no claims, so every change below is optimistic:
+it is previewed first, fenced at the revision it was read at, and applies
+exactly that preview, or is refused (`revision_conflict`) when the milestone
+changed meanwhile. Another client's claim on an issue never refuses a
+milestone change.
+
+`milestones` (`M`, also in the action menu) opens the **Milestones view** of
+the current project. It reads the milestones and their progress from
+lit-server, read-only, and lists each with its members' states, for example
+`“Release 1” · 3 members: 1 closed, 2 open (1 blocked, 1 claimed)`. An empty
+milestone says `no members: an empty scope, not complete`: it is never shown
+as done. Below the list, the selected milestone shows its revision, the first
+lines of its description (sanitized like every body), each member with its
+state, blocker and claim as the loaded tree knows them, and the open blockers
+that are not members. `refresh` (`r`) reads the milestones again; Escape or
+`M` closes the view.
+
+- **New milestone** (the first row): Enter opens a title field. The
+  creation previews `Create the milestone “…” in “…”` with the record it
+  writes; Enter applies it. A new milestone has no members and no
+  description.
+- Enter on a milestone lists its actions:
+  - **Rename the milestone:** a title field filled with the current title,
+    previewed and fenced at the milestone's revision.
+  - **Edit the description in the editor**, or **detached**: the description
+    is a TUI draft holding exactly the description, edited like an issue
+    body (see [Editing issue bodies](#editing-issue-bodies)), but it takes no
+    claim. The preview says `Applying is optimistic: it is refused if the
+    description of the milestone “…” changed after revision N.` A revision
+    change keeps the draft, with `Diff against the current description` and
+    `Reload`. Applying changes only the description, never the members.
+
+`set_milestones` (`W`, in the tree and the detail) adds the selected issue to
+a milestone or removes it. It reads the project's milestones, then lists
+them with the ones the issue belongs to checked (`[x] “Release 1” (member:
+enter removes it)`); Enter previews `Add “…” to the milestone “…”` or
+`Remove “…” from the milestone “…”`, which writes only the milestone at the
+revision just read, and Enter applies it, like a [quick
+action](#quick-actions).
+
+Description drafts sit with the other drafts, with sidecars
+`.lit/milestone_description-<milestone-id>.json` and no owning issue, so
+they are not marked in the tree. The Drafts view lists them as `milestone
+description` and opens them like the view's edit action: offered, or as a
+conflict when the milestone's revision changed. A description draft started
+or resumed in this session makes quit ask, like any other draft.
+
 ## Keymap
 
 Every binding belongs to a **context**:
@@ -631,6 +682,7 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | global | `action_menu` | `m` | open the action menu |
 | global | `uncertain_requests` | `U` | show uncertain requests |
 | global | `drafts` | `D` | show the unapplied drafts |
+| global | `milestones` | `M` | show the project's milestones |
 | tree | `up` | `up`, `k` | select the previous issue |
 | tree | `down` | `down`, `j` | select the next issue |
 | tree | `collapse` | `left`, `h` | collapse |
@@ -661,6 +713,7 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | tree | `edit_repositories` | `R` | change the project's repositories |
 | tree | `new_issue` | `N` | create a top-level issue |
 | tree | `new_child` | `C` | create a child of the issue |
+| tree | `set_milestones` | `W` | add to or remove from a milestone |
 | detail | `up` | `up`, `k` | scroll up |
 | detail | `down` | `down`, `j` | scroll down |
 | detail | `left` | `left`, `h` | scroll a wide block left |
@@ -690,6 +743,7 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | detail | `edit_repositories` | `R` | change the project's repositories |
 | detail | `new_issue` | `N` | create a top-level issue |
 | detail | `new_child` | `C` | create a child of the issue |
+| detail | `set_milestones` | `W` | add to or remove from a milestone |
 | menu | `up` | `up`, `k` | previous item |
 | menu | `down` | `down`, `j` | next item |
 | menu | `open` | `enter` | choose the item |

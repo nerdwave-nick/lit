@@ -55,6 +55,8 @@ var draftOpeners = map[drafts.Kind]func(Model, drafts.Draft) tea.Cmd{
 	drafts.CommentBody: Model.openBodyDraft,
 	drafts.ProjectSpec: Model.openBodyDraft,
 	drafts.IssueNew:    Model.openBodyDraft,
+	// milestones.Register
+	drafts.MilestoneDescription: Model.openBodyDraft,
 }
 
 func newDraftsState(e *edit.Editor, g draftsview.Gate) *draftsState {

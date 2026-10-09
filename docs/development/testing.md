@@ -125,6 +125,17 @@ label, the state) and of a comment edited by another client, from the tree and
 from the detail's chooser: it checks the actors, field changes, the body diff
 and its visible markers, that Escape returns to the same selection, and that
 nothing was written.
+`integration/tui_milestones_test.go` manages milestones with `nvim --clean`:
+it creates a milestone in the Milestones view, adds the selected issue with
+`W` and removes it again (its child never follows, no blocker appears),
+edits the description in nvim (no claim, applied at the milestone's
+revision), and keeps the draft byte-exact when the agent changed the
+description meanwhile (a revision conflict, diffed against the current
+description). `internal/tui/milestones_ui_test.go` covers these flows in the
+model, `internal/tui/milestones` tests the description kind, the load with
+progress and the view, `internal/tui/quick` the membership, creation and
+rename actions (fenced at the milestone's revision), and `internal/litclient`
+the progress read.
 `integration/tui_quick_test.go` is user story 7:
 adding a blocker previews the other issue, an agent's claim on it refuses the
 action with `claim_conflict` naming the owner while nothing is written (no

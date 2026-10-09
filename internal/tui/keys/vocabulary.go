@@ -84,6 +84,11 @@ const (
 	// selected issue: the title inline, the body in a draft.
 	NewIssue Action = "new_issue"
 	NewChild Action = "new_child"
+	// Milestones opens the Milestones view of the project: progress,
+	// creation, titles and descriptions. SetMilestones adds the selected
+	// issue to a milestone or removes it.
+	Milestones    Action = "milestones"
+	SetMilestones Action = "set_milestones"
 )
 
 // Required actions must keep at least one key, so the way out, help and
@@ -113,6 +118,7 @@ var vocabulary = map[Context][]entry{
 		{ActionMenu, "open the action menu", []string{"m"}},
 		{UncertainRequests, "show uncertain requests", []string{"U"}},
 		{Drafts, "show the unapplied drafts", []string{"D"}},
+		{Milestones, "show the project's milestones", []string{"M"}},
 	},
 	Tree: {
 		{Up, "select the previous issue", []string{"up", "k"}},
@@ -145,6 +151,7 @@ var vocabulary = map[Context][]entry{
 		{EditRepositories, "change the project's repositories", []string{"R"}},
 		{NewIssue, "create a top-level issue", []string{"N"}},
 		{NewChild, "create a child of the issue", []string{"C"}},
+		{SetMilestones, "add to or remove from a milestone", []string{"W"}},
 	},
 	Detail: {
 		{Up, "scroll up", []string{"up", "k"}},
@@ -176,6 +183,7 @@ var vocabulary = map[Context][]entry{
 		{EditRepositories, "change the project's repositories", []string{"R"}},
 		{NewIssue, "create a top-level issue", []string{"N"}},
 		{NewChild, "create a child of the issue", []string{"C"}},
+		{SetMilestones, "add to or remove from a milestone", []string{"W"}},
 	},
 	Menu: {
 		{Up, "previous item", []string{"up", "k"}},

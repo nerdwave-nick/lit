@@ -26,6 +26,8 @@ func nameOf(k drafts.Kind, title string) string {
 		return "the specification of " + titled(title)
 	case drafts.IssueNew:
 		return "the new issue " + titled(title)
+	case drafts.MilestoneDescription:
+		return "the description of the milestone " + titled(title)
 	}
 	return "the " + strings.ReplaceAll(string(k), "_", " ") + " of " + titled(title)
 }
@@ -53,6 +55,8 @@ func noun(k drafts.Kind) string {
 		return "specification"
 	case drafts.IssueNew:
 		return "issue"
+	case drafts.MilestoneDescription:
+		return "description"
 	}
 	return "content"
 }
@@ -85,6 +89,8 @@ func (m Model) keyFor(k drafts.Kind) string {
 		return firstKey(m, keys.Tree, keys.EditSpec)
 	case drafts.IssueNew:
 		return firstKey(m, keys.Global, keys.Drafts) + " (the Drafts view)"
+	case drafts.MilestoneDescription:
+		return firstKey(m, keys.Global, keys.Milestones)
 	}
 	return m.editKey()
 }
@@ -98,6 +104,8 @@ func (m Model) resumeHint(k drafts.Kind) string {
 		return m.keyFor(k) + " resumes, creates or discards it."
 	case drafts.ProjectSpec:
 		return m.keyFor(k) + " in the project resumes, applies or discards it."
+	case drafts.MilestoneDescription:
+		return m.keyFor(k) + " resumes, applies or discards it."
 	}
 	return m.keyFor(k) + " on the issue resumes, applies or discards it."
 }
