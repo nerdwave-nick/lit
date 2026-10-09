@@ -42,7 +42,10 @@ synthetic issues (40 transactions of 25, seeded by the non-race helper
 logs the seeding and load times; a server configured with small read limits
 shows the partial indicator; a deep branch shows its breadcrumb, and a narrow
 terminal opens the detail and returns to the same selection; switching back to
-a project keeps its selection. These scenarios skip without tmux or with
+a project keeps its selection. `integration/tui_filter_test.go` searches and
+filters the same way: a deep match keeps its ancestors, typed letters belong to
+the search input, no match shows the empty state, filters combine with the
+search, and one key clears them. These scenarios skip without tmux or with
 `-short`. The lifecycle,
 registry and recovery packages are tested in-process against a temporary
 service (`internal/tui/tuitest`).
