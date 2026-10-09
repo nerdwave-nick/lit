@@ -22,6 +22,8 @@ func nameOf(k drafts.Kind, title string) string {
 		return "the new comment on " + titled(title)
 	case drafts.CommentBody:
 		return "the comment on " + titled(title)
+	case drafts.ProjectSpec:
+		return "the specification of " + titled(title)
 	}
 	return "the " + strings.ReplaceAll(string(k), "_", " ") + " of " + titled(title)
 }
@@ -45,6 +47,8 @@ func noun(k drafts.Kind) string {
 		return "comment"
 	case drafts.IssueBody:
 		return "body"
+	case drafts.ProjectSpec:
+		return "specification"
 	}
 	return "content"
 }
@@ -64,6 +68,8 @@ func (m Model) keyFor(k drafts.Kind) string {
 		return firstKey(m, keys.Tree, keys.NewComment)
 	case drafts.CommentBody:
 		return firstKey(m, keys.Tree, keys.EditComment)
+	case drafts.ProjectSpec:
+		return firstKey(m, keys.Tree, keys.EditSpec)
 	}
 	return m.editKey()
 }

@@ -51,7 +51,7 @@ var kinds = map[Kind]kindInfo{
 	CommentBody:          {prefix: "comment"},
 	IssueNew:             {fresh: true, unowned: true},
 	MilestoneDescription: {unowned: true},
-	ProjectSpec:          {unowned: true},
+	ProjectSpec:          {unowned: true, prefix: "spec"},
 }
 
 // New reports whether k's record does not exist until the draft is
