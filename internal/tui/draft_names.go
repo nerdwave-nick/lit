@@ -22,6 +22,8 @@ func nameOf(k drafts.Kind, title string) string {
 		return "the new comment on " + titled(title)
 	case drafts.CommentBody:
 		return "the comment on " + titled(title)
+	case drafts.IssueNew:
+		return "the new issue " + titled(title)
 	}
 	return "the " + strings.ReplaceAll(string(k), "_", " ") + " of " + titled(title)
 }
@@ -29,7 +31,7 @@ func nameOf(k drafts.Kind, title string) string {
 // draftOf names a draft of kind k: the draft of “T”, the new comment on
 // “T”, the draft of the comment on “T”.
 func draftOf(k drafts.Kind, title string) string {
-	if k == drafts.CommentNew {
+	if k == drafts.CommentNew || k == drafts.IssueNew {
 		return nameOf(k, title)
 	}
 	if k == drafts.IssueBody {
@@ -45,8 +47,19 @@ func noun(k drafts.Kind) string {
 		return "comment"
 	case drafts.IssueBody:
 		return "body"
+	case drafts.IssueNew:
+		return "issue"
 	}
 	return "content"
+}
+
+// posted is what applying a new record's draft did: a comment is posted,
+// an issue created.
+func posted(k drafts.Kind) string {
+	if k == drafts.IssueNew {
+		return "created"
+	}
+	return "posted"
 }
 
 // upper starts s with a capital letter.
@@ -64,8 +77,27 @@ func (m Model) keyFor(k drafts.Kind) string {
 		return firstKey(m, keys.Tree, keys.NewComment)
 	case drafts.CommentBody:
 		return firstKey(m, keys.Tree, keys.EditComment)
+	case drafts.IssueNew:
+		return firstKey(m, keys.Global, keys.Drafts) + " (the Drafts view)"
 	}
 	return m.editKey()
+}
+
+// resumeHint says how to come back to a kept draft of kind k: its key on
+// the issue, or for a new issue (which has no issue yet) the Drafts view.
+func (m Model) resumeHint(k drafts.Kind) string {
+	if k == drafts.IssueNew {
+		return m.keyFor(k) + " resumes, creates or discards it."
+	}
+	return m.keyFor(k) + " on the issue resumes, applies or discards it."
+}
+
+// placeOf says where a new issue's draft creates it.
+func (m Model) placeOf(d drafts.Draft) string {
+	if d.ParentID == "" {
+		return "It creates a top-level issue."
+	}
+	return "It creates a child of " + m.issueName(d.ParentID) + "."
 }
 
 // text is a choice's text for the panel's draft: a diff compares with the

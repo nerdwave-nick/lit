@@ -42,6 +42,7 @@ const (
 	chKeep                         // close; the draft stays
 	chDiscard                      // ask before discarding
 	chDiscardNow                   // discard
+	chTitle                        // change a new issue's title
 )
 
 type choice struct {
@@ -59,6 +60,7 @@ var choiceLabels = map[choiceKind]string{
 	chKeep:       "Keep the draft for later",
 	chDiscard:    "Discard the draft",
 	chDiscardNow: "Discard",
+	chTitle:      "Change the title",
 }
 
 func choices(kinds ...choiceKind) []choice {
@@ -104,7 +106,11 @@ func (m Model) choose(k choiceKind) tea.Cmd {
 	switch k {
 	case chKeep:
 		e.panel = nil
-		e.note = "Kept " + draftOf(d.Kind, d.Title) + ": " + path(d) + ". " + m.keyFor(d.Kind) + " on the issue resumes, applies or discards it."
+		e.note = "Kept " + draftOf(d.Kind, d.Title) + ": " + path(d) + ". " + m.resumeHint(d.Kind)
+		return nil
+	case chTitle:
+		e.panel = nil
+		m.retitlePrompt(d)
 		return nil
 	case chDiscard:
 		e.panel = m.confirmPanel(d)
@@ -229,6 +235,10 @@ func (m Model) applied(a edit.Applied) tea.Cmd {
 	}
 	e.untrack(a.Draft.Key())
 	e.panel, e.note = nil, appliedNote(a)
+	if a.Draft.Kind == drafts.IssueNew {
+		e.note = m.createdNote(a)
+		m.selectCreated(a)
+	}
 	return m.refreshTree()
 }
 

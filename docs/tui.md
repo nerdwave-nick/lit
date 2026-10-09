@@ -565,6 +565,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | tree | `edit_detached` | `E` | edit the body in any editor (shows the draft path) |
 | tree | `new_comment` | `a` | add a comment, or resume its draft |
 | tree | `edit_comment` | `o` | edit one of the issue's comments |
+| tree | `new_issue` | `N` | create a top-level issue |
+| tree | `new_child` | `C` | create a child of the issue |
 | detail | `up` | `up`, `k` | scroll up |
 | detail | `down` | `down`, `j` | scroll down |
 | detail | `left` | `left`, `h` | scroll a wide block left |
@@ -590,6 +592,8 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | detail | `edit_detached` | `E` | edit the body in any editor (shows the draft path) |
 | detail | `new_comment` | `a` | add a comment, or resume its draft |
 | detail | `edit_comment` | `o` | edit one of the issue's comments |
+| detail | `new_issue` | `N` | create a top-level issue |
+| detail | `new_child` | `C` | create a child of the issue |
 | menu | `up` | `up`, `k` | previous item |
 | menu | `down` | `down`, `j` | next item |
 | menu | `open` | `enter` | choose the item |

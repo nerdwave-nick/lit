@@ -74,6 +74,10 @@ const (
 	// EditComment chooses one of its comments and edits it.
 	NewComment  Action = "new_comment"
 	EditComment Action = "edit_comment"
+	// NewIssue creates a top-level issue and NewChild a child of the
+	// selected issue: the title inline, the body in a draft.
+	NewIssue Action = "new_issue"
+	NewChild Action = "new_child"
 )
 
 // Required actions must keep at least one key, so the way out, help and
@@ -131,6 +135,8 @@ var vocabulary = map[Context][]entry{
 		{EditDetached, "edit the body in any editor (shows the draft path)", []string{"E"}},
 		{NewComment, "add a comment, or resume its draft", []string{"a"}},
 		{EditComment, "edit one of the issue's comments", []string{"o"}},
+		{NewIssue, "create a top-level issue", []string{"N"}},
+		{NewChild, "create a child of the issue", []string{"C"}},
 	},
 	Detail: {
 		{Up, "scroll up", []string{"up", "k"}},
@@ -158,6 +164,8 @@ var vocabulary = map[Context][]entry{
 		{EditDetached, "edit the body in any editor (shows the draft path)", []string{"E"}},
 		{NewComment, "add a comment, or resume its draft", []string{"a"}},
 		{EditComment, "edit one of the issue's comments", []string{"o"}},
+		{NewIssue, "create a top-level issue", []string{"N"}},
+		{NewChild, "create a child of the issue", []string{"C"}},
 	},
 	Menu: {
 		{Up, "previous item", []string{"up", "k"}},

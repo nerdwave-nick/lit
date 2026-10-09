@@ -85,15 +85,22 @@ const MaxTitle = 128
 // its uniqueness: nonempty, at most MaxTitle characters, without control
 // characters or leading or trailing whitespace.
 func CheckTitle(title string) error {
-	switch {
-	case strings.TrimSpace(title) == "":
-		return protocol.E(400, "validation_failed", "an issue needs a title")
-	case strings.TrimSpace(title) != title:
-		return protocol.E(400, "validation_failed", "a title cannot start or end with spaces")
-	case utf8.RuneCountInString(title) > MaxTitle:
-		return protocol.E(400, "validation_failed", "a title has at most 128 characters")
-	case strings.IndexFunc(title, unicode.IsControl) >= 0:
-		return protocol.E(400, "validation_failed", "a title cannot contain control characters")
+	if problem := titleProblem(title); problem != "" {
+		return protocol.E(400, "validation_failed", problem)
 	}
 	return nil
+}
+
+func titleProblem(title string) string {
+	switch {
+	case strings.TrimSpace(title) == "":
+		return "an issue needs a title"
+	case strings.TrimSpace(title) != title:
+		return "a title cannot start or end with spaces"
+	case utf8.RuneCountInString(title) > MaxTitle:
+		return "a title has at most 128 characters"
+	case strings.IndexFunc(title, unicode.IsControl) >= 0:
+		return "a title cannot contain control characters"
+	}
+	return ""
 }

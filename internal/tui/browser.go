@@ -73,6 +73,7 @@ type browser struct {
 	lastAt   time.Time
 	note     string
 	selected string // the issue whose detail is shown
+	want     string // a just-created issue, selected once a load lists it
 	wide     bool   // the detail is laid out beside the tree
 	full     fullDetail
 	choose1  bool // choose the only project of the first page
@@ -217,6 +218,7 @@ func (b *browser) loadedIssues(got browse.Issues, d *detail.Model) tea.Cmd {
 	if shown {
 		b.last, b.lastAt, b.loaded = got, time.Now(), true
 		b.note = ""
+		b.selectWanted(got.Items)
 		switch ch := b.tree.SetIssues(got.Items); {
 		case ch.Missing:
 			b.note = "The previously selected issue is no longer listed."
