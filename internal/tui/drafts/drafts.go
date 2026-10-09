@@ -15,6 +15,10 @@
 // there are ignored when listing, and a draft's own leftovers are removed
 // when it is discarded. One record has at most one draft of a kind, and an
 // existing draft is never overwritten.
+//
+// Kinds declare whether their record exists yet and whether an issue owns
+// it (kinds.go): a new comment's draft is keyed by a generated draft ID, and
+// a project specification's draft has no owning issue.
 package drafts
 
 import (
@@ -29,8 +33,8 @@ const SchemaVersion = 1
 // Kind is what a draft edits.
 type Kind string
 
-// IssueBody is the body of an existing issue. Later kinds (comments,
-// specifications, milestone descriptions) add their own.
+// IssueBody is the body of an existing issue; editing it claims the issue.
+// The other kinds, and what each declares, are in kinds.go.
 const IssueBody Kind = "issue_body"
 
 // ClaimState is the edit-claim state recorded for a draft.
@@ -56,8 +60,10 @@ type Draft struct {
 	Kind          Kind   `json:"kind"`
 	ServiceID     string `json:"service_id"`
 	ProjectID     string `json:"project_id"`
-	// RecordID is the edited record; IssueID is the issue that owns it (the
-	// same for an issue body).
+	// RecordID is the edited record, or for a record that does not exist
+	// yet (Kind.New) a generated draft ID (NewID). IssueID is the issue that
+	// owns it (the same for an issue body, the commented issue for comment
+	// kinds); it is empty for kinds without an owner (Kind.Owned).
 	RecordID string `json:"record_id"`
 	IssueID  string `json:"issue_id"`
 	// Title is the record's title when the draft was started or reloaded.
@@ -65,7 +71,7 @@ type Draft struct {
 	// File is the draft file's base name in the project's drafts directory.
 	File string `json:"file"`
 	// Revision is the record revision the draft applies at; Base is the
-	// record's content at that revision.
+	// record's content at that revision. A new record has neither (0, "").
 	Revision  int64      `json:"revision"`
 	Base      string     `json:"base"`
 	Claim     ClaimState `json:"claim"`
@@ -87,7 +93,9 @@ func (d Draft) Created() time.Time {
 	return t
 }
 
-func (d Draft) key() string { return string(d.Kind) + "-" + d.RecordID }
+// Key identifies the draft among all of a project's drafts: its kind and
+// record. One record has at most one draft of a kind.
+func (d Draft) Key() string { return string(d.Kind) + "-" + d.RecordID }
 
 // Errors, typed like the client's: callers branch on protocol codes.
 var (
