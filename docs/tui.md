@@ -102,7 +102,7 @@ claim (owner name and kind, and lease end), parent, children, links and last
 update.
 
 `action_menu` (`m`) lists the commands of the current view with their keys
-(open or back, refresh, switch project, help and quit); Enter runs one, Escape
+(open or back, refresh, switch project, uncertain requests, help and quit); Enter runs one, Escape
 closes the menu. With the `mouse` preference on, a click selects a row, a click
 on the selected row expands or collapses it, a click on the detail pane focuses
 it, and the wheel moves the selection or scrolls the detail.
@@ -179,6 +179,7 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | global | `refresh` | `r` | refresh |
 | global | `switch_project` | `p` | switch project |
 | global | `action_menu` | `m` | open the action menu |
+| global | `uncertain_requests` | `U` | show uncertain requests |
 | tree | `up` | `up`, `k` | select the previous issue |
 | tree | `down` | `down`, `j` | select the next issue |
 | tree | `collapse` | `left`, `h` | collapse |
@@ -280,7 +281,8 @@ the orphan's retained requests first:
   leftover claims, removes the orphan's entry, and shows a one-line note.
 - **Something uncertain:** it never disconnects. A panel shows the orphan, its
   request IDs and evidence paths. Inspect them with `lit transactions status`
-  and decide; Escape closes the panel. The entry stays, so later launches
+  or the [uncertain-requests view](#uncertain-requests) (`U`) and decide;
+  Escape closes the panel. The entry stays, so later launches
   report it again until the outcome is resolved.
 - **Cannot verify** (the service is unreachable, or a disconnect is not
   confirmed): it reports the orphan as unknown, never as clean, and keeps the
@@ -296,6 +298,30 @@ Escape keeps it. Confirm only if that instance is really gone.
 The registry is local to the state directory. An instance that crashed on
 another machine with a different state directory is not seen; its claims
 lapse at lease expiry.
+
+### Uncertain requests
+
+`uncertain_requests` (`U`, also in the action menu) opens a read-only view of
+retained requests whose outcome may not be established: this session's own
+(checked again now with a read-only transaction status), and those of the
+orphans found at launch (as recovery checked them). The panel about an orphan
+with uncertain requests and the exit report that lists uncertain requests
+name the key; in the exit report it opens the view instead of leaving, and
+Escape returns to the report. After shutdown the view shows this session's
+requests as shutdown checked them, because no more requests are sent.
+
+For each request it shows the request ID, its outcome (status, outcome and
+proof, for example `uncertain (acquisition_token_not_received)`), the
+operation (method and path, and the intent or claim operation such as
+`issue.update` or `claims.acquire`), the service and client IDs, the endpoint,
+when it was recorded and the evidence path. Uncertain requests come first.
+`refresh` (`r`) checks again; Escape or `U` closes the view.
+
+The view only reads. It never replays, retires, moves or deletes evidence,
+and repeats the guidance of [recovery](recovery.md): checking again cannot
+always settle an outcome, the evidence must not be deleted, moved or worked
+around with a new client or a replay, and a persistent uncertain outcome goes
+to the human owner with the evidence and the request, service and client IDs.
 
 ### After `kill -9`, a crash or a lost connection
 

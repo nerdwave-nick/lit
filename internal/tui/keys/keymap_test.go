@@ -333,7 +333,7 @@ func TestBindingsListTheContextThenGlobalForTheActionMenu(t *testing.T) {
 		names = append(names, string(x.Context)+"."+string(x.Action))
 	}
 	want := []string{"detail.up", "detail.down", "detail.left", "detail.right", "detail.next_block", "detail.prev_block", "detail.back", "detail.page_up", "detail.page_down", "detail.top", "detail.bottom", "detail.claim", "detail.release",
-		"global.quit", "global.help", "global.refresh", "global.switch_project", "global.action_menu"}
+		"global.quit", "global.help", "global.refresh", "global.switch_project", "global.action_menu", "global.uncertain_requests"}
 	if !slices.Equal(names, want) {
 		t.Errorf("bindings %v, want %v", names, want)
 	}
@@ -341,7 +341,7 @@ func TestBindingsListTheContextThenGlobalForTheActionMenu(t *testing.T) {
 	if refresh.Keys == nil || len(refresh.Keys) != 0 || refresh.Description != "refresh" {
 		t.Errorf("unbound refresh: %+v", refresh)
 	}
-	if got := Default().Bindings(Global); len(got) != 5 {
+	if got := Default().Bindings(Global); len(got) != 6 {
 		t.Errorf("global bindings %v", got)
 	}
 }

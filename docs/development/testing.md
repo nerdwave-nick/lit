@@ -42,8 +42,11 @@ synthetic issues (40 transactions of 25, seeded by the non-race helper
 logs the seeding and load times; a server configured with small read limits
 shows the partial indicator; a deep branch shows its breadcrumb, and a narrow
 terminal opens the detail and returns to the same selection; switching back to
-a project keeps its selection. These scenarios skip without tmux or with
-`-short`. The lifecycle,
+a project keeps its selection. `integration/tui_uncertain_test.go` opens the
+uncertain-requests view with fabricated uncertain evidence: from an orphan's
+launch panel and the action menu, and from its key and the exit report of the
+instance itself, checking that the evidence stays byte-identical. These
+scenarios skip without tmux or with `-short`. The lifecycle,
 registry and recovery packages are tested in-process against a temporary
 service (`internal/tui/tuitest`).
 

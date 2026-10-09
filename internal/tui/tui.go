@@ -15,6 +15,7 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/cells"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/theme"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/uncertain"
 )
 
 // Model is the root Bubble Tea model.
@@ -28,7 +29,9 @@ type Model struct {
 	width, height int
 	life          lifecycle.UI // session line, recovery notes and exit prompts
 	b             *browser     // the project tree; nil without a lifecycle
-	cl            *claimsView  // held claims and the idle question; nil without a holder
+	l             *lifecycle.Lifecycle
+	uv            *uncertain.Model // the uncertain-requests view, when open
+	cl            *claimsView      // held claims and the idle question; nil without a holder
 }
 
 // NewModel returns the root model for the service at endpoint, with the
@@ -60,7 +63,7 @@ func (m Model) WithDocument(s detail.Section) Model {
 func (m Model) WithLifecycle(l *lifecycle.Lifecycle) Model {
 	m.life = lifecycle.NewUI(l)
 	if l != nil {
-		m.b = newBrowser(l, m.prefs.Keymap)
+		m.b, m.l = newBrowser(l, m.prefs.Keymap), l
 		m.wireClaims()
 	}
 	return m
@@ -127,6 +130,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.setStyle())
 	}
 	m.touchClaims(msg)
+	m, cmd, handled := m.uncertainKey(msg)
+	if handled {
+		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
+	}
 	if life, cmd, handled := m.life.Update(msg, m.prefs.Keymap); handled {
 		m.life = life
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
@@ -176,6 +183,8 @@ func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	switch {
 	case action == keys.Quit:
 		return m, m.life.Quit()
+	case action == keys.UncertainRequests:
+		return m.openUncertain()
 	case m.help:
 		if action == keys.Help || action == keys.Cancel {
 			m.help = false
@@ -205,6 +214,8 @@ func (m Model) dispatch(action keys.Action, msg tea.Msg) (Model, tea.Cmd) {
 		return m, nil
 	case m.cl != nil && (action == keys.Claim || action == keys.Release):
 		return m, m.claimAction(action)
+	case action == keys.UncertainRequests:
+		return m.openUncertain()
 	case m.b != nil:
 		return m, m.b.dispatch(m.view(), action, msg, m.detail)
 	case msg != nil:
