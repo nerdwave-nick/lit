@@ -198,8 +198,9 @@ When something is uncertain (a retained request, or a disconnect whose answer
 never arrived) or cannot be verified, nothing more is disconnected: doing so could
 make an uncertain outcome permanently unprovable. The screen lists the request
 IDs and evidence paths, the registry entry is kept for the next launch, and
-leaving takes a second keypress. The same lines are printed to stderr after the
-terminal is restored, and `lit-tui` exits with status 4. Claims that were not
+leaving takes a second keypress (after SIGHUP no terminal is left, so it exits
+without one). The same lines are printed to stderr after the terminal is
+restored, and `lit-tui` exits with status 4. Claims that were not
 released stay until their leases expire (at most one hour).
 
 A second Ctrl-C or signal during shutdown exits at once, with status 128 plus the

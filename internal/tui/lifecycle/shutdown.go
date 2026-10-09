@@ -3,6 +3,7 @@ package lifecycle
 import (
 	"context"
 	"fmt"
+	"syscall"
 	"time"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
@@ -154,7 +155,9 @@ func (l *Lifecycle) run(reason string) {
 	l.mu.Lock()
 	p := l.prog
 	l.mu.Unlock()
-	if res.Outcome == Clean && p != nil {
+	// A result that is not clean waits for a second keypress, except after
+	// SIGHUP: the terminal is gone and no keypress can come.
+	if p != nil && (res.Outcome == Clean || reason == syscall.SIGHUP.String()) {
 		go p.Quit() // waits while an editor holds the terminal
 	}
 }

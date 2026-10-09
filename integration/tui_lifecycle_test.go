@@ -376,6 +376,19 @@ func TestTUILifecycleInTmux(t *testing.T) {
 		}
 		a.cleanlyGone()
 	})
+	t.Run("SIGHUP with an uncertain request still exits", func(t *testing.T) {
+		e := newTUIEnv(t)
+		a := e.launch("huncertain")
+		path := tuitest.UncertainAcquire(t, a.session())
+		e.tmux("kill-session", "-t", "huncertain")
+		a.gone() // no terminal is left to take a keypress
+		if a.client() != "connected" || !a.published() {
+			t.Fatalf("client %s entry %v", a.client(), a.published())
+		}
+		if _, err := os.Stat(path); err != nil {
+			t.Fatal("evidence removed")
+		}
+	})
 	t.Run("an uncertain exit keeps the entry and needs a second keypress", func(t *testing.T) {
 		e := newTUIEnv(t)
 		a := e.launch("exit")
