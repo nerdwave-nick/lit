@@ -386,7 +386,9 @@ lease ended, the draft stays and applying is optimistic: fenced by the draft's
 revision only, and refused by a revision change or another client's claim.
 
 **Existing drafts.** `e` on an issue that already has a draft never starts a new
-one. It offers the draft instead: resume it in the editor or detached (claiming
+one. When the issue's revision changed since the draft was started, the draft
+opens as a conflict (diff, reload, resume, keep or discard). Otherwise it
+offers the draft: resume it in the editor or detached (claiming
 the issue again if this session does not hold the claim), preview and apply it,
 diff it against the current body, or discard it. `Keep the draft for later`
 (or Escape) closes the panel; an edit claim stays held while its draft is open.
@@ -406,6 +408,46 @@ sidecars identify drafts, so editor swap and backup files in the directory
 (`.name.md.swp`, `name.md~`, …) are ignored; discarding or applying a draft
 removes its own. The title part of the name is cosmetic: a renamed issue keeps
 its draft. Drafts are TUI drafts only: lit-server knows nothing about them.
+
+### Drafts across exits
+
+Drafts outlive the session. Quitting, a signal, a crash or the next launch's
+recovery never removes one; only a successful apply or a discard does.
+
+**At launch** a footer line counts this service's unapplied drafts in every
+project, for example `1 unapplied draft · D opens the Drafts view`. `drafts`
+(`D`, also in the action menu) opens the **Drafts view** at any time; opening
+it ends the banner. It lists every draft, the current project's first, with
+its kind (`issue body`, `new comment` or `comment`; later kinds are listed the
+same way),
+title, project, recorded revision and start time; the selected draft's file
+is shown below. Enter opens the selected draft: it is compared with its own
+record first (an issue body with its issue, a comment draft with the comment),
+and opens as a conflict when that record's revision changed
+(`changed: revision 3 → 4, opens as a conflict` in the list); otherwise it is
+offered as with `e`: resume it in the editor or detached, preview and apply,
+diff against the current body, or discard. A kind this version cannot resume
+can still be kept or discarded. Escape or `D` closes the view. Drafts of
+another lit service sharing the state directory are not listed.
+
+In the tree, an issue with a draft is marked `draft`, or `draft: changed` when
+the issue changed since; other kinds are marked by kind on their issue, for
+example `comment draft` or `new comment draft`. Drafts without an owning issue
+are not marked in the tree.
+
+**Quitting with open drafts.** Drafts started or resumed in this session that
+are still unapplied make `quit` ask once:
+
+```text
+1 open draft (“Fix the parser”). Drafts are kept; claims will be released.
+
+[Apply now] [Quit] [Cancel]
+```
+
+`Apply now` cancels quitting and previews applying the first open draft.
+`Quit` (or `q` again) quits: the drafts stay, and the disconnect releases the
+claims, edit claims included. `Cancel` (Escape) keeps running. Ctrl-C and
+signals never ask.
 
 ## Comments
 
@@ -439,7 +481,11 @@ current comment` and `Reload`, exactly as for bodies.
 
 Comment drafts sit beside body drafts, with sidecars
 `.lit/comment_new-<draft-id>.json` (owned by the issue; the draft ID is the
-future comment's) and `.lit/comment_body-<comment-id>.json`.
+future comment's) and `.lit/comment_body-<comment-id>.json`. They are listed
+in the Drafts view (`new comment`, `comment`) and open there as from `a` and
+`o`: a new comment is offered, or shown as posted already; a comment draft
+whose comment changed opens as a conflict. A comment draft started or
+resumed in this session makes quit ask, and `Apply now` previews it.
 
 ## Keymap
 
@@ -492,6 +538,7 @@ Arrows, Enter and Escape come first, with vim-style alternates.
 | global | `switch_project` | `p` | switch project |
 | global | `action_menu` | `m` | open the action menu |
 | global | `uncertain_requests` | `U` | show uncertain requests |
+| global | `drafts` | `D` | show the unapplied drafts |
 | tree | `up` | `up`, `k` | select the previous issue |
 | tree | `down` | `down`, `j` | select the next issue |
 | tree | `collapse` | `left`, `h` | collapse |
@@ -596,6 +643,14 @@ Shutdown then:
 If the program ends first, for example because the terminal went away, `lit-tui`
 still finishes shutdown before it exits, waiting at most about 30 s.
 
+**An open editor is never killed.** When shutdown starts while `lit-tui` is
+suspended in the editor (SIGTERM, or SIGHUP when the terminal closes), steps 1
+to 4 still run at once, so the claims are released and the client disconnects.
+`lit-tui` then waits for the editor to exit before it restores the terminal,
+and afterwards prints `shutdown finished while the editor was open and then
+waited for it to exit; the draft is kept: …` to stderr. Whatever the editor
+saved stays in the draft.
+
 When something is uncertain (a retained request, or a disconnect whose answer
 never arrived) or cannot be verified, nothing more is disconnected: doing so could
 make an uncertain outcome permanently unprovable. The screen lists the request
@@ -607,7 +662,9 @@ released stay until their leases expire (at most one hour).
 
 A second Ctrl-C or signal during shutdown exits at once, with status 128 plus the
 signal number (130 for Ctrl-C). It prints the retained request IDs and the claims
-left to lease expiry, and keeps the registry entry.
+left to lease expiry, and keeps the registry entry. If the editor is still open,
+it is left running and the terminal is left to it: stderr names the editor's
+process ID and the draft file it edits.
 
 ### The next launch
 

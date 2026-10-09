@@ -133,8 +133,8 @@ func TestEditingACommentIsRefusedByAForeignClaim(t *testing.T) {
 	u.expect("nothing to choose", u.line("“Second root” has no comments to edit; a writes a new one.") != "")
 }
 
-// A revision change of the comment after the claim is gone keeps the draft
-// and offers reload and diff; a foreign claim then refuses the apply and
+// A revision change of the comment after the claim is gone keeps the draft:
+// o on it opens as a conflict with reload and diff; a foreign claim then refuses the apply and
 // names the owner, keeping the draft.
 func TestACommentConflictKeepsTheDraftInTheUI(t *testing.T) {
 	u := startCommenting(t)
@@ -145,9 +145,7 @@ func TestACommentConflictKeepsTheDraftInTheUI(t *testing.T) {
 	u.press("u") // release the claim: applying is optimistic
 	u.expect("released", u.claim(u.root) == nil)
 	tuitest.Apply(t, u.agent, litclient.UpdateComment(c.ID, 0, "the agent's version\n"))
-	u.press("o", "enter")
-	u.expect("the offer", u.line("The comment on “Root issue” has a draft") != "")
-	u.choose("Preview and apply")
+	u.press("o", "enter") // the comment changed: its draft opens as a conflict
 	u.expect("conflict", u.line("The comment on “Root issue” changed since the draft was started: revision 1 → 2") != "" && u.line("the draft is kept") != "")
 	u.expect("diff choice", u.line("Diff against the current comment") != "")
 	u.choose("Diff against the current")
@@ -185,5 +183,62 @@ func TestTheMenuOffersCommenting(t *testing.T) {
 		if !found {
 			t.Fatalf("menu lacks %q (%s):\n%s", want.desc, want.key, menu)
 		}
+	}
+}
+
+// Comment drafts left by an earlier launch are marked in the tree by kind,
+// listed in the Drafts view and opened there: a new comment is offered, and
+// a comment that changed since its draft opens as a conflict (its own
+// revision, not the issue's). A comment draft resumed in this session makes
+// quit ask, and Apply now previews it.
+func TestCommentDraftsInTheDraftsViewAndTheQuitPrompt(t *testing.T) {
+	x := newDrafted(t)
+	tuitest.Apply(t, x.agent, litclient.CreateComment("test/one", x.root, "the agent's comment\n"))
+	page, err := litclient.List[protocol.Comment](context.Background(), x.agent, litclient.Query{IssueID: x.root, All: true})
+	if err != nil {
+		t.Fatal(err)
+	}
+	c := page.Items[0]
+	store := drafts.New(x.state)
+	for _, d := range []struct {
+		d       drafts.Draft
+		content string
+	}{
+		{drafts.Draft{Kind: drafts.CommentNew, RecordID: drafts.NewID(), IssueID: x.child, Title: "Child issue", Claim: drafts.ClaimNone}, "an earlier reply\n"},
+		{drafts.Draft{Kind: drafts.CommentBody, RecordID: c.ID, IssueID: x.root, Title: "Root issue", Revision: c.Revision, Base: c.Body, Claim: drafts.ClaimEdit}, "my edit\n"},
+	} {
+		d.d.ServiceID, d.d.ProjectID = x.agent.Meta.ServiceID, x.project
+		if _, err := store.Create(d.d, d.content); err != nil {
+			t.Fatal(err)
+		}
+	}
+	tuitest.Apply(t, x.agent, litclient.UpdateComment(c.ID, 0, "the agent's newer comment\n"))
+	u := x.launch()
+	comments.Register(u.e)
+	u.expect("marks by kind", strings.Contains(u.treeLine("Root issue"), "comment draft") && !strings.Contains(u.treeLine("Root issue"), "changed"))
+	u.press("D")
+	u.expect("listed", u.line("new comment · “Child issue”") != "" && u.line("comment · “Root issue”") != "")
+	u.press("enter")
+	u.expect("the new comment offered", u.line("“Child issue” has an unposted new comment") != "")
+	u.press("esc")
+	u.press("down", "enter")
+	u.expect("the comment's conflict", u.line("The comment on “Root issue” changed since the draft was started: revision 1 → 2") != "" &&
+		u.line("Diff against the current comment") != "")
+	u.press("esc")
+	u.press("esc") // close the view
+	u.press("right", "down")
+	u.press("a")
+	u.expect("offered, not restarted", u.line("“Child issue” has an unposted new comment") != "" && len(u.ran) == 0)
+	u.content = "an earlier reply, finished\n"
+	u.choose("Resume in the editor")
+	u.expect("the preview", u.line("Apply the new comment on “Child issue”?") != "")
+	u.press("esc")
+	u.press("q")
+	u.expect("the prompt", u.line("1 open draft (“Child issue”)") != "")
+	u.press("enter") // apply now
+	u.expect("apply now previews it", u.line("Apply the new comment on “Child issue”?") != "" && u.line("+an earlier reply, finished") != "")
+	u.choose("Apply")
+	if got := u.comments(x.child); len(got) != 1 || got[0].Body != "an earlier reply, finished\n" {
+		t.Fatalf("comments %+v", got)
 	}
 }

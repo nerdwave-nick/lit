@@ -69,18 +69,29 @@ func (m Model) wireClaimItems() {
 	m.markTree()
 }
 
-// markTree shows paused and lost holds as tree badges.
+// markTree shows paused and lost holds and the drafts as tree badges.
 func (m Model) markTree() {
-	if m.b == nil || m.cl == nil {
+	if m.b == nil {
 		return
 	}
-	marks := map[string]string{}
-	for _, h := range m.cl.state.Holds {
+	marks := m.draftMarks()
+	for _, h := range m.holds() {
 		if h.State != claims.Holding {
-			marks[h.IssueID] = string(h.State)
+			if d := marks[h.IssueID]; d != "" {
+				marks[h.IssueID] = string(h.State) + ", " + d
+			} else {
+				marks[h.IssueID] = string(h.State)
+			}
 		}
 	}
 	m.b.tree.SetMarks(marks)
+}
+
+func (m Model) holds() []claims.Hold {
+	if m.cl == nil {
+		return nil
+	}
+	return m.cl.state.Holds
 }
 
 // touchClaims records TUI input as activity, postponing the idle question.
@@ -137,7 +148,7 @@ func (m Model) claimsUpdate(msg tea.Msg) (tea.Cmd, bool) {
 			m.setState(cl.h.Snapshot())
 			cl.note = "Claim renewal stays paused: the claims lapse when their leases end and are then shown as lost."
 		case keys.Quit:
-			return m.life.Quit(), true
+			return m.quit(), true
 		}
 		return nil, true
 	}

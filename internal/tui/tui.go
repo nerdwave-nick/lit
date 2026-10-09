@@ -35,6 +35,7 @@ type Model struct {
 	hv            *history.Model   // the history view, when open
 	cl            *claimsView      // held claims and the idle question; nil without a holder
 	ed            *editing         // body drafts and the draft panel; nil without an editor
+	dv            *draftsState     // the Drafts view, launch banner and quit prompt; nil without an editor
 }
 
 // NewModel returns the root model for the service at endpoint, with the
@@ -86,7 +87,7 @@ func (m Model) Prefs() prefs.Prefs { return m.prefs }
 // Init starts background detection, the recovery scan and either the
 // document's render or the project list.
 func (m Model) Init() tea.Cmd {
-	cmds := []tea.Cmd{m.theme.Init(), m.life.Init()}
+	cmds := []tea.Cmd{m.theme.Init(), m.life.Init(), m.loadDrafts()}
 	if m.theme.Ready() {
 		cmds = append(cmds, m.setStyle())
 	}
@@ -101,7 +102,8 @@ func (m Model) Init() tea.Cmd {
 
 // context is the keymap context of the focused view.
 func (m Model) context() keys.Context {
-	if m.help || m.b != nil && (m.b.menu != nil || m.b.filt.panel != nil || m.b.qa.m != nil) || m.ed != nil && m.ed.modal() {
+	if m.help || m.b != nil && (m.b.menu != nil || m.b.filt.panel != nil || m.b.qa.m != nil) || m.ed != nil && m.ed.modal() ||
+		m.dv != nil && (m.dv.view != nil || m.dv.prompt != nil) {
 		return keys.Menu
 	}
 	return m.view()
@@ -133,12 +135,16 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		cmds = append(cmds, m.setStyle())
 	}
 	m.touchClaims(msg)
+	cmds = append(cmds, m.draftsWatch(msg))
 	m, cmd, handled := m.uncertainKey(msg)
 	if handled {
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
 	if life, cmd, handled := m.life.Update(msg, m.prefs.Keymap); handled {
 		m.life = life
+		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
+	}
+	if cmd, handled := m.promptUpdate(msg); handled {
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
 	if cmd, handled := m.claimsUpdate(msg); handled {
@@ -148,6 +154,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
 	if cmd, handled := m.editUpdate(msg); handled {
+		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
+	}
+	if cmd, handled := m.draftsUpdate(msg); handled {
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
 	switch msg := msg.(type) {
@@ -177,6 +186,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	default:
 		if m.b != nil {
 			if cmd, handled := m.b.update(msg, m.detail); handled {
+				if _, loaded := msg.(issuesMsg); loaded {
+					m.markTree() // drafts whose issue changed are marked
+				}
 				cmds = append(cmds, cmd)
 				break
 			}
@@ -197,7 +209,7 @@ func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 	action, _ := m.prefs.Keymap.Lookup(m.context(), msg.Key())
 	switch {
 	case action == keys.Quit:
-		return m, m.life.Quit()
+		return m, m.quit()
 	case action == keys.UncertainRequests:
 		return m.openUncertain()
 	case m.help:
@@ -225,7 +237,7 @@ func (m Model) key(msg tea.KeyPressMsg) (Model, tea.Cmd) {
 func (m Model) dispatch(action keys.Action, msg tea.Msg) (Model, tea.Cmd) {
 	switch {
 	case action == keys.Quit:
-		return m, m.life.Quit()
+		return m, m.quit()
 	case action == keys.Help:
 		m.help = true
 		return m, nil
@@ -239,6 +251,8 @@ func (m Model) dispatch(action keys.Action, msg tea.Msg) (Model, tea.Cmd) {
 		return m, m.b.quickAction(action)
 	case m.ed != nil && (action == keys.Edit || action == keys.EditDetached):
 		return m, m.editAction(action == keys.EditDetached)
+	case m.dv != nil && action == keys.Drafts:
+		return m.openDraftsView()
 	case m.ed != nil && (action == keys.NewComment || action == keys.EditComment):
 		return m, m.commentAction(action)
 	case m.b != nil:

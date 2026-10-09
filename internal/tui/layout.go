@@ -124,7 +124,7 @@ func (m Model) footer() []string {
 			lines = append(lines, l)
 		}
 	}
-	return append(append(lines, m.claimLines()...), m.editLines()...)
+	return append(append(append(lines, m.claimLines()...), m.editLines()...), m.draftLines()...)
 }
 
 func (m Model) View() tea.View {
@@ -136,12 +136,16 @@ func (m Model) View() tea.View {
 		content = m.uncertainView()
 	case overlay != "":
 		content = strings.TrimRight(overlay+"\n\n"+lines, "\n")
+	case m.dv != nil && m.dv.prompt != nil:
+		content = strings.TrimRight(m.promptView()+"\n\n"+lines, "\n")
 	case m.claimsPrompt() != "":
 		content = strings.TrimRight(m.claimsPrompt()+"\n\n"+strings.Join(m.footer(), "\n"), "\n")
 	case m.hv != nil:
 		content = m.historyView()
 	case m.ed != nil && m.ed.panel != nil:
 		content = m.draftPanelView()
+	case m.dv != nil && m.dv.view != nil:
+		content = m.draftsView()
 	case m.ed != nil && m.ed.chooser != nil:
 		content = m.chooserView()
 	case m.help:

@@ -151,9 +151,7 @@ func commentConflict(t *testing.T, editor string) {
 	tuitest.Apply(t, x.agent, litclient.UpdateComment(c.ID, 0, "the agent's newer comment\n"))
 	p.keys("o")
 	p.await("the chooser", func(s string) bool { return strings.Contains(s, "comment by Claude") })
-	p.keys("Enter")
-	p.await("the offer", func(s string) bool { return strings.Contains(s, "The comment on “Edited body” has a draft") })
-	p.keys("Down", "Down", "Enter") // preview and apply
+	p.keys("Enter") // the comment changed: its draft opens as a conflict
 	p.await("the revision conflict", func(s string) bool {
 		return strings.Contains(s, "The comment on “Edited body” changed since the draft was started: revision 1 → 2") &&
 			strings.Contains(s, "the draft is kept") && strings.Contains(s, "Diff against the current comment")
@@ -174,5 +172,8 @@ func commentConflict(t *testing.T, editor string) {
 	})
 	p.keys("Escape")
 	p.await("kept", func(s string) bool { return strings.Contains(s, "Kept the draft of the comment on “Edited body”") })
-	p.quit()
+	p.quitKeepingDrafts("“Edited body”")
+	if files := x.draftFiles(); len(files) != 1 {
+		t.Fatalf("quitting dropped the draft: %v", files)
+	}
 }
