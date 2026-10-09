@@ -143,7 +143,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if cmd, handled := m.claimsUpdate(msg); handled {
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
-	if m, cmd, handled := m.historyKey(msg); handled {
+	if m, cmd, handled = m.historyKey(msg); handled {
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
 	switch msg := msg.(type) {

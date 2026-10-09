@@ -84,3 +84,21 @@ func TestHistoryFromTheDetailChoosesTheIssueOrAComment(t *testing.T) {
 	b.press("esc")
 	b.expect("back to the detail", b.view() == detail)
 }
+
+// Quit closes the history view and starts the orderly shutdown; the
+// uncertain-requests view opens over it and returns to it.
+func TestQuitAndUncertainRequestsFromTheHistory(t *testing.T) {
+	srv := tuitest.Service(t)
+	retitled(t, srv, "test/quit")
+	b := startBrowsing(t, srv, 80, 30, false)
+	b.press("H")
+	b.expect("the history", strings.HasPrefix(b.view(), `History · issue "Plan v2"`))
+	b.press("U")
+	b.expect("the uncertain requests over it", strings.Contains(b.view(), "Uncertain requests · read-only"))
+	b.press("esc")
+	b.expect("the history again", strings.HasPrefix(b.view(), `History · issue "Plan v2"`))
+	b.press("q")
+	if !b.l.Started() || strings.Contains(b.view(), "History · ") {
+		t.Fatalf("quit: shutdown started %v; screen:\n%s", b.l.Started(), b.view())
+	}
+}
