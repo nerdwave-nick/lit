@@ -126,10 +126,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m.theme.Update(msg) && m.theme.Ready() {
 		cmds = append(cmds, m.setStyle())
 	}
-	if next, cmd, handled := m.uncertainKey(msg); handled {
-		return next, tea.Batch(append(cmds, cmd, next.relayout())...)
-	} else {
-		m = next
+	m, cmd, handled := m.uncertainKey(msg)
+	if handled {
+		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
 	if life, cmd, handled := m.life.Update(msg, m.prefs.Keymap); handled {
 		m.life = life
