@@ -66,6 +66,10 @@ type Draft struct {
 	// kinds); it is empty for kinds without an owner (Kind.Owned).
 	RecordID string `json:"record_id"`
 	IssueID  string `json:"issue_id"`
+	// ParentID is the issue a new issue (issue_new) is created under; empty
+	// for a top-level issue and for every other kind. It is written only
+	// when set, so drafts without one keep the original sidecar fields.
+	ParentID string `json:"parent_id,omitempty"`
 	// Title is the record's title when the draft was started or reloaded.
 	Title string `json:"title"`
 	// File is the draft file's base name in the project's drafts directory.

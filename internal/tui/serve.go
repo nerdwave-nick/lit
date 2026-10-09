@@ -15,6 +15,7 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/claims"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/comments"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/create"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/edit"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/lifecycle"
@@ -53,6 +54,7 @@ func serve(endpoint string, pref prefs.Prefs, stdin, stdout *os.File, stderr io.
 	ed := edit.New(l, h, drafts.New(stateDir))
 	comments.Register(ed)
 	projectadmin.Register(ed)
+	create.Register(ed)
 	m := NewModel(endpoint).WithPrefs(pref).WithLifecycle(l).WithClaims(h).WithEditor(ed)
 	p := tea.NewProgram(m, tea.WithInput(stdin), tea.WithOutput(stdout), tea.WithoutSignalHandler())
 	l.Attach(p)

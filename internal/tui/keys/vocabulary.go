@@ -80,6 +80,10 @@ const (
 	NewProject       Action = "new_project"
 	EditSpec         Action = "edit_spec"
 	EditRepositories Action = "edit_repositories"
+	// NewIssue creates a top-level issue and NewChild a child of the
+	// selected issue: the title inline, the body in a draft.
+	NewIssue Action = "new_issue"
+	NewChild Action = "new_child"
 )
 
 // Required actions must keep at least one key, so the way out, help and
@@ -139,6 +143,8 @@ var vocabulary = map[Context][]entry{
 		{EditComment, "edit one of the issue's comments", []string{"o"}},
 		{EditSpec, "edit the project's specification, or resume its draft", []string{"S"}},
 		{EditRepositories, "change the project's repositories", []string{"R"}},
+		{NewIssue, "create a top-level issue", []string{"N"}},
+		{NewChild, "create a child of the issue", []string{"C"}},
 	},
 	Detail: {
 		{Up, "scroll up", []string{"up", "k"}},
@@ -168,6 +174,8 @@ var vocabulary = map[Context][]entry{
 		{EditComment, "edit one of the issue's comments", []string{"o"}},
 		{EditSpec, "edit the project's specification, or resume its draft", []string{"S"}},
 		{EditRepositories, "change the project's repositories", []string{"R"}},
+		{NewIssue, "create a top-level issue", []string{"N"}},
+		{NewChild, "create a child of the issue", []string{"C"}},
 	},
 	Menu: {
 		{Up, "previous item", []string{"up", "k"}},

@@ -193,6 +193,19 @@ func (m *Model) Wheel(lines int) Change {
 	return m.move(m.cursor + lines)
 }
 
+// Select makes the issue id the selection, by UUID: at once when it is
+// listed, otherwise (an issue just created) when SetIssues lists it.
+func (m *Model) Select(id string) Change {
+	prev, screen := m.selected, m.cursor-m.offset
+	m.selected = id
+	if m.f.nodes[id] == nil {
+		return Change{Selection: prev != id}
+	}
+	ch := m.reselect(id, screen)
+	ch.Selection = prev != m.selected
+	return ch
+}
+
 // Selected returns the selected issue.
 func (m *Model) Selected() (protocol.IssueSummary, bool) { return m.Issue(m.selected) }
 

@@ -153,6 +153,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if m, cmd, handled = m.historyKey(msg); handled {
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
+	if cmd, handled := m.createUpdate(msg); handled {
+		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
+	}
 	if cmd, handled := m.editUpdate(msg); handled {
 		return m, tea.Batch(append(cmds, cmd, m.relayout())...)
 	}
@@ -259,6 +262,8 @@ func (m Model) dispatch(action keys.Action, msg tea.Msg) (Model, tea.Cmd) {
 		return m, m.b.projectAction(action)
 	case m.ed != nil && action == keys.EditSpec:
 		return m, m.specAction()
+	case m.ed != nil && (action == keys.NewIssue || action == keys.NewChild):
+		return m, m.createAction(action)
 	case m.b != nil:
 		return m, m.b.dispatch(m.view(), action, msg, m.detail)
 	case msg != nil:
