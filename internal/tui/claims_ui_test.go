@@ -216,3 +216,26 @@ func TestNoClaimActionsWithoutAHolder(t *testing.T) {
 	b.expect("no claim actions", !strings.Contains(b.view(), "claim the issue") && !strings.Contains(b.view(), "release the issue's claim") &&
 		strings.Contains(b.view(), "refresh"))
 }
+
+// The search input and the filter panel own their keys: c and u typed there
+// never claim or release. On a filtered tree the claim acts on the selected
+// visible issue.
+func TestClaimKeysStayOutOfSearchAndFilters(t *testing.T) {
+	c := startClaiming(t, claims.Config{})
+	c.press("/")
+	c.typeText("cu")
+	c.expect("typed into the search", strings.Contains(c.view(), "Search: cu") && len(c.h.Snapshot().Holds) == 0 && c.line("Claims:") == "" && c.line("Claiming") == "")
+	c.press("esc")
+	c.press("f")
+	c.press("c")
+	c.press("u")
+	c.expect("the filter panel ignores them", len(c.h.Snapshot().Holds) == 0 && c.bodyLine("State: any") != "")
+	c.press("esc")
+	c.press("/")
+	c.typeText("Second")
+	c.press("enter")
+	c.press("down")
+	c.expect("filtered to the second root", strings.HasSuffix(strings.TrimSpace(c.crumb()), "Second root"))
+	c.press("c")
+	c.expect("claims the selected visible issue", c.line("Claimed “Second root”") != "")
+}
