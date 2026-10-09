@@ -51,6 +51,7 @@ type Model struct {
 	width, height  int
 	plain, focused bool
 	method         cells.Method
+	marks          map[string]string // extra badges by issue ID (SetMarks)
 }
 
 // New returns an empty tree.
@@ -59,6 +60,10 @@ func New() *Model {
 	m.reindex()
 	return m
 }
+
+// SetMarks replaces the extra badges shown after an issue's own, by issue
+// ID: for example a lost claim of this session.
+func (m *Model) SetMarks(marks map[string]string) { m.marks = marks }
 
 // SetIssues replaces the issues, keeping the selection by UUID: it stays on
 // its screen row when it can, and its ancestors are expanded if it moved

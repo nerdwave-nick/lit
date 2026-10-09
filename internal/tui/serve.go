@@ -13,6 +13,7 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/claims"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/lifecycle"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/prefs"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
@@ -42,7 +43,10 @@ func serve(endpoint string, pref prefs.Prefs, stdin, stdout *os.File, stderr io.
 		l.Shutdown("connect failed")
 		return finish(l, stderr, 1)
 	}
-	p := tea.NewProgram(NewModel(endpoint).WithPrefs(pref).WithLifecycle(l),
+	// The holder is the lifecycle's renewer: shutdown stops and joins it
+	// before the disconnect that releases its claims.
+	h := claims.Start(l, claims.Config{Idle: pref.ClaimIdle})
+	p := tea.NewProgram(NewModel(endpoint).WithPrefs(pref).WithLifecycle(l).WithClaims(h),
 		tea.WithInput(stdin), tea.WithOutput(stdout), tea.WithoutSignalHandler())
 	l.Attach(p)
 	if l.Started() { // a signal arrived while connecting

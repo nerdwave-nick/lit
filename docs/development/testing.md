@@ -53,10 +53,16 @@ the search input, no match shows the empty state, filters combine with the
 search, and one key clears them. `integration/tui_uncertain_test.go` opens the
 uncertain-requests view with fabricated uncertain evidence: from an orphan's
 launch panel and the action menu, and from its key and the exit report of the
-instance itself, checking that the evidence stays byte-identical. These
+instance itself, checking that the evidence stays byte-identical.
+`integration/tui_claims_test.go` claims an issue, sees an agent's claim attempt
+refused and an agent-held issue refused with its owner named, waits for the idle
+question after a short `claim_idle`, keeps the claim (renewed at once) and checks
+that quitting releases it. These
 scenarios skip without tmux or with `-short`. The lifecycle,
-registry and recovery packages are tested in-process against a temporary
-service (`internal/tui/tuitest`).
+registry, recovery and claims packages are tested in-process against a temporary
+service (`internal/tui/tuitest`). The claims tests use leases of about a second;
+one renews a claim across several leases while the program's event loop is
+blocked inside Update.
 
 `cmd/lit/deps_test.go` uses `go list -deps` to prove that only `lit-tui` links the
 Charm, Glamour and chroma packages.

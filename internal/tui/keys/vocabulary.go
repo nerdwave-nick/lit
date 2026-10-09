@@ -47,6 +47,8 @@ const (
 	Search        Action = "search"
 	Filter        Action = "filter"
 	ClearFilters  Action = "clear_filters"
+	Claim         Action = "claim"
+	Release       Action = "release"
 	// UncertainRequests opens the read-only view of retained requests whose
 	// outcome is not established.
 	UncertainRequests Action = "uncertain_requests"
@@ -92,6 +94,8 @@ var vocabulary = map[Context][]entry{
 		{Search, "search issue content", []string{"/"}},
 		{Filter, "filter the tree", []string{"f"}},
 		{ClearFilters, "clear the filters and the search", []string{"F"}},
+		{Claim, "claim the issue, or reacquire a lost claim", []string{"c"}},
+		{Release, "release the issue's claim", []string{"u"}},
 	},
 	Detail: {
 		{Up, "scroll up", []string{"up", "k"}},
@@ -105,6 +109,8 @@ var vocabulary = map[Context][]entry{
 		{PageDown, "page down", []string{"pgdown", "ctrl+d"}},
 		{Top, "go to the top", []string{"home", "g"}},
 		{Bottom, "go to the bottom", []string{"end", "G"}},
+		{Claim, "claim the issue, or reacquire a lost claim", []string{"c"}},
+		{Release, "release the issue's claim", []string{"u"}},
 	},
 	Menu: {
 		{Up, "previous item", []string{"up", "k"}},

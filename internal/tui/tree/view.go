@@ -137,6 +137,9 @@ func (m *Model) badges(i protocol.IssueSummary) string {
 			parts = append(parts, "⚑ "+owner)
 		}
 	}
+	if mark := m.marks[i.ID]; mark != "" {
+		parts = append(parts, sanitize.Title(mark))
+	}
 	if len(parts) == 0 {
 		return ""
 	}
