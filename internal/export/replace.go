@@ -1,7 +1,6 @@
 package export
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"os"
@@ -76,8 +75,7 @@ func replaceable(dir string) error {
 	if e != nil || len(entries) == 0 {
 		return e
 	}
-	var m Manifest
-	if b, e := os.ReadFile(filepath.Join(dir, "manifest.json")); e == nil && json.Unmarshal(b, &m) == nil && m.Generator == Generator {
+	if _, e := ReadManifest(dir); e == nil {
 		return nil
 	}
 	return fmt.Errorf("%s is not a lit export (it holds other files); choose a new or empty directory, or a previous export", dir)

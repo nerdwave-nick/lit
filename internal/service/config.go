@@ -26,6 +26,11 @@ type Config struct {
 	BackupInterval Duration `json:"backup_interval,omitempty"`
 	// BackupKeep is how many scheduled snapshots are kept (LIT_BACKUP_KEEP).
 	BackupKeep int `json:"backup_keep,omitempty"`
+	// ExportDir receives the interval Markdown export (LIT_EXPORT_DIR).
+	ExportDir string `json:"export_dir,omitempty"`
+	// ExportInterval separates interval exports; zero, the default, turns
+	// them off (LIT_EXPORT_INTERVAL).
+	ExportInterval Duration `json:"export_interval,omitempty"`
 }
 
 func xdg(key, fallback string) string {
@@ -90,6 +95,9 @@ func LoadConfig(args []string) (Config, error) {
 	if e := c.backupEnvironment(); e != nil {
 		return c, e
 	}
+	if e := c.exportEnvironment(); e != nil {
+		return c, e
+	}
 	if v, ok := f["--data-dir"]; ok {
 		c.DataDir = v
 	}
@@ -106,6 +114,9 @@ func LoadConfig(args []string) (Config, error) {
 		return c, fmt.Errorf("read_concurrency must be a positive integer")
 	}
 	if e := c.validateBackups(); e != nil {
+		return c, e
+	}
+	if e := c.validateExports(); e != nil {
 		return c, e
 	}
 	host, port, e := net.SplitHostPort(c.Listen)
