@@ -10,7 +10,8 @@ import (
 )
 
 // serverCommand is lit-server's command line: optional flags and no operands.
-// The subcommands export and verify have their own command lines (see runCLI).
+// The subcommands export, verify and healthcheck have their own command lines
+// (see runCLI).
 var serverCommand = &nwcli.Command{
 	Name:    "lit-server",
 	Summary: "Run lit-server in the foreground on a loopback address",
@@ -30,7 +31,9 @@ the listen address.
 
 lit-server export --to DIRECTORY writes a one-way Markdown export of the tracker;
 see lit-server export --help. lit-server verify checks the database of a stopped
-lit-server and replays its history; see lit-server verify --help.`,
+lit-server and replays its history; see lit-server verify --help.
+lit-server healthcheck checks that a running lit-server answers on its listen
+address, for container healthchecks; see lit-server healthcheck --help.`,
 	Example: "  lit-server\n  lit-server --data-dir /tmp/lit-poc --listen 127.0.0.1:7411\n  lit-server --config /path/to/config.json",
 	Flags: []nwcli.Flag{
 		{Name: "config", Usage: "Optional JSON config `FILE` (or LIT_CONFIG_FILE)", Value: nwcli.Value{Kind: nwcli.Path}},
@@ -52,6 +55,10 @@ func runCLI(args []string, out, errOut io.Writer) int {
 		return runVerify(args[1:], out, errOut)
 	case len(args) == 2 && args[0] == "help" && args[1] == "verify":
 		return runVerify([]string{"--help"}, out, errOut)
+	case len(args) > 0 && args[0] == "healthcheck":
+		return runHealthcheck(args[1:], out, errOut)
+	case len(args) == 2 && args[0] == "help" && args[1] == "healthcheck":
+		return runHealthcheck([]string{"--help"}, out, errOut)
 	}
 	p, err := serverCommand.Parse(args)
 	switch {
