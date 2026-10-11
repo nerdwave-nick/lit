@@ -16,9 +16,9 @@ func (f *frontMatter) str(key, value string) { fmt.Fprintf(&f.b, "%s: %s\n", key
 
 func (f *frontMatter) int(key string, value int64) { fmt.Fprintf(&f.b, "%s: %d\n", key, value) }
 
-// optional writes a string only when it is present.
+// optional writes a string only when it is present and not empty.
 func (f *frontMatter) optional(key string, value *string) {
-	if value != nil {
+	if value != nil && *value != "" {
 		f.str(key, *value)
 	}
 }

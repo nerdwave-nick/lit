@@ -53,6 +53,7 @@ func TestFrontMatterRoundTripsThroughAYAMLParser(t *testing.T) {
 	}
 	f.list("empty", nil)
 	f.optional("absent", nil)
+	f.optional("blank", new(""))
 	keys, values := decodeFrontMatter(t, f.String())
 	wantKeys := []string{"title", "revision", "labels"}
 	for i := range tricky {
