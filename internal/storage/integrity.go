@@ -36,9 +36,9 @@ const maxProblems = 100
 //     table too. Search tables are derived from rows of the same database, so
 //     a table that fails is rebuilt, and logf reports it with one line; a
 //     table that cannot be rebuilt is a problem;
-//  2. the folded columns of every record table (see foldedTables), which are
-//     derived from the rows' text in Go too: stale ones are recomputed, and
-//     logf reports each table with stale rows; the search tables follow;
+//  2. the grep columns of every record table (see grepColumns), which are
+//     derived from the rows' text in Go: stale ones are recomputed, and logf
+//     reports each table with stale rows; the search tables follow;
 //  3. PRAGMA integrity_check and PRAGMA foreign_key_check of the whole
 //     database.
 //
@@ -64,7 +64,7 @@ func (db *DB) CheckIntegrity(ctx context.Context, logf func(format string, args 
 		}
 		problems = append(problems, p...)
 	}
-	for _, t := range foldedTables {
+	for _, t := range grepColumns {
 		p, e := checkFolded(ctx, w, t, logf)
 		if e != nil {
 			return e
@@ -119,10 +119,10 @@ func checkSearchTable(ctx context.Context, w *Writer, name string, logf func(str
 	return nil, nil
 }
 
-// checkFolded recomputes the folded columns of table t in one write
+// checkFolded recomputes the grep columns of table t in one write
 // transaction and commits it when rows were stale. A damaged table that
 // cannot be read is a problem; PRAGMA integrity_check reports the details.
-func checkFolded(ctx context.Context, w *Writer, t foldedTable, logf func(string, ...any)) ([]string, error) {
+func checkFolded(ctx context.Context, w *Writer, t grepTable, logf func(string, ...any)) ([]string, error) {
 	tx, e := w.Begin(ctx)
 	if e != nil {
 		return nil, e

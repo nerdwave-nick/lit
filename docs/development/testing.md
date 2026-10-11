@@ -47,6 +47,23 @@ history behind the history (fields, bodies, sets, links, members, revisions,
 diffs, "before" values) and insert legacy membership-list history rows that
 must be skipped.
 
+The grep index tests cover the migration to schema version 2 (a version 1
+database with rows gets filled grep columns and trigram tables after its
+pre-migration snapshot), writes keeping the columns and tables in step, the
+candidate scan (index `GLOB` from three folded characters, with literal `*`,
+`?` and `[`; a column scan below; no match across fields; NUL), its query plan,
+and the startup check rebuilding a stale trigram table and rewriting stale grep
+columns. In the service, `TestGrepThroughTheIndexMatchesTheScan` runs the
+search acceptance cases (`net/http`, `C++`, `Go`, `UI`, `strasse`/`Straße`,
+`cafe`, `foo.bar`, `a_b`, `100%`, `APP-123`, and folding hazards such as
+decomposed accents, `İ`, the Kelvin sign, NUL and GLOB's wildcards) folded and
+case-sensitive, with context lines, several page sizes and both scopes, and
+requires pages identical to a scan of every record with `searchExcerpt`;
+`TestGrepThroughTheIndexMatchesTheScanForRandomText` does the same for random
+text and queries over an alphabet of those hazards. `internal/textfold` checks
+`Scalar` against `cases.Fold` for every scalar and that `Grep` keeps
+substrings.
+
 `internal/export` tests write a small fixture tracker through the storage
 module with fixed IDs and times, then export it. `TestExportMatchesTheGoldenTree`
 compares the whole tree with `internal/export/testdata/golden` (regenerate with

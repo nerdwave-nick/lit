@@ -17,21 +17,42 @@ import (
 // Fold returns the folded form of s, so that strasse and Straße compare equal.
 func Fold(s string) string { return norm.NFC.String(cases.Fold().String(norm.NFC.String(s))) }
 
-// casers reuses fold casers, which keep state and are not safe to share.
-var casers = sync.Pool{New: func() any { c := cases.Fold(); return &c }}
+// bmp holds the fold of every scalar below U+10000 that folding changes,
+// computed once on first use; the others fold to themselves.
+var bmp struct {
+	once  sync.Once
+	folds []string
+}
+
+func bmpFolds() []string {
+	bmp.once.Do(func() {
+		bmp.folds = make([]string, 0x10000)
+		c := cases.Fold()
+		for r := rune(utf8.RuneSelf); r < 0x10000; r++ {
+			if s, f := string(r), c.String(string(r)); f != s {
+				bmp.folds[r] = f
+			}
+		}
+	})
+	return bmp.folds
+}
 
 // Scalar returns the full case fold of the single scalar r: one or more
 // scalars, such as "ss" for ß.
 func Scalar(r rune) string {
-	if r < utf8.RuneSelf {
+	switch {
+	case r < utf8.RuneSelf:
 		if 'A' <= r && r <= 'Z' {
 			r += 'a' - 'A'
 		}
-		return string(r)
+	case r < 0x10000:
+		if f := bmpFolds()[r]; f != "" {
+			return f
+		}
+	default:
+		return cases.Fold().String(string(r))
 	}
-	c := casers.Get().(*cases.Caser)
-	defer casers.Put(c)
-	return c.String(string(r))
+	return string(r)
 }
 
 // Grep folds s scalar by scalar: the concatenation of Scalar of each scalar
@@ -39,10 +60,23 @@ func Scalar(r rune) string {
 // it keeps substrings: Grep(a+b) == Grep(a)+Grep(b), so a substring of s folds
 // to a substring of Grep(s). lit grep matches folded queries against it.
 func Grep(s string) string {
+	folds := bmpFolds()
 	var b strings.Builder
 	b.Grow(len(s))
 	for _, r := range s {
-		b.WriteString(Scalar(r))
+		switch {
+		case r < utf8.RuneSelf:
+			if 'A' <= r && r <= 'Z' {
+				r += 'a' - 'A'
+			}
+			b.WriteByte(byte(r))
+		case r < 0x10000 && folds[r] != "":
+			b.WriteString(folds[r])
+		case r < 0x10000:
+			b.WriteRune(r)
+		default:
+			b.WriteString(Scalar(r))
+		}
 	}
 	return b.String()
 }

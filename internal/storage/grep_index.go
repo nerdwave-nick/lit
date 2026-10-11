@@ -8,32 +8,34 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/textfold"
 )
 
-// grepFold is a field's stored grep column: textfold.Grep of its text, with
-// NUL as U+FFFD, because GLOB stops at NUL. Both are mapped scalar by scalar,
-// so a substring of the text still maps to a substring of the column; lit
-// grep confirms every candidate on the original text.
-func grepFold(s string) string { return strings.ReplaceAll(textfold.Grep(s), "\x00", "�") }
+// grepFold is a field's stored grep column: textfold.Grep of its text, then
+// grepSafe.
+func grepFold(s string) string { return grepSafe(textfold.Grep(s)) }
 
-// foldedTable lists a record table's folded columns, each computed in Go
-// from a source column.
-type foldedTable struct {
+// grepSafe writes NUL as U+FFFD, because GLOB stops at NUL. Stored columns
+// and needles are mapped alike, scalar by scalar, so a substring of a text
+// still maps to a substring of its column; lit grep confirms every candidate
+// on the original text.
+func grepSafe(s string) string { return strings.ReplaceAll(s, "\x00", "\uFFFD") }
+
+// grepTable is a record table with its grep columns, each the grepFold of a
+// source column.
+type grepTable struct {
 	name    string
-	columns []foldedColumn
+	columns []grepColumn
 }
 
-type foldedColumn struct {
-	source, column string
-	fold           func(string) string
-}
+type grepColumn struct{ source, column string }
 
-// foldedTables are every folded column: the grep columns that the trigram
-// search tables index, and the folded bodies that the discovery text filter
-// reads. Title keys are excluded: they are unique keys, not derived data.
-var foldedTables = []foldedTable{
-	{"projects", []foldedColumn{{"description", "grep_description", grepFold}, {"description", "folded_description", textfold.Fold}}},
-	{"issues", []foldedColumn{{"title", "grep_title", grepFold}, {"body", "grep_body", grepFold}, {"body", "folded_body", textfold.Fold}}},
-	{"comments", []foldedColumn{{"body", "grep_body", grepFold}, {"body", "folded_body", textfold.Fold}}},
-	{"milestones", []foldedColumn{{"title", "grep_title", grepFold}, {"body", "grep_body", grepFold}, {"body", "folded_body", textfold.Fold}}},
+// grepColumns are the columns that the trigram search tables index. The NFC
+// folds (title keys, and the folded bodies of the discovery text filter) are
+// not rechecked at startup: title keys are unique keys, and NFC folding all
+// text at every start would cost about ten times as much.
+var grepColumns = []grepTable{
+	{"projects", []grepColumn{{"description", "grep_description"}}},
+	{"issues", []grepColumn{{"title", "grep_title"}, {"body", "grep_body"}}},
+	{"comments", []grepColumn{{"body", "grep_body"}}},
+	{"milestones", []grepColumn{{"title", "grep_title"}, {"body", "grep_body"}}},
 }
 
 // sqlTx is the part of a transaction that refolding uses.
@@ -45,10 +47,10 @@ type sqlTx interface {
 // refoldBatch bounds the rows read at once while refolding.
 const refoldBatch = 500
 
-// refold recomputes the folded columns of every row of t and rewrites the
+// refold recomputes the grep columns of every row of t and rewrites the
 // rows where a stored column differs; the search triggers keep the trigram
 // tables in step. It returns the number of rewritten rows.
-func refold(ctx context.Context, tx sqlTx, t foldedTable) (int, error) {
+func refold(ctx context.Context, tx sqlTx, t grepTable) (int, error) {
 	var sources, columns, sets []string
 	for _, c := range t.columns {
 		sources = append(sources, c.source)
@@ -87,9 +89,9 @@ type staleRow struct {
 }
 
 // staleRows reads one batch of rows after the rowid after and returns those
-// whose folded columns are stale, with their new values, and the batch's last
+// whose grep columns are stale, with their new values, and the batch's last
 // rowid (nil after the last batch).
-func staleRows(ctx context.Context, tx sqlTx, query string, after int64, t foldedTable) ([]staleRow, *int64, error) {
+func staleRows(ctx context.Context, tx sqlTx, query string, after int64, t grepTable) ([]staleRow, *int64, error) {
 	rows, e := tx.QueryContext(ctx, query, after, refoldBatch)
 	if e != nil {
 		return nil, nil, e
@@ -113,8 +115,8 @@ func staleRows(ctx context.Context, tx sqlTx, query string, after int64, t folde
 		last = &rowid
 		folded := make([]string, n)
 		changed := false
-		for i, c := range t.columns {
-			folded[i] = c.fold(values[i])
+		for i := range t.columns {
+			folded[i] = grepFold(values[i])
 			changed = changed || folded[i] != values[n+i]
 		}
 		if changed {
@@ -137,7 +139,7 @@ func migrateGrepIndex(ctx context.Context, tx *sql.Tx) error {
 	if _, e := tx.ExecContext(ctx, schemaV2); e != nil {
 		return e
 	}
-	for _, t := range foldedTables {
+	for _, t := range grepColumns {
 		if _, e := refold(ctx, tx, t); e != nil {
 			return e
 		}
@@ -145,7 +147,7 @@ func migrateGrepIndex(ctx context.Context, tx *sql.Tx) error {
 	if _, e := tx.ExecContext(ctx, schemaV2Index); e != nil {
 		return e
 	}
-	for _, t := range foldedTables {
+	for _, t := range grepColumns {
 		if _, e := tx.ExecContext(ctx, "INSERT INTO "+t.name+"_grep ("+t.name+"_grep) VALUES ('rebuild')"); e != nil {
 			return e
 		}

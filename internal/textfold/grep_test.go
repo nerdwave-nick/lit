@@ -35,7 +35,7 @@ func TestGrepFoldsEachScalarWithoutNormalizing(t *testing.T) {
 		{"ΣΊΣΥΦΟΣ", "σίσυφοσ"}, // no final-sigma context
 		{"nul\x00Byte", "nul\x00byte"},
 		{"line\r\nTwo", "line\r\ntwo"},
-		{"bad\xffbyte", "bad�byte"}, // invalid bytes read as U+FFFD
+		{"bad\xffbyte", "bad\uFFFDbyte"}, // invalid bytes read as U+FFFD
 	} {
 		if got := Grep(c.in); got != c.want {
 			t.Errorf("Grep(%q) = %q, want %q", c.in, got, c.want)

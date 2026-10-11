@@ -200,15 +200,15 @@ func TestStartupCheckRebuildsAStaleGrepIndex(t *testing.T) {
 	}
 }
 
-// Folded columns are derived data too: stale ones (written by an older fold,
-// or by a writer that skipped them) are recomputed at startup, with a log line
-// per table, and the trigram tables follow.
+// The grep columns are derived data too: stale ones (written by an older
+// fold, or by a writer that skipped them) are recomputed at startup, with a
+// log line per table, and the trigram tables follow.
 func TestStartupCheckRewritesStaleFoldedText(t *testing.T) {
 	w := newWorld(t)
 	dir := closed(t, w.db, func(o *sql.DB) {
 		execAll(t, o,
 			"UPDATE issues SET grep_title = '', grep_body = ''",
-			"UPDATE comments SET folded_body = 'stale'",
+			"UPDATE comments SET grep_body = 'stale'",
 			"UPDATE projects SET grep_description = 'stale' WHERE id = '"+w.p.ID+"'")
 	})
 	db := reopen(t, dir)
@@ -232,8 +232,8 @@ func TestStartupCheckRewritesStaleFoldedText(t *testing.T) {
 	}
 	o := outside(t, db)
 	var folded string
-	if e := o.QueryRow("SELECT folded_body FROM comments WHERE id = ?", w.comment.ID).Scan(&folded); e != nil || folded != "a comment" {
-		t.Fatalf("comment folded body %q %v", folded, e)
+	if e := o.QueryRow("SELECT grep_body FROM comments WHERE id = ?", w.comment.ID).Scan(&folded); e != nil || folded != "a comment" {
+		t.Fatalf("comment grep body %q %v", folded, e)
 	}
 	checkGrepTables(t, o)
 	if log, e := check(t, db); e != nil || len(log) != 0 {

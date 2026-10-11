@@ -28,10 +28,11 @@ type SearchRecord struct {
 // SearchScan calls fn for the records of projectID (of every project when
 // empty) that lit grep may report for needle, ordered by project ID, record
 // type and ID: a project's description, an issue's and a milestone's title
-// and body, and a comment's body. needle is already folded the way grep
-// matches (textfold.Grep); a record is read when one of its grep-folded fields
-// may contain it, through the trigram tables when needle has three or more
-// characters and by scanning the grep columns otherwise. The records are a
+// and body, and a comment's body. needle is folded text that the
+// textfold.Grep fold of every matching field contains; a record is read when
+// one of its grep columns may contain it, through the trigram tables when
+// needle has three or more characters and by scanning the grep columns
+// otherwise. The records are a
 // superset of the matches (NUL and U+FFFD read alike), so callers confirm each
 // on its original text. An empty needle reads every record of the scope. The
 // scan stops at the first error from fn or ctx.
@@ -57,7 +58,7 @@ func (q queries) SearchScan(ctx context.Context, projectID, needle string, fn fu
 
 // searchQuery is SearchScan's query and its arguments.
 func searchQuery(projectID, needle string) (string, []any) {
-	needle = strings.ReplaceAll(needle, "\x00", "\uFFFD")
+	needle = grepSafe(needle)
 	match := grepCondition(needle)
 	scope := func(column string) string {
 		if projectID == "" {
@@ -79,22 +80,23 @@ func searchQuery(projectID, needle string) (string, []any) {
 // trigram index needs three), otherwise a scan of the columns for the needle
 // ?3. An empty needle matches every row.
 func grepCondition(needle string) func(table string, columns ...string) string {
+	indexed := utf8.RuneCountInString(needle) >= 3
 	return func(table string, columns ...string) string {
-		var any []string
+		if needle == "" {
+			return "1"
+		}
+		var alternatives []string
 		for _, c := range columns {
-			switch {
-			case needle == "":
-				return "1"
-			case utf8.RuneCountInString(needle) >= 3:
-				any = append(any, "SELECT rowid FROM "+table+"_grep WHERE "+c+" GLOB ?2")
-			default:
-				any = append(any, "instr(r."+c+", ?3) > 0")
+			if indexed {
+				alternatives = append(alternatives, "SELECT rowid FROM "+table+"_grep WHERE "+c+" GLOB ?2")
+			} else {
+				alternatives = append(alternatives, "instr(r."+c+", ?3) > 0")
 			}
 		}
-		if utf8.RuneCountInString(needle) >= 3 {
-			return "r.rowid IN (" + strings.Join(any, " UNION ALL ") + ")"
+		if indexed {
+			return "r.rowid IN (" + strings.Join(alternatives, " UNION ALL ") + ")"
 		}
-		return "(" + strings.Join(any, " OR ") + ")"
+		return "(" + strings.Join(alternatives, " OR ") + ")"
 	}
 }
 
