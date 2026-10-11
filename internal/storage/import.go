@@ -202,3 +202,18 @@ func (q queries) Counts(ctx context.Context) (Counts, error) {
 		(SELECT count(*) FROM clients), (SELECT count(*) FROM claims)`)
 	return n, e
 }
+
+// RecordIDs lists the IDs of every record of type typ, in ID order.
+func (q queries) RecordIDs(ctx context.Context, typ string) ([]string, error) {
+	if _, ok := typeOrder[typ]; !ok {
+		return nil, fmt.Errorf("unknown record type %q", typ)
+	}
+	out := []string{}
+	e := q.each(ctx, "SELECT id FROM "+typ+" ORDER BY id", nil, func(s rowScanner) error {
+		var id string
+		e := s.Scan(&id)
+		out = append(out, id)
+		return e
+	})
+	return out, e
+}

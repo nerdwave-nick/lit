@@ -324,3 +324,19 @@ func TestCreateLeavesNoFilesBehindOnAMissingDirectoryParent(t *testing.T) {
 		t.Fatal("created below a file")
 	}
 }
+
+func TestRecordIDsListsEveryRecordOfAType(t *testing.T) {
+	w := newLegacyWorld(t)
+	read(t, w.db, func(ctx context.Context, q *ReadTx) {
+		for typ, want := range map[string][]string{Projects: {w.p.ID}, Issues: {w.a.ID}, Comments: {w.c.ID}, Milestones: {}} {
+			got, e := q.RecordIDs(ctx, typ)
+			if e != nil {
+				t.Fatal(e)
+			}
+			sameJSON(t, got, want)
+		}
+		if _, e := q.RecordIDs(ctx, "drafts"); e == nil {
+			t.Fatal("listed an unknown type")
+		}
+	})
+}
