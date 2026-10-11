@@ -19,6 +19,8 @@ The data directory holds:
   the scheduled `VACUUM INTO` snapshots `lit-<UTC time>-scheduled.db`, of which
   the newest `backup_keep` are kept, and the snapshots
   `lit-<UTC time>-pre-migration-v<version>.db` taken before a schema migration.
+  After a setup import it also holds lit-migrate's body SHA-256 manifest
+  `lit-migrate-<UTC time>-bodies.json`, which retention never removes.
   A scheduled snapshot runs on a connection of its own, beside requests,
   without the write lock or a read slot. See [backups](recovery.md#backups).
 

@@ -372,3 +372,25 @@ func TestClientsAreCopied(t *testing.T) {
 		}
 	})
 }
+
+// The manifest sits in the new data directory's default backup directory;
+// lit-server's backup retention there removes only its own snapshots.
+func TestBackupRetentionKeepsTheManifest(t *testing.T) {
+	f := newFixture(t)
+	to := filepath.Join(t.TempDir(), "new")
+	r := mustRun(t, f.copyOf(t), to)
+	db := openNew(t, to)
+	backups := filepath.Join(to, storage.BackupDir)
+	for range 2 {
+		if _, e := db.Backup(context.Background(), backups); e != nil {
+			t.Fatal(e)
+		}
+	}
+	removed, e := storage.PruneBackups(backups, 1)
+	if e != nil || len(removed) != 1 {
+		t.Fatal(removed, e)
+	}
+	if _, e := os.Stat(r.Manifest); e != nil {
+		t.Fatalf("retention removed the manifest: %v", e)
+	}
+}

@@ -368,8 +368,11 @@ go build -o ./bin/ ./cmd/lit-server ./cmd/lit-migrate
   entries that changed only membership lists kept verbatim), every client, and
   every non-null claim with its original times, expired ones included;
 - keeps the body SHA-256 manifest (type, ID, revision, body hash) as
-  `NEW/backup/lit-migrate-TIME-bodies.json` for audits. Copy it next to the frozen
-  old directory if you keep that elsewhere;
+  `NEW/backup/lit-migrate-TIME-bodies.json` for audits: in the default backup
+  directory of a lit-server on `NEW`, whose retention removes only its own
+  scheduled snapshots, never this file. lit-migrate writes nothing outside
+  `NEW`, so it ignores a configured `backup_dir`; if you set one, move the
+  manifest there, or next to the frozen old directory;
 - with `--dry-run`, runs every step and check in a temporary directory
   (`TMPDIR`), never touches `NEW`, and reports how long the import took.
 
@@ -451,8 +454,9 @@ CONFIG=${XDG_CONFIG_HOME:-$HOME/.config}/lit-server/config.json
 
 Record `lit transactions status` output in every client state directory first.
 Then stop and disable the new server (`systemctl --user disable --now lit.socket lit.service`),
-point the configuration back at `$OLD`, reinstall the old `lit-server` binary,
-and start it: it verifies the untouched old directory as before (about 30
+point the configuration back at `$OLD` and remove the fields the old binary
+does not know (`read_concurrency` and the `backup_*` settings; it refuses
+unknown fields), reinstall the old `lit-server` binary, and start it: it verifies the untouched old directory as before (about 30
 seconds). Writes, clients and claims created after the import are lost, which is
 accepted. Keep `$NEW` for inspection, or delete it once you are done.
 

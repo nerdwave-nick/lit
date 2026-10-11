@@ -37,7 +37,10 @@ type manifestFile struct {
 }
 
 // install moves the checked database from dbDir into the target directory to
-// and keeps the body manifest in to's backup directory. The database must be
+// and keeps the body manifest in to's default backup directory, where
+// lit-server's backup retention leaves it (it removes only its own scheduled
+// snapshots). A configured backup_dir is ignored: the import writes nothing
+// outside to. The database must be
 // closed: its write-ahead log is then checkpointed into the database file.
 // The move never replaces a database that appeared in to meanwhile.
 func install(dbDir, to, from, serviceID string, manifest []manifestEntry) (database, manifestPath string, err error) {
