@@ -27,6 +27,15 @@ the write-lock and read-snapshot API, schema migrations (refusing a newer
 version, upgrading after a `VACUUM INTO` snapshot), schema constraints and
 the monotonic clock. `TestModuleSelectsTheDriversLibc` fails when `go.mod`
 selects a `modernc.org/libc` other than the one `modernc.org/sqlite` requires.
+The record tests write through `WriteTx.WriteRequest` and cover every typed
+read (records with computed membership lists, selectors, discovery-filter
+lists and keyset pages, neighbours, milestone progress inputs, the structural
+guard set and cycle queries), each rejected write and the late failure of a
+multi-record request, and history rebuilt from stored diffs.
+`TestHistoryMatchesTheLegacyHistoryAPI` replays requests recorded from the
+legacy file store in `internal/storage/testdata/history_compat.json` and
+compares the history output; `go run ./internal/storage/testdata/historycompat`
+rewrote that recording while the file store existed.
 
 `integration/tui_dispatch_test.go` covers how `lit` finds and starts `lit-tui`
 (sibling first, then PATH, process replacement, endpoint pass-through, the missing

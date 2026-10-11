@@ -17,7 +17,7 @@ func read(t *testing.T, db *DB, f func(ctx context.Context, r *ReadTx)) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	defer r.Close()
+	defer func() { _ = r.Close() }()
 	f(ctx, r)
 }
 

@@ -274,7 +274,7 @@ func dumpQueries(t *testing.T, ctx context.Context, q queries) string {
 			}
 			lines = append(lines, fmt.Sprintf("%v", v))
 		}
-		rows.Close()
+		_ = rows.Close()
 		sort.Strings(lines)
 		fmt.Fprintf(&b, "%s:\n%s\n", table, strings.Join(lines, "\n"))
 	}

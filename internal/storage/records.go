@@ -120,7 +120,7 @@ func (q queries) each(ctx context.Context, query string, args []any, scan func(r
 	if e != nil {
 		return classify(e)
 	}
-	defer rows.Close()
+	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		if e = scan(rows); e != nil {
 			return classify(e)
