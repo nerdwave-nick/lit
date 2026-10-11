@@ -48,7 +48,7 @@ func readLegacy(dir string, c legacy.Config) (*snapshot, error) {
 	if e != nil {
 		return nil, e
 	}
-	defer s.Close()
+	defer func() { _ = s.Close() }()
 	snap := &snapshot{serviceID: s.ServiceID(), consumed: map[string]bool{storage.LegacyMarker: true}}
 	state, e := s.ReadRecordState()
 	if e != nil {

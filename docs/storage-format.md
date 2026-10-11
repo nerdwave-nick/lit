@@ -132,6 +132,15 @@ entry by timestamp and request hash, as before. `transactions status` proves a
 commit by looking up the request hash in `transactions`, with the proof
 `immutable_history` and the results exactly as they were returned.
 
+A database created by the setup import (`lit-migrate`, see
+[installation](installation.md#setup-import-from-a-legacy-file-store)) holds the
+legacy history as it was accepted: one `transactions` row per legacy request
+hash with its stored intent, timestamp and results, and one `history` row per
+legacy history entry with its field differences verbatim. Legacy entries may
+therefore change `issue_ids`, `child_ids` or `comment_ids`, even only those;
+`lit-server verify` skips those keys. Legacy whole-body hunks are stored as
+diffs like any other, each checked to reproduce its body.
+
 ## Invariants
 
 The service validates every rule first, with the protocol's error codes and

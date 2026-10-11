@@ -155,7 +155,7 @@ func build(ctx context.Context, dir string, snap *snapshot, r *Report, logf func
 	if e != nil {
 		return nil, e
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	if e = importSnapshot(ctx, db, snap); e != nil {
 		return nil, fmt.Errorf("import: %w", e)
 	}

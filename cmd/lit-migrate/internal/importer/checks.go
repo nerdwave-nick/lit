@@ -33,7 +33,7 @@ func checkImported(ctx context.Context, db *storage.DB, snap *snapshot, r *Repor
 	if e != nil {
 		return nil, e
 	}
-	defer q.Close()
+	defer func() { _ = q.Close() }()
 	if r.Counts, e = checkCounts(ctx, q, snap, r.HistoryFiles); e != nil {
 		return nil, checkError(3, e)
 	}
@@ -210,7 +210,7 @@ func verifyDatabase(ctx context.Context, dir string) error {
 	if e != nil {
 		return e
 	}
-	defer db.Close()
+	defer func() { _ = db.Close() }()
 	var repaired []string
 	r, e := db.Verify(ctx, func(format string, args ...any) { repaired = append(repaired, fmt.Sprintf(format, args...)) })
 	switch {

@@ -113,6 +113,12 @@ lit-server running but answering every request with `503 recovery_required`
 because its database failed the startup checks. Only an operator leaves it, by
 restoring a backup or repairing the database.
 
+**Setup import**:
+The one-time conversion of a stopped legacy file store into a new, empty data
+directory by the separate `lit-migrate` binary, before the SQLite-backed
+lit-server first starts. lit-server itself never reads or converts a legacy
+store; it refuses a data directory that still holds one.
+
 **Saved plan**:
 A prepared durable transaction retained for explicit later application, bound
 to its tracker and logical client and to the original changes and preconditions.
