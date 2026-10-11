@@ -79,7 +79,7 @@ func (db *ReadOnlyDB) Read(ctx context.Context) (*ReadTx, error) {
 	if e != nil {
 		return nil, classify(e)
 	}
-	r := &ReadTx{queries{tx}, now}
+	r := &ReadTx{queries{tx: tx}, now} // no owner: nothing is reported to OnFatal
 	// A deferred transaction takes its snapshot at the first read; take it now.
 	var v int
 	if e = r.queryRow(ctx, []any{&v}, "SELECT schema_version FROM service"); e != nil {

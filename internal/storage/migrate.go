@@ -36,7 +36,7 @@ func migrate(ctx context.Context, db *sql.DB, ms []migration, backupDir string, 
 		return e
 	}
 	if v > latest {
-		return fmt.Errorf("database schema version %d is newer than this lit-server supports (version %d); run a newer lit-server or restore a backup", v, latest)
+		return newerSchema(v, latest)
 	}
 	if v == latest {
 		return nil
@@ -93,4 +93,26 @@ func schemaVersion(ctx context.Context, db *sql.DB) (int, error) {
 		return 0, fmt.Errorf("database holds no lit service identity; preserve it for host repair")
 	}
 	return v, classify(e)
+}
+
+func newerSchema(v, latest int) error {
+	return fmt.Errorf("database schema version %d is newer than this lit-server supports (version %d); run a newer lit-server or restore a backup", v, latest)
+}
+
+// requireCurrent refuses a database without lit's schema, or with a schema
+// version other than the newest in ms. It never writes.
+func requireCurrent(ctx context.Context, db *sql.DB, ms []migration) error {
+	latest := ms[len(ms)-1].version
+	v, e := schemaVersion(ctx, db)
+	switch {
+	case e != nil:
+		return e
+	case v == 0:
+		return fmt.Errorf("no lit database: the database file holds no schema")
+	case v > latest:
+		return newerSchema(v, latest)
+	case v < latest:
+		return fmt.Errorf("database schema version %d is older than this lit-server's (version %d); start lit-server on it once to migrate it", v, latest)
+	}
+	return nil
 }

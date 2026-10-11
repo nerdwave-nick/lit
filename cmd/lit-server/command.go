@@ -10,7 +10,7 @@ import (
 )
 
 // serverCommand is lit-server's command line: optional flags and no operands.
-// The one subcommand, export, has its own command line (see runCLI).
+// The subcommands export and verify have their own command lines (see runCLI).
 var serverCommand = &nwcli.Command{
 	Name:    "lit-server",
 	Summary: "Run lit-server in the foreground on a loopback address",
@@ -29,7 +29,8 @@ Under systemd socket activation, the single inherited loopback socket replaces
 the listen address.
 
 lit-server export --to DIRECTORY writes a one-way Markdown export of the tracker;
-see lit-server export --help.`,
+see lit-server export --help. lit-server verify checks the database of a stopped
+lit-server and replays its history; see lit-server verify --help.`,
 	Example: "  lit-server\n  lit-server --data-dir /tmp/lit-poc --listen 127.0.0.1:7411\n  lit-server --config /path/to/config.json",
 	Flags: []nwcli.Flag{
 		{Name: "config", Usage: "Optional JSON config `FILE` (or LIT_CONFIG_FILE)", Value: nwcli.Value{Kind: nwcli.Path}},
@@ -47,6 +48,10 @@ func runCLI(args []string, out, errOut io.Writer) int {
 		return runExport(args[1:], out, errOut)
 	case len(args) == 2 && args[0] == "help" && args[1] == "export":
 		return runExport([]string{"--help"}, out, errOut)
+	case len(args) > 0 && args[0] == "verify":
+		return runVerify(args[1:], out, errOut)
+	case len(args) == 2 && args[0] == "help" && args[1] == "verify":
+		return runVerify([]string{"--help"}, out, errOut)
 	}
 	p, err := serverCommand.Parse(args)
 	switch {

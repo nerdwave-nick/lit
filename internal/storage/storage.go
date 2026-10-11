@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 )
 
@@ -50,6 +51,7 @@ type DB struct {
 	clock     *Clock
 	serviceID string
 	version   int
+	fatal     atomic.Pointer[func(error)] // see OnFatal
 }
 
 // Open takes ownership of the data directory dir, creating it when missing,
@@ -69,11 +71,19 @@ type Options struct {
 }
 
 // OpenWith opens the data directory dir like Open, configured by o.
-func OpenWith(dir string, o Options) (*DB, error) { return openWith(dir, migrations, o) }
+func OpenWith(dir string, o Options) (*DB, error) { return openWith(dir, migrations, o, false) }
 
-func open(dir string, ms []migration) (*DB, error) { return openWith(dir, ms, Options{}) }
+// OpenExisting takes ownership of the data directory dir and opens its
+// existing database for checks such as Verify. Unlike Open, it never creates a
+// database and never migrates one: a missing database, or a schema version
+// other than this binary's, is refused.
+func OpenExisting(dir string) (*DB, error) { return openWith(dir, migrations, Options{}, true) }
 
-func openWith(dir string, ms []migration, o Options) (db *DB, err error) {
+func open(dir string, ms []migration, existing bool) (*DB, error) {
+	return openWith(dir, ms, Options{}, existing)
+}
+
+func openWith(dir string, ms []migration, o Options, existing bool) (db *DB, err error) {
 	reads := o.ReadConcurrency
 	if reads == 0 {
 		reads = DefaultReadConcurrency
@@ -83,6 +93,11 @@ func openWith(dir string, ms []migration, o Options) (db *DB, err error) {
 	}
 	if err = refuseLegacyStore(dir); err != nil {
 		return nil, err
+	}
+	if existing {
+		if _, err = os.Stat(filepath.Join(dir, DatabaseFile)); err != nil {
+			return nil, fmt.Errorf("no lit database in %s: %w", dir, err)
+		}
 	}
 	if err = os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
@@ -112,10 +127,15 @@ func openWith(dir string, ms []migration, o Options) (db *DB, err error) {
 	db.writer.SetMaxOpenConns(1)
 	db.writer.SetMaxIdleConns(1)
 	db.writer.SetConnMaxLifetime(0)
-	if err = migrate(context.Background(), db.writer, ms, filepath.Join(dir, BackupDir), db.clock.Now()); err != nil {
+	if existing {
+		err = requireCurrent(context.Background(), db.writer, ms)
+	} else {
+		err = migrate(context.Background(), db.writer, ms, filepath.Join(dir, BackupDir), db.clock.Now())
+	}
+	if err != nil {
 		return nil, err
 	}
-	if err = classify(db.writer.QueryRow("SELECT service_id, schema_version FROM service").Scan(&db.serviceID, &db.version)); err != nil {
+	if err = db.report(db.writer.QueryRow("SELECT service_id, schema_version FROM service").Scan(&db.serviceID, &db.version)); err != nil {
 		return nil, err
 	}
 	if db.readers, err = sql.Open("sqlite", dsn(path, true)); err != nil {
