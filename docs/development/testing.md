@@ -20,6 +20,14 @@ Installer and workflow-session regression tests live in
 `internal/workflow-skills` and `internal/workflowsession`. Protocol fixtures in
 `internal/protocol/testdata` pin canonical request bytes and hashes.
 
+`internal/storage` tests run against real SQLite databases in temporary
+directories, without mocks: the owner lock, connection settings, `BEGIN
+IMMEDIATE` and typed busy errors (a second connection holds the write lock),
+the write-lock and read-snapshot API, schema migrations (refusing a newer
+version, upgrading after a `VACUUM INTO` snapshot), schema constraints and
+the monotonic clock. `TestModuleSelectsTheDriversLibc` fails when `go.mod`
+selects a `modernc.org/libc` other than the one `modernc.org/sqlite` requires.
+
 `integration/tui_dispatch_test.go` covers how `lit` finds and starts `lit-tui`
 (sibling first, then PATH, process replacement, endpoint pass-through, the missing
 binary error, and bare `lit` on a pseudo-terminal via util-linux `script`).
