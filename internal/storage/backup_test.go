@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -272,11 +273,11 @@ func TestMigrationSnapshotUsesTheConfiguredBackupDirectory(t *testing.T) {
 	}
 	db.Close()
 	backupDir := filepath.Join(t.TempDir(), "elsewhere")
-	if db, e = openWith(dir, withV2(), Options{BackupDir: backupDir}, false); e != nil {
+	if db, e = openWith(dir, withLater(), Options{BackupDir: backupDir}, false); e != nil {
 		t.Fatal(e)
 	}
 	db.Close()
-	if got := names(t, backupDir); len(got) != 1 || !regexp.MustCompile(`^lit-.*-pre-migration-v1\.db$`).MatchString(got[0]) {
+	if got := names(t, backupDir); len(got) != 1 || !regexp.MustCompile(fmt.Sprintf(`^lit-.*-pre-migration-v%d\.db$`, current)).MatchString(got[0]) {
 		t.Fatalf("configured backup directory holds %v", got)
 	}
 	if b := backups(t, dir); len(b) != 0 {

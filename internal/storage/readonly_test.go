@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
@@ -117,12 +118,12 @@ func TestOpenReadOnlyRefusesWhatItCannotRead(t *testing.T) {
 	t.Run("other schema version", func(t *testing.T) {
 		owner := openTemp(t)
 		if e := write(t, owner, func(ctx context.Context, tx *WriteTx) error {
-			_, e := tx.exec(ctx, "UPDATE service SET schema_version = 2")
+			_, e := tx.exec(ctx, "UPDATE service SET schema_version = schema_version + 1")
 			return e
 		}); e != nil {
 			t.Fatal(e)
 		}
-		if _, e := OpenReadOnly(owner.Dir()); e == nil || !strings.Contains(e.Error(), "schema version 2") {
+		if _, e := OpenReadOnly(owner.Dir()); e == nil || !strings.Contains(e.Error(), fmt.Sprintf("schema version %d", current+1)) {
 			t.Fatalf("newer schema: %v", e)
 		}
 	})

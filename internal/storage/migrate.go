@@ -21,8 +21,12 @@ type migration struct {
 //go:embed schema_v1.sql
 var schemaV1 string
 
+//go:embed schema_v2.sql
+var schemaV2 string
+
 var migrations = []migration{
 	{1, func(ctx context.Context, tx *sql.Tx) error { _, e := tx.ExecContext(ctx, schemaV1); return e }},
+	{2, migrateGrepIndex},
 }
 
 // migrate brings the database to the newest version in ms. A fresh database

@@ -4,6 +4,8 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 )
@@ -23,17 +25,19 @@ type SearchRecord struct {
 	Fields              []SearchField
 }
 
-// SearchScan calls fn for every record of projectID (of every project when
-// empty), ordered by project ID, record type and ID: a project's description,
-// an issue's and a milestone's title and body, and a comment's body. It reads
-// the whole scope; it stops at the first error from fn or ctx.
-func (q queries) SearchScan(ctx context.Context, projectID string, fn func(SearchRecord) error) error {
-	return q.each(ctx, `SELECT * FROM (
-		SELECT 'projects' AS type, id, revision, id AS project_id, '' AS issue_id, '' AS issue_title, NULL AS title, description AS body FROM projects
-		UNION ALL SELECT 'issues', id, revision, project_id, id, title, title, body FROM issues
-		UNION ALL SELECT 'comments', c.id, c.revision, i.project_id, i.id, i.title, NULL, c.body FROM comments c JOIN issues i ON i.id = c.issue_id
-		UNION ALL SELECT 'milestones', id, revision, project_id, '', '', title, body FROM milestones
-	) WHERE ?1 = '' OR project_id = ?1 ORDER BY project_id, type, id`, []any{projectID}, func(s rowScanner) error {
+// SearchScan calls fn for the records of projectID (of every project when
+// empty) that lit grep may report for needle, ordered by project ID, record
+// type and ID: a project's description, an issue's and a milestone's title
+// and body, and a comment's body. needle is folded text that the
+// textfold.Grep fold of every matching field contains; a record is read when
+// its folded text in grep_text may contain it, through the trigram index when
+// needle has three or more characters and by scanning grep_text otherwise. The records are a
+// superset of the matches (NUL and U+FFFD read alike), so callers confirm each
+// on its original text. An empty needle reads every record of the scope. The
+// scan stops at the first error from fn or ctx.
+func (q queries) SearchScan(ctx context.Context, projectID, needle string, fn func(SearchRecord) error) error {
+	query, args := searchQuery(projectID, needle)
+	return q.each(ctx, query, args, func(s rowScanner) error {
 		if e := ctx.Err(); e != nil {
 			return e
 		}
@@ -49,6 +53,66 @@ func (q queries) SearchScan(ctx context.Context, projectID string, fn func(Searc
 		v.Fields = append(v.Fields, SearchField{bodyField(v.Type), body})
 		return fn(v)
 	})
+}
+
+// searchQuery is SearchScan's query and its arguments.
+func searchQuery(projectID, needle string) (string, []any) {
+	needle = grepSafe(needle)
+	hits := grepHits(needle)
+	match := func(typ string) string {
+		if hits == "" {
+			return "1"
+		}
+		return "r.id IN (SELECT owner_id FROM hits WHERE owner_type = '" + typ + "')"
+	}
+	scope := func(column string) string {
+		if projectID == "" {
+			return ""
+		}
+		return " AND " + column + " = ?1"
+	}
+	query := `SELECT 'projects' AS type, r.id, r.revision, r.id AS project_id, '' AS issue_id, '' AS issue_title, NULL AS title, r.description AS body FROM projects r WHERE ` + match(Projects) + scope("r.id") + `
+		UNION ALL SELECT 'issues', r.id, r.revision, r.project_id, r.id, r.title, r.title, r.body FROM issues r WHERE ` + match(Issues) + scope("r.project_id") + `
+		UNION ALL SELECT 'comments', r.id, r.revision, i.project_id, i.id, i.title, NULL, r.body FROM comments r JOIN issues i ON i.id = r.issue_id WHERE ` + match(Comments) + scope("i.project_id") + `
+		UNION ALL SELECT 'milestones', r.id, r.revision, r.project_id, '', '', r.title, r.body FROM milestones r WHERE ` + match(Milestones) + scope("r.project_id") + `
+		ORDER BY project_id, type, id`
+	if hits != "" {
+		query = "WITH hits (owner_type, owner_id) AS MATERIALIZED (" + hits + ") " + query
+	}
+	return query, []any{projectID, globLiteral(needle), needle}
+}
+
+// grepHits selects the records (owner_type, owner_id) whose folded title or
+// body may contain needle: a GLOB with the pattern ?2 on grep_index from
+// three characters on (the trigram index needs three), otherwise a scan of
+// grep_text for the needle ?3. An empty needle needs no selection ("").
+func grepHits(needle string) string {
+	switch {
+	case needle == "":
+		return ""
+	case utf8.RuneCountInString(needle) >= 3:
+		return "SELECT owner_type, owner_id FROM grep_text WHERE seq IN (SELECT rowid FROM grep_index WHERE title GLOB ?2 UNION ALL SELECT rowid FROM grep_index WHERE body GLOB ?2)"
+	default:
+		return "SELECT owner_type, owner_id FROM grep_text WHERE instr(title, ?3) > 0 OR instr(body, ?3) > 0"
+	}
+}
+
+// globLiteral is a GLOB pattern matching any text that contains s: s between
+// two stars, with GLOB's special characters as one-character bracket
+// expressions ([*], [?] and [[]). LIKE ... ESCAPE cannot use the trigram index.
+func globLiteral(s string) string {
+	var b strings.Builder
+	b.WriteByte('*')
+	for _, r := range s {
+		switch r {
+		case '*', '?', '[':
+			b.WriteString("[" + string(r) + "]")
+		default:
+			b.WriteRune(r)
+		}
+	}
+	b.WriteByte('*')
+	return b.String()
 }
 
 // CompletionCandidates lists every record of type typ in ID order, or only

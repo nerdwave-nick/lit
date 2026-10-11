@@ -198,7 +198,7 @@ func TestOpenExistingNeverCreatesOrMigrates(t *testing.T) {
 			t.Fatal(e)
 		}
 		db.Close()
-		if db, e = open(dir, withV2(), true); e == nil || !strings.Contains(e.Error(), "start lit-server") {
+		if db, e = open(dir, withLater(), true); e == nil || !strings.Contains(e.Error(), "start lit-server") {
 			if db != nil {
 				db.Close()
 			}

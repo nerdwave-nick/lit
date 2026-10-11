@@ -131,6 +131,9 @@ func (t *WriteTx) writeRow(ctx context.Context, c change) error {
 				a.ID, a.Revision, a.CreatedAt, a.UpdatedAt, a.Title, a.Description, textfold.Fold(a.Description))
 		}
 		if e == nil {
+			e = t.writeGrep(ctx, Projects, a.ID, "", a.Description)
+		}
+		if e == nil {
 			e = t.syncSet(ctx, old, a.RepositoryRefs, "DELETE FROM project_repositories WHERE project_id = ? AND repository_ref = ?", "INSERT INTO project_repositories (project_id, repository_ref) VALUES (?, ?)", a.ID)
 		}
 	case protocol.Issue:
@@ -148,6 +151,9 @@ func (t *WriteTx) writeRow(ctx context.Context, c change) error {
 				a.ID, a.ProjectID, a.Revision, a.CreatedAt, a.UpdatedAt, a.Title, textfold.Fold(a.Title), a.Body, textfold.Fold(a.Body), a.State, a.Assignee)
 		}
 		if e == nil {
+			e = t.writeGrep(ctx, Issues, a.ID, a.Title, a.Body)
+		}
+		if e == nil {
 			e = t.syncSet(ctx, old, a.Labels, "DELETE FROM issue_labels WHERE issue_id = ? AND label = ?", "INSERT INTO issue_labels (issue_id, label) VALUES (?, ?)", a.ID)
 		}
 	case protocol.Comment:
@@ -161,6 +167,9 @@ func (t *WriteTx) writeRow(ctx context.Context, c change) error {
 			_, e = t.exec(ctx, "INSERT INTO comments (id, issue_id, revision, created_at, updated_at, author, body, folded_body) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
 				a.ID, a.IssueID, a.Revision, a.CreatedAt, a.UpdatedAt, a.Author, a.Body, textfold.Fold(a.Body))
 		}
+		if e == nil {
+			e = t.writeGrep(ctx, Comments, a.ID, "", a.Body)
+		}
 	case protocol.Milestone:
 		var old []string
 		if b, ok := c.before.(protocol.Milestone); ok {
@@ -173,6 +182,9 @@ func (t *WriteTx) writeRow(ctx context.Context, c change) error {
 		} else {
 			_, e = t.exec(ctx, "INSERT INTO milestones (id, project_id, revision, created_at, updated_at, title, title_key, body, folded_body) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
 				a.ID, a.ProjectID, a.Revision, a.CreatedAt, a.UpdatedAt, a.Title, textfold.Fold(a.Title), a.Body, textfold.Fold(a.Body))
+		}
+		if e == nil {
+			e = t.writeGrep(ctx, Milestones, a.ID, a.Title, a.Body)
 		}
 		if e == nil {
 			e = t.syncSet(ctx, old, a.IssueIDs, "DELETE FROM milestone_members WHERE milestone_id = ? AND issue_id = ?", "INSERT INTO milestone_members (milestone_id, issue_id, project_id) VALUES (?, ?, ?)", a.ID, a.ProjectID)
