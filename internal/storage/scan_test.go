@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
@@ -42,6 +43,21 @@ func TestSearchScanReadsEverySearchableField(t *testing.T) {
 	}
 	sameJSON(t, scan(t, w.db, w.p.ID), p)
 	sameJSON(t, scan(t, w.db, ""), append(p, q...))
+}
+
+// The scan honours cancellation between records: cancelled while handling
+// the first record, it stops there with the context's error.
+func TestSearchScanStopsWhenCancelled(t *testing.T) {
+	w := newWorld(t)
+	read(t, w.db, func(ctx context.Context, r *ReadTx) {
+		ctx, cancel := context.WithCancel(ctx)
+		defer cancel()
+		seen := 0
+		e := r.SearchScan(ctx, "", func(SearchRecord) error { seen++; cancel(); return nil })
+		if !errors.Is(e, context.Canceled) || seen != 1 {
+			t.Fatalf("scan after cancellation: %d records, %v", seen, e)
+		}
+	})
 }
 
 func TestCompletionCandidates(t *testing.T) {
