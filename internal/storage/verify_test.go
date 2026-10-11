@@ -66,11 +66,15 @@ func TestVerifyReportsMismatches(t *testing.T) {
 		damage func(w *world) []string
 		want   []string
 	}{
-		"field": {func(w *world) []string { return []string{"UPDATE issues SET state = 'open' WHERE id = '" + w.c.ID + "'"} },
+		"field": {func(w *world) []string {
+			return []string{"UPDATE issues SET state = 'open' WHERE id = '" + w.c.ID + "'"}
+		},
 			[]string{w0("c"), "state", `"open"`, `"closed"`}},
 		"body": {func(w *world) []string { return []string{"UPDATE comments SET body = 'tampered'"} },
 			[]string{w0("comment"), "body"}},
-		"description": {func(w *world) []string { return []string{"UPDATE projects SET description = 'x' WHERE id = '" + w.p.ID + "'"} },
+		"description": {func(w *world) []string {
+			return []string{"UPDATE projects SET description = 'x' WHERE id = '" + w.p.ID + "'"}
+		},
 			[]string{w0("p"), "description"}},
 		"label": {func(w *world) []string { return []string{"DELETE FROM issue_labels WHERE issue_id = '" + w.b.ID + "'"} },
 			[]string{w0("b"), "labels"}},
@@ -78,7 +82,9 @@ func TestVerifyReportsMismatches(t *testing.T) {
 			[]string{w0("x"), "related"}},
 		"member": {func(w *world) []string { return []string{"DELETE FROM milestone_members"} },
 			[]string{w0("milestone"), "issue_ids"}},
-		"revision": {func(w *world) []string { return []string{"UPDATE issues SET revision = revision + 1 WHERE id = '" + w.a.ID + "'"} },
+		"revision": {func(w *world) []string {
+			return []string{"UPDATE issues SET revision = revision + 1 WHERE id = '" + w.a.ID + "'"}
+		},
 			[]string{w0("a"), "revision"}},
 		"missing revision": {func(w *world) []string {
 			return []string{"DELETE FROM history WHERE owner_id = '" + w.a.ID + "' AND revision = 2"}

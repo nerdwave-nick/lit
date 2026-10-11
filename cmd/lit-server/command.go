@@ -39,6 +39,9 @@ the listen address.`,
 // runCLI parses the command line before any configuration is read, so help,
 // version and argument errors never touch the data directory.
 func runCLI(args []string, out, errOut io.Writer) int {
+	if len(args) > 0 && args[0] == "verify" {
+		return runVerify(args[1:], out, errOut)
+	}
 	p, err := serverCommand.Parse(args)
 	switch {
 	case err != nil:
