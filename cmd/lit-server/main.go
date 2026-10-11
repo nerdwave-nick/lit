@@ -41,6 +41,9 @@ func runService(c service.Config, errOut io.Writer) int {
 	} else {
 		fmt.Fprintln(errOut, "lit-server listening", ln.Addr())
 	}
+	// Periodic jobs end before the deferred db.Close.
+	stopJobs := startJobs(s, c, func(format string, args ...any) { fmt.Fprintf(errOut, format+"\n", args...) })
+	defer stopJobs()
 	sig := make(chan os.Signal, 1)
 	signal.Notify(sig, os.Interrupt, syscall.SIGTERM)
 	defer signal.Stop(sig)
@@ -55,6 +58,7 @@ func runService(c service.Config, errOut io.Writer) int {
 		// Requests in flight lose their connection; clients reconcile
 		// interrupted mutations as after any crash.
 		fmt.Fprintln(errOut, "lit-server: database failure while serving; exiting so that the supervisor restarts lit-server and its startup check runs:", e)
+		stopJobs()
 		stop()
 		srv.Close()
 		return 1
@@ -62,6 +66,7 @@ func runService(c service.Config, errOut io.Writer) int {
 	fmt.Fprintln(errOut, "lit-server shutting down")
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel() // Stop the listener immediately; existing handlers drain before store ownership ends.
+	stopJobs()
 	stop()
 	if e = srv.Shutdown(ctx); e != nil {
 		fmt.Fprintln(errOut, "shutdown deadline reached; restart will recover committed work")

@@ -164,10 +164,19 @@ JSON, defaults:
 | `--data-dir` | `LIT_DATA_DIR` | `data_dir` |
 | `--listen` | `LIT_LISTEN` | `listen` |
 | none | `LIT_READ_CONCURRENCY` | `read_concurrency` |
+| none | `LIT_BACKUP_DIR` | `backup_dir` |
+| none | `LIT_BACKUP_INTERVAL` | `backup_interval` |
+| none | `LIT_BACKUP_KEEP` | `backup_keep` |
 
 `read_concurrency` caps how many read requests run at once (default 8, a
 positive integer); further reads wait until one finishes or their request ends.
 Writes are always serialized and do not count against it.
+
+lit-server takes `VACUUM INTO` backup snapshots of its database into
+`backup_dir` (default `<data dir>/backup`) every `backup_interval` (a Go
+duration such as `"24h"`, the default; `"0"` turns scheduled snapshots off),
+keeping the newest `backup_keep` (default 14, a positive integer). See
+[backups](recovery.md#backups) and [restoring a snapshot](recovery.md#restore-a-snapshot).
 
 Changes require an explicit restart. Invalid/unknown configuration fields and
 unsupported format versions fail clearly. First explicit startup initializes an
