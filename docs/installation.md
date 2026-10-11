@@ -330,6 +330,113 @@ does not exit when idle; it keeps running until stopped. Stopping only
 again. To turn activation off, run `systemctl --user disable --now lit.socket`
 and stop `lit.service`.
 
+## Docker Compose
+
+The repository's `compose.yaml` runs lit-server as a single container on Linux,
+next to the systemd units above, which remain the path without containers. The
+image is built locally from the repository's `Dockerfile`: a static binary
+(`CGO_ENABLED=0`) on `gcr.io/distroless/static`, running as a non-root user.
+Nothing is pulled from or published to a registry except the public Go and
+distroless base images. Docker with Compose v2 is required; Docker Desktop on
+macOS or Windows is not a supported server platform.
+
+From the repository root:
+
+```sh
+mkdir -p backup export
+printf 'LIT_UID=%s\nLIT_GID=%s\n' "$(id -u)" "$(id -g)" > .env   # optional, see below
+docker compose up -d --build
+docker compose ps            # STATUS shows (healthy) once lit-server answers
+docker compose logs -f lit-server
+```
+
+The stack:
+
+- **Network:** `network_mode: host`, and lit-server binds the host's
+  `127.0.0.1:7411` itself. The loopback-only listen rule is unchanged, so
+  nothing beyond the host can connect, and `lit` connects to the default
+  endpoint as usual. No ports are published. Stop a lit-server already running
+  on the host first, or the container cannot bind the address.
+- **Data:** the database, its WAL files and the lock file live in the named
+  volume `lit_lit-data` at `/data`. Keep SQLite on this volume, never on a
+  network filesystem or a bind mount.
+- **Backups and exports:** the host directories `./backup` (scheduled
+  `VACUUM INTO` snapshots and pre-migration snapshots, `LIT_BACKUP_DIR=/backup`)
+  and `./export` (the [interval Markdown export](export.md#interval-exports) in
+  `./export/tree`; the export directory cannot be a mount point itself). Create
+  both before the first start: the bind mounts use `create_host_path: false`,
+  so a missing directory fails with `bind source path does not exist` instead
+  of Docker creating it owned by root.
+- **User:** lit-server runs as `LIT_UID:LIT_GID`, by default distroless's
+  `nonroot` (65532:65532). It must be able to write `./backup` and `./export`:
+  either set `LIT_UID` and `LIT_GID` to your own IDs (in `.env`, as above, then
+  rebuild), so that you own the snapshots and exports, or give the directories
+  to 65532 (`sudo chown 65532:65532 backup export`). The IDs are build
+  arguments; the named volume takes the owner of the image's `/data` when it is
+  first created, so changing them later also needs a new volume or a `chown`
+  inside it.
+- **Restarts:** `restart: unless-stopped`. When lit-server exits, for example
+  after [damage met while serving](recovery.md#damage-while-serving) or a
+  crash, Docker starts it again; `docker compose stop` stops it until the next
+  `docker compose start` or `up`. SIGTERM gets the 30-second drain
+  (`stop_grace_period: 35s`).
+- **Health:** an exec-form healthcheck runs `lit-server healthcheck`, which
+  calls `GET /v1/meta` on the configured listen address. It reports unhealthy
+  in [degraded mode](recovery.md#degraded-mode) (503 `recovery_required`), on
+  any other answer and when nothing answers. Docker does not restart unhealthy
+  containers; degraded mode needs an operator.
+- **Hardening:** a read-only root filesystem with a tmpfs `/tmp`, no Linux
+  capabilities and `no-new-privileges`.
+
+The settings are environment variables in `compose.yaml` (see the
+configuration table above): `LIT_LISTEN=127.0.0.1:7411`, `LIT_DATA_DIR=/data`,
+`LIT_BACKUP_DIR=/backup`, `LIT_BACKUP_INTERVAL=24h`, `LIT_BACKUP_KEEP=14`,
+`LIT_EXPORT_DIR=/export/tree` and `LIT_EXPORT_INTERVAL=15m` (runs are skipped
+while nothing changes; `0` turns interval exports off). Put local changes in a
+`compose.override.yaml` next to `compose.yaml`, which Compose merges in, for
+example:
+
+```yaml
+services:
+  lit-server:
+    environment:
+      LIT_LISTEN: 127.0.0.1:7412
+      LIT_EXPORT_INTERVAL: "0"
+```
+
+The listen address must stay a loopback IP; lit-server refuses anything else.
+`.env`, `compose.override.yaml`, `backup/` and `export/` are ignored by Git.
+
+Other lit-server commands run in the same container setup:
+
+```sh
+docker compose exec lit-server /lit-server healthcheck
+docker compose exec lit-server /lit-server export --to /export/manual
+docker compose stop lit-server
+docker compose run --rm --no-deps lit-server verify   # needs the stopped server
+docker compose start lit-server
+```
+
+To restore a snapshot ([restore a snapshot](recovery.md#restore-a-snapshot)),
+stop the service, move `lit.db`, `lit.db-wal` and `lit.db-shm` aside inside the
+volume and copy the snapshot from `./backup` in as `lit.db`, using any image
+with a shell as lit-server's user, then verify and start:
+
+```sh
+docker compose stop lit-server
+docker run --rm --user "$(id -u):$(id -g)" -v lit_lit-data:/data -v "$PWD/backup:/backup:ro" \
+  busybox sh -c 'set -e; old=/data/replaced-$(date -u +%Y%m%dT%H%M%SZ); mkdir "$old"
+    for f in lit.db lit.db-wal lit.db-shm; do [ ! -e "/data/$f" ] || mv "/data/$f" "$old/"; done
+    cp /backup/SNAPSHOT.db /data/lit.db'
+docker compose run --rm --no-deps lit-server verify
+docker compose start lit-server
+```
+
+Replace `SNAPSHOT.db` with the snapshot's name, and `--user` with the image's
+user when you did not set `LIT_UID`/`LIT_GID`. To upgrade, check out the new
+version and run `docker compose up -d --build`; lit-server takes a
+pre-migration snapshot into `./backup` before migrating the database.
+
 ## Manual updates
 
 Stop the foreground service or user service before replacing its executable.

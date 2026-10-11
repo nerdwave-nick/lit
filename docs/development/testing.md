@@ -128,6 +128,15 @@ damaged and healthy data directories (degraded mode, search index rebuild) and
 run `lit-server verify`; `integration/integrity_test.go` drives the binary in
 degraded mode, its exit on corruption met while serving, and `verify` on a
 tracker written through the CLI.
+`cmd/lit-server` healthcheck tests serve a started service and degraded mode
+over loopback HTTP and run `lit-server healthcheck` against them, a closed port
+and foreign answers; the listen address comes from flags, environment or config,
+and the data directory is never touched. `packaging/compose_test.go` keeps
+`compose.yaml` and the `Dockerfile` within the deployment rules (host network,
+the default loopback listener, the restart policy, the named volume and bind
+mounts, an export directory below its mount, the exec-form healthcheck, a static
+non-root distroless image). Building and running the image is a manual check
+with Docker, recorded on the compose ticket; the suite needs no Docker.
 
 `internal/service/routes_test.go` checks the route table's classification of
 every route. `internal/service/concurrency_test.go` and `readcap_test.go` run

@@ -1,0 +1,6 @@
+# The image needs only the module files and the Go sources of lit-server.
+*
+!go.mod
+!go.sum
+!cmd/
+!internal/
