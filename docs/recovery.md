@@ -98,6 +98,11 @@ repairs the database and restarts it. When the database could be opened,
 degraded lit-server keeps the data directory's owner lock, so stop it before
 repairing.
 
+`lit-server healthcheck` reports degraded mode as unhealthy (exit 1, naming the
+reason), so under [Docker Compose](installation.md#docker-compose) the container
+shows `(unhealthy)`. Docker does not restart unhealthy containers, which is
+what degraded mode needs: restarting would meet the same damage.
+
 ## Damage while serving
 
 When a request meets `SQLITE_CORRUPT`, `SQLITE_NOTADB` or an I/O error,
@@ -193,6 +198,8 @@ A snapshot is a complete database file without WAL files. To restore one:
 5. Start lit-server. Its startup checks run again before it serves.
 
 This order verifies the snapshot before anything is served from it.
+Under Docker Compose the database is in a named volume; the
+[compose restore commands](installation.md#docker-compose) follow the same steps.
 
 Everything committed after the snapshot was taken is lost. Clients reconcile
 as after any interruption: `lit transactions status` reports a request
