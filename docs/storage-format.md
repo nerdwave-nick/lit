@@ -30,9 +30,10 @@ setup import (`lit-migrate`) into a new, empty data directory instead. A
 database whose schema is newer than the binary is refused; an older one is
 snapshotted into the backup directory and migrated.
 
-Offline readers such as `lit-server export` open the database read-only
-(`storage.OpenReadOnly`: `mode=ro`, `query_only`) without taking the owner
-lock, so they work whether or not lit-server runs. Each reads one WAL snapshot,
+Offline readers such as `lit-server export`, and lit-server's own interval
+export, open the database read-only (`storage.OpenReadOnly`: `mode=ro`,
+`query_only`) without taking the owner lock, so they work whether or not
+lit-server runs. Each reads one WAL snapshot,
 which SQLite isolates from the owner's later commits. A reader never creates,
 migrates or writes the database; it refuses a missing database, a legacy file
 store and a schema version other than its own.

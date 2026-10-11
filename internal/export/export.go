@@ -14,6 +14,8 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
@@ -54,6 +56,23 @@ type Manifest struct {
 	ExportedAt      string                    `json:"exported_at"`
 	LastTransaction *storage.TransactionStamp `json:"last_transaction"`
 	Counts          Counts                    `json:"counts"`
+}
+
+// ReadManifest reads the manifest of the export in dir. It fails when dir
+// holds no export written by this package.
+func ReadManifest(dir string) (Manifest, error) {
+	var m Manifest
+	b, e := os.ReadFile(filepath.Join(dir, "manifest.json"))
+	if e != nil {
+		return Manifest{}, e
+	}
+	if e = json.Unmarshal(b, &m); e != nil {
+		return Manifest{}, fmt.Errorf("%s: %w", filepath.Join(dir, "manifest.json"), e)
+	}
+	if m.Generator != Generator {
+		return Manifest{}, fmt.Errorf("%s holds no export by %s", dir, Generator)
+	}
+	return m, nil
 }
 
 // Export writes the tracker as seen by snap into dir, replacing a previous

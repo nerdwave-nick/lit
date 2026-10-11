@@ -12,13 +12,16 @@ import (
 // startJobs starts lit-server's periodic jobs for the service s started
 // with the configuration c, and returns the function that stops them all.
 // Degraded mode runs none: a backup of a damaged database would push good
-// snapshots out of retention.
+// snapshots out of retention, and an export would show damaged records.
 func startJobs(s started, c service.Config, logf func(format string, args ...any)) (stop func()) {
 	if s.db == nil || s.fatal == nil {
 		return func() {}
 	}
 	var stops []func()
 	if job, ok := backupJob(s.db, c, time.Now(), logf); ok {
+		stops = append(stops, job.start(logf))
+	}
+	if job, ok := exportJob(c, logf); ok {
 		stops = append(stops, job.start(logf))
 	}
 	return func() {

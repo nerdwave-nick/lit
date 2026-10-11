@@ -73,6 +73,13 @@ a write committed during an export is not exported (one snapshot), that a
 target that is not a previous export is refused, that a failed export leaves
 the previous tree, and that a second export into the same directory is refused.
 `storage.OpenReadOnly` is tested beside a running owner and without one.
+`cmd/lit-server` tests run the interval export: a run exports after a change
+and leaves the tree (manifest and directory inode) untouched when the newest
+transaction is the manifest's `last_transaction`, an export of another tracker
+is replaced, a started service exports at once and follows a later write,
+failed runs are logged while the service keeps serving without a database
+failure, and nothing is exported by default, with only a directory set, or in
+degraded mode.
 
 `internal/service` tests run the service against real SQLite databases in
 temporary directories. All-or-nothing behaviour is tested with real late
