@@ -82,7 +82,7 @@ func (t *WriteTx) DeleteClaim(ctx context.Context, issueID string) (deleted bool
 		return false, e
 	}
 	n, e := r.RowsAffected()
-	return n > 0, classify(e)
+	return n > 0, t.classify(e)
 }
 
 // claimNanos converts a claim time to Unix nanoseconds. Only UTC RFC3339Nano
@@ -129,16 +129,16 @@ func (q queries) oneClaim(ctx context.Context, query string, args ...any) (*prot
 func (q queries) claims(ctx context.Context, query string, args ...any) ([]protocol.Claim, error) {
 	rows, e := q.tx.QueryContext(ctx, query, args...)
 	if e != nil {
-		return nil, classify(e)
+		return nil, q.classify(e)
 	}
 	defer rows.Close()
 	out := []protocol.Claim{}
 	for rows.Next() {
 		var r claimRow
 		if e = rows.Scan(r.dest()...); e != nil {
-			return nil, classify(e)
+			return nil, q.classify(e)
 		}
 		out = append(out, r.claim())
 	}
-	return out, classify(rows.Err())
+	return out, q.classify(rows.Err())
 }

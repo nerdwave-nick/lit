@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"sync/atomic"
 	"time"
 )
 
@@ -50,6 +51,7 @@ type DB struct {
 	clock     *Clock
 	serviceID string
 	version   int
+	fatal     atomic.Pointer[func(error)] // see OnFatal
 }
 
 // Open takes ownership of the data directory dir, creating it when missing,
@@ -96,7 +98,7 @@ func open(dir string, ms []migration) (db *DB, err error) {
 	if err = migrate(context.Background(), db.writer, ms, filepath.Join(dir, BackupDir), db.clock.Now()); err != nil {
 		return nil, err
 	}
-	if err = classify(db.writer.QueryRow("SELECT service_id, schema_version FROM service").Scan(&db.serviceID, &db.version)); err != nil {
+	if err = db.report(db.writer.QueryRow("SELECT service_id, schema_version FROM service").Scan(&db.serviceID, &db.version)); err != nil {
 		return nil, err
 	}
 	if db.readers, err = sql.Open("sqlite", dsn(path, true)); err != nil {

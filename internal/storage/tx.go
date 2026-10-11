@@ -13,16 +13,22 @@ var errNotHeld = errors.New("storage write lock is not held")
 // queries runs statements inside one transaction. Typed reads shared by read
 // snapshots and write transactions are methods on queries; writes are methods
 // on WriteTx.
-type queries struct{ tx *sql.Tx }
+type queries struct {
+	tx *sql.Tx
+	db *DB
+}
+
+// classify types a driver error and reports a fatal one (see OnFatal).
+func (q queries) classify(e error) error { return q.db.report(e) }
 
 func (q queries) exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
 	r, e := q.tx.ExecContext(ctx, query, args...)
-	return r, classify(e)
+	return r, q.classify(e)
 }
 
 // queryRow scans the single result row into dest; sql.ErrNoRows is kept.
 func (q queries) queryRow(ctx context.Context, dest []any, query string, args ...any) error {
-	return classify(q.tx.QueryRowContext(ctx, query, args...).Scan(dest...))
+	return q.classify(q.tx.QueryRowContext(ctx, query, args...).Scan(dest...))
 }
 
 // Writer proves that its holder owns the process write lock. Only a Writer
@@ -61,9 +67,9 @@ func (w *Writer) Begin(ctx context.Context) (*WriteTx, error) {
 	}
 	tx, e := w.db.writer.BeginTx(ctx, nil)
 	if e != nil {
-		return nil, classify(e)
+		return nil, w.db.report(e)
 	}
-	w.open = &WriteTx{queries: queries{tx}, w: w}
+	w.open = &WriteTx{queries: queries{tx, w.db}, w: w}
 	return w.open, nil
 }
 
@@ -100,7 +106,7 @@ func (t *WriteTx) finish(f func() error) error {
 	if t.w.open == t {
 		t.w.open = nil
 	}
-	return classify(f())
+	return t.classify(f())
 }
 
 // ReadTx is one WAL read snapshot for a whole handler: every query sees the
@@ -117,9 +123,9 @@ func (db *DB) Read(ctx context.Context) (*ReadTx, error) {
 	now := db.clock.Now()
 	tx, e := db.readers.BeginTx(ctx, &sql.TxOptions{ReadOnly: true})
 	if e != nil {
-		return nil, classify(e)
+		return nil, db.report(e)
 	}
-	r := &ReadTx{queries{tx}, now}
+	r := &ReadTx{queries{tx, db}, now}
 	// A deferred transaction takes its snapshot at the first read; take it now.
 	var v int
 	if e = r.queryRow(ctx, []any{&v}, "SELECT schema_version FROM service"); e != nil {
@@ -133,4 +139,4 @@ func (db *DB) Read(ctx context.Context) (*ReadTx, error) {
 func (r *ReadTx) Now() time.Time { return r.now }
 
 // Close ends the snapshot.
-func (r *ReadTx) Close() error { return classify(r.tx.Rollback()) }
+func (r *ReadTx) Close() error { return r.classify(r.tx.Rollback()) }

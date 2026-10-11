@@ -118,15 +118,15 @@ func scanRecord(typ string, s rowScanner) (any, error) {
 func (q queries) each(ctx context.Context, query string, args []any, scan func(rowScanner) error) error {
 	rows, e := q.tx.QueryContext(ctx, query, args...)
 	if e != nil {
-		return classify(e)
+		return q.classify(e)
 	}
 	defer func() { _ = rows.Close() }()
 	for rows.Next() {
 		if e = scan(rows); e != nil {
-			return classify(e)
+			return q.classify(e)
 		}
 	}
-	return classify(rows.Err())
+	return q.classify(rows.Err())
 }
 
 // Record reads the current record of type typ (Projects, Issues, Comments or
@@ -140,7 +140,7 @@ func (q queries) Record(ctx context.Context, typ, id string) (any, error) {
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil, fmt.Errorf("%s %s: %w", typ, id, ErrRecordNotFound)
 	}
-	return r, classify(e)
+	return r, q.classify(e)
 }
 
 // Project reads one project; see Record.
