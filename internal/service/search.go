@@ -112,6 +112,9 @@ func (s *Server) searchPage(q protocol.SearchRequest, c protocol.Client) (Projec
 	if q.Query == "" || !utf8.ValidString(q.Query) || q.ContextLines < 0 {
 		return out, invalid("query must be nonempty UTF-8 and context_lines nonnegative")
 	}
+	if e := checkSearchText("query", q.Query); e != nil {
+		return out, e
+	}
 	if q.Scope.AllProjects && q.Scope.ProjectID != "" {
 		return out, invalid("conflicting search scope")
 	}

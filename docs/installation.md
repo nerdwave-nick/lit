@@ -169,10 +169,17 @@ JSON, defaults:
 | none | `LIT_BACKUP_KEEP` | `backup_keep` |
 | none | `LIT_EXPORT_DIR` | `export_dir` |
 | none | `LIT_EXPORT_INTERVAL` | `export_interval` |
+| none | `LIT_SEARCH_TIMEOUT` | `search_timeout` |
 
 `read_concurrency` caps how many read requests run at once (default 8, a
 positive integer); further reads wait until one finishes or their request ends.
 Writes are always serialized and do not count against it.
+
+`search_timeout` is the deadline of every search request (a positive Go
+duration such as `"10s"`, the default). It counts from the moment the search's
+read snapshot opens, so waiting for a read slot does not use it up. A search
+that reaches it fails with `504 search_timeout`; narrow the pattern or search
+one project instead of all projects. Patterns are at most 1,000 bytes.
 
 lit-server takes `VACUUM INTO` backup snapshots of its database into
 `backup_dir` (default `<data dir>/backup`) every `backup_interval` (a Go
@@ -464,7 +471,7 @@ Record `lit transactions status` output in every client state directory first.
 Then stop and disable the new server (`systemctl --user disable --now lit.socket lit.service`),
 point the configuration back at `$OLD` and remove the fields the old binary
 does not know: `read_concurrency`, `backup_dir`, `backup_interval`,
-`backup_keep`, `export_dir` and `export_interval` (it refuses unknown fields;
+`backup_keep`, `export_dir`, `export_interval` and `search_timeout` (it refuses unknown fields;
 it ignores their `LIT_*` environment variables). Reinstall the old `lit-server`
 binary and start it: it verifies the untouched old directory as before (about
 30 seconds). Writes, clients and claims created after the import are lost,

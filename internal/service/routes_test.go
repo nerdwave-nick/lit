@@ -16,7 +16,6 @@ func TestRouteTableClassifiesEveryRoute(t *testing.T) {
 		{"GET", "/v1/clients/" + id},
 		{"GET", "/v1/claims"},
 		{"POST", "/v1/claim-snapshots"},
-		{"POST", "/v1/search"},
 		{"POST", "/v1/issue-summaries"},
 		{"POST", "/v1/snapshots"},
 		{"POST", "/v1/transaction-previews"},
@@ -65,7 +64,9 @@ func TestRouteTableClassifiesEveryRoute(t *testing.T) {
 			[2]string{"GET", "/v1/" + typ + "/" + id + "/requests/" + hash},
 		)
 	}
-	for want, cases := range map[access][][2]string{readAccess: reads, writeAccess: writes} {
+	// Searches are reads bounded by the search deadline.
+	searches := [][2]string{{"POST", "/v1/search"}}
+	for want, cases := range map[access][][2]string{readAccess: reads, searchAccess: searches, writeAccess: writes} {
 		for _, c := range cases {
 			if got := routeAccess(c[0], c[1]); got != want {
 				t.Errorf("%s %s: access %d, want %d", c[0], c[1], got, want)

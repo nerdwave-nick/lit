@@ -31,6 +31,9 @@ type Config struct {
 	// ExportInterval separates interval exports; zero, the default, turns
 	// them off (LIT_EXPORT_INTERVAL).
 	ExportInterval Duration `json:"export_interval,omitempty"`
+	// SearchTimeout is the deadline of every search request
+	// (LIT_SEARCH_TIMEOUT; default 10s).
+	SearchTimeout Duration `json:"search_timeout,omitempty"`
 }
 
 func xdg(key, fallback string) string {
@@ -42,7 +45,7 @@ func xdg(key, fallback string) string {
 	return filepath.Join(h, fallback)
 }
 func LoadConfig(args []string) (Config, error) {
-	c := Config{SchemaVersion: 1, DataDir: filepath.Join(xdg("XDG_DATA_HOME", ".local/share"), "lit-server"), Listen: "127.0.0.1:7411", Limits: protocol.DefaultLimits(), TitlePrefixes: []string{"feat", "fix", "refactor", "docs", "test", "chore", "decision", "research", "spec"}, ReadConcurrency: storage.DefaultReadConcurrency, BackupInterval: Duration(DefaultBackupInterval), BackupKeep: DefaultBackupKeep}
+	c := Config{SchemaVersion: 1, DataDir: filepath.Join(xdg("XDG_DATA_HOME", ".local/share"), "lit-server"), Listen: "127.0.0.1:7411", Limits: protocol.DefaultLimits(), TitlePrefixes: []string{"feat", "fix", "refactor", "docs", "test", "chore", "decision", "research", "spec"}, ReadConcurrency: storage.DefaultReadConcurrency, BackupInterval: Duration(DefaultBackupInterval), BackupKeep: DefaultBackupKeep, SearchTimeout: Duration(DefaultSearchTimeout)}
 	f := map[string]string{}
 	for i := 0; i < len(args); i++ {
 		k := args[i]
@@ -98,6 +101,9 @@ func LoadConfig(args []string) (Config, error) {
 	if e := c.exportEnvironment(); e != nil {
 		return c, e
 	}
+	if e := c.searchEnvironment(); e != nil {
+		return c, e
+	}
 	if v, ok := f["--data-dir"]; ok {
 		c.DataDir = v
 	}
@@ -117,6 +123,9 @@ func LoadConfig(args []string) (Config, error) {
 		return c, e
 	}
 	if e := c.validateExports(); e != nil {
+		return c, e
+	}
+	if e := c.validateSearch(); e != nil {
 		return c, e
 	}
 	host, port, e := net.SplitHostPort(c.Listen)

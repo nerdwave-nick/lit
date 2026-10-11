@@ -82,8 +82,11 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	// a read snapshot.
 	b := &bufferedResponse{header: make(http.Header), status: 200}
 	run := s.serialized
-	if routeAccess(r.Method, r.URL.Path) == readAccess {
+	switch routeAccess(r.Method, r.URL.Path) {
+	case readAccess:
 		run = s.snapshot
+	case searchAccess:
+		run = s.search
 	}
 	if e := run(r.Context(), func(rs *Server) error { return rs.handle(b, r) }); e != nil {
 		writeFailure(b, e)

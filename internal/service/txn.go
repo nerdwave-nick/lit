@@ -72,11 +72,23 @@ func (s *Server) serialized(ctx context.Context, f func(*Server) error) error {
 // lock. The request time is sampled before the snapshot begins. A read waits
 // while the maximum number of snapshots is open, until ctx ends.
 func (s *Server) snapshot(ctx context.Context, f func(*Server) error) error {
+	return s.boundedSnapshot(ctx, 0, nil, f)
+}
+
+// boundedSnapshot is snapshot with a deadline: when limit is positive, the
+// context f reads through ends limit after the snapshot opened, with cause.
+// The wait for a snapshot over the read cap does not count against it.
+func (s *Server) boundedSnapshot(ctx context.Context, limit time.Duration, cause error, f func(*Server) error) error {
 	r, e := s.DB.Read(ctx)
 	if e != nil {
 		return e
 	}
 	defer r.Close()
+	if limit > 0 {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeoutCause(ctx, limit, cause)
+		defer cancel()
+	}
 	return f(s.serving(&requestState{ctx: ctx, q: r, now: r.Now(), stamp: r.Now()}))
 }
 

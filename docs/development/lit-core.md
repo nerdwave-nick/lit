@@ -41,6 +41,9 @@ Deferred archives, editing windows, drafts, and saved plans have no routes.
   in `routes.go` classifies every route as a read (one WAL read snapshot, no
   lock, at most `read_concurrency` at once) or a write (the write lock and one
   write transaction); add each new route there, or it is serialized as a write.
+  A search route is classified `searchAccess`: a read bounded by the search
+  deadline (`search_limits.go`), whose handler also checks each pattern or
+  query with `checkSearchText` (at most 1,000 bytes).
   Each request runs on a request-scoped `Server` holding its transaction and
   request time. Request-body network reads happen first, response bytes are
   materialized in the transaction and transmitted after the snapshot closes or

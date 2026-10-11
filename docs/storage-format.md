@@ -80,6 +80,28 @@ Lock contention from outside lit-server, and a request that ends while waiting
 for the write lock or a read snapshot, are reported as `503 storage_busy`,
 never as `storage_error`. Searches stop when their request is cancelled.
 
+### Search limits
+
+Search routes (`POST /v1/search` today) are a third class in the route table:
+reads whose work is bounded by the search deadline (`search_timeout`,
+`LIT_SEARCH_TIMEOUT`, default 10 s). The deadline starts when the search's read
+snapshot opens; the wait for a snapshot over the read cap is bounded by the
+request, as for every read. A search that reaches its deadline stops at its
+next record, or SQLite interrupts its running statement, and its read slot is
+freed; so searches can no longer keep other reads waiting indefinitely.
+
+| Condition | Status | Error code |
+| --- | --- | --- |
+| a pattern or query longer than 1,000 bytes (UTF-8) | `422` | `validation_failed` |
+| the search reached its deadline | `504` | `search_timeout` |
+| the request ended first (client deadline or disconnect) | `503` | `storage_busy` |
+
+The `search_timeout` message names the deadline and says to narrow the query
+or its scope (one project instead of all projects). It is `504`, not `503`:
+the service could not finish in time, and repeating the same search is likely
+to time out again, while `503 storage_busy` means the same request can simply
+be retried. The CLI exits 1 for it, and 2 for `validation_failed`.
+
 ## Schema
 
 All tables are `STRICT`. The schema is version 2:
