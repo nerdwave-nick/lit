@@ -113,6 +113,12 @@ lit-server running but answering every request with `503 recovery_required`
 because its database failed the startup checks. Only an operator leaves it, by
 restoring a backup or repairing the database.
 
+**Backup snapshot**:
+A complete copy of lit-server's database that lit-server writes itself with
+`VACUUM INTO`: scheduled ones at an interval, of which the newest few are kept,
+and one before each schema migration. Restoring one loses everything committed
+after it was taken.
+
 **Saved plan**:
 A prepared durable transaction retained for explicit later application, bound
 to its tracker and logical client and to the original changes and preconditions.
