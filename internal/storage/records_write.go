@@ -124,11 +124,14 @@ func (t *WriteTx) writeRow(ctx context.Context, c change) error {
 		var old []string
 		if b, ok := c.before.(protocol.Project); ok {
 			old = b.RepositoryRefs
-			e = t.update(ctx, "UPDATE projects SET revision = ?, updated_at = ?, title = ?, description = ?, folded_description = ?, grep_description = ? WHERE id = ? AND revision = ?",
-				a.Revision, a.UpdatedAt, a.Title, a.Description, textfold.Fold(a.Description), grepFold(a.Description), a.ID, a.Revision-1)
+			e = t.update(ctx, "UPDATE projects SET revision = ?, updated_at = ?, title = ?, description = ?, folded_description = ? WHERE id = ? AND revision = ?",
+				a.Revision, a.UpdatedAt, a.Title, a.Description, textfold.Fold(a.Description), a.ID, a.Revision-1)
 		} else {
-			_, e = t.exec(ctx, "INSERT INTO projects (id, revision, created_at, updated_at, title, description, folded_description, grep_description) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-				a.ID, a.Revision, a.CreatedAt, a.UpdatedAt, a.Title, a.Description, textfold.Fold(a.Description), grepFold(a.Description))
+			_, e = t.exec(ctx, "INSERT INTO projects (id, revision, created_at, updated_at, title, description, folded_description) VALUES (?, ?, ?, ?, ?, ?, ?)",
+				a.ID, a.Revision, a.CreatedAt, a.UpdatedAt, a.Title, a.Description, textfold.Fold(a.Description))
+		}
+		if e == nil {
+			e = t.writeGrep(ctx, Projects, a.ID, "", a.Description)
 		}
 		if e == nil {
 			e = t.syncSet(ctx, old, a.RepositoryRefs, "DELETE FROM project_repositories WHERE project_id = ? AND repository_ref = ?", "INSERT INTO project_repositories (project_id, repository_ref) VALUES (?, ?)", a.ID)
@@ -140,12 +143,15 @@ func (t *WriteTx) writeRow(ctx context.Context, c change) error {
 			if a.ProjectID != b.ProjectID {
 				return invalidWrite("issue %s cannot move to another project", a.ID)
 			}
-			e = t.update(ctx, "UPDATE issues SET revision = ?, updated_at = ?, title = ?, title_key = ?, body = ?, folded_body = ?, grep_title = ?, grep_body = ?, state = ?, assignee = ? WHERE id = ? AND revision = ?",
-				a.Revision, a.UpdatedAt, a.Title, textfold.Fold(a.Title), a.Body, textfold.Fold(a.Body), grepFold(a.Title), grepFold(a.Body), a.State, a.Assignee, a.ID, a.Revision-1)
+			e = t.update(ctx, "UPDATE issues SET revision = ?, updated_at = ?, title = ?, title_key = ?, body = ?, folded_body = ?, state = ?, assignee = ? WHERE id = ? AND revision = ?",
+				a.Revision, a.UpdatedAt, a.Title, textfold.Fold(a.Title), a.Body, textfold.Fold(a.Body), a.State, a.Assignee, a.ID, a.Revision-1)
 		} else {
 			// The parent is set after every issue of the request exists.
-			_, e = t.exec(ctx, "INSERT INTO issues (id, project_id, revision, created_at, updated_at, title, title_key, body, folded_body, grep_title, grep_body, state, assignee, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
-				a.ID, a.ProjectID, a.Revision, a.CreatedAt, a.UpdatedAt, a.Title, textfold.Fold(a.Title), a.Body, textfold.Fold(a.Body), grepFold(a.Title), grepFold(a.Body), a.State, a.Assignee)
+			_, e = t.exec(ctx, "INSERT INTO issues (id, project_id, revision, created_at, updated_at, title, title_key, body, folded_body, state, assignee, parent_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
+				a.ID, a.ProjectID, a.Revision, a.CreatedAt, a.UpdatedAt, a.Title, textfold.Fold(a.Title), a.Body, textfold.Fold(a.Body), a.State, a.Assignee)
+		}
+		if e == nil {
+			e = t.writeGrep(ctx, Issues, a.ID, a.Title, a.Body)
 		}
 		if e == nil {
 			e = t.syncSet(ctx, old, a.Labels, "DELETE FROM issue_labels WHERE issue_id = ? AND label = ?", "INSERT INTO issue_labels (issue_id, label) VALUES (?, ?)", a.ID)
@@ -155,11 +161,14 @@ func (t *WriteTx) writeRow(ctx context.Context, c change) error {
 			if a.IssueID != b.IssueID {
 				return invalidWrite("comment %s cannot move to another issue", a.ID)
 			}
-			e = t.update(ctx, "UPDATE comments SET revision = ?, updated_at = ?, author = ?, body = ?, folded_body = ?, grep_body = ? WHERE id = ? AND revision = ?",
-				a.Revision, a.UpdatedAt, a.Author, a.Body, textfold.Fold(a.Body), grepFold(a.Body), a.ID, a.Revision-1)
+			e = t.update(ctx, "UPDATE comments SET revision = ?, updated_at = ?, author = ?, body = ?, folded_body = ? WHERE id = ? AND revision = ?",
+				a.Revision, a.UpdatedAt, a.Author, a.Body, textfold.Fold(a.Body), a.ID, a.Revision-1)
 		} else {
-			_, e = t.exec(ctx, "INSERT INTO comments (id, issue_id, revision, created_at, updated_at, author, body, folded_body, grep_body) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-				a.ID, a.IssueID, a.Revision, a.CreatedAt, a.UpdatedAt, a.Author, a.Body, textfold.Fold(a.Body), grepFold(a.Body))
+			_, e = t.exec(ctx, "INSERT INTO comments (id, issue_id, revision, created_at, updated_at, author, body, folded_body) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+				a.ID, a.IssueID, a.Revision, a.CreatedAt, a.UpdatedAt, a.Author, a.Body, textfold.Fold(a.Body))
+		}
+		if e == nil {
+			e = t.writeGrep(ctx, Comments, a.ID, "", a.Body)
 		}
 	case protocol.Milestone:
 		var old []string
@@ -168,11 +177,14 @@ func (t *WriteTx) writeRow(ctx context.Context, c change) error {
 			if a.ProjectID != b.ProjectID {
 				return invalidWrite("milestone %s cannot move to another project", a.ID)
 			}
-			e = t.update(ctx, "UPDATE milestones SET revision = ?, updated_at = ?, title = ?, title_key = ?, body = ?, folded_body = ?, grep_title = ?, grep_body = ? WHERE id = ? AND revision = ?",
-				a.Revision, a.UpdatedAt, a.Title, textfold.Fold(a.Title), a.Body, textfold.Fold(a.Body), grepFold(a.Title), grepFold(a.Body), a.ID, a.Revision-1)
+			e = t.update(ctx, "UPDATE milestones SET revision = ?, updated_at = ?, title = ?, title_key = ?, body = ?, folded_body = ? WHERE id = ? AND revision = ?",
+				a.Revision, a.UpdatedAt, a.Title, textfold.Fold(a.Title), a.Body, textfold.Fold(a.Body), a.ID, a.Revision-1)
 		} else {
-			_, e = t.exec(ctx, "INSERT INTO milestones (id, project_id, revision, created_at, updated_at, title, title_key, body, folded_body, grep_title, grep_body) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-				a.ID, a.ProjectID, a.Revision, a.CreatedAt, a.UpdatedAt, a.Title, textfold.Fold(a.Title), a.Body, textfold.Fold(a.Body), grepFold(a.Title), grepFold(a.Body))
+			_, e = t.exec(ctx, "INSERT INTO milestones (id, project_id, revision, created_at, updated_at, title, title_key, body, folded_body) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+				a.ID, a.ProjectID, a.Revision, a.CreatedAt, a.UpdatedAt, a.Title, textfold.Fold(a.Title), a.Body, textfold.Fold(a.Body))
+		}
+		if e == nil {
+			e = t.writeGrep(ctx, Milestones, a.ID, a.Title, a.Body)
 		}
 		if e == nil {
 			e = t.syncSet(ctx, old, a.IssueIDs, "DELETE FROM milestone_members WHERE milestone_id = ? AND issue_id = ?", "INSERT INTO milestone_members (milestone_id, issue_id, project_id) VALUES (?, ?, ?)", a.ID, a.ProjectID)

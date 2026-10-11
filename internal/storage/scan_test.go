@@ -99,8 +99,8 @@ func TestSearchScanNarrowsToTheRecordsContainingTheNeedle(t *testing.T) {
 	}
 }
 
-// Needles of three or more characters are looked up in every trigram table
-// with an index GLOB; shorter ones scan the record tables.
+// Needles of three or more characters are looked up in the trigram index
+// with an index GLOB; shorter ones scan grep_text.
 func TestSearchScanUsesTheTrigramIndexFromThreeCharacters(t *testing.T) {
 	db := openTemp(t)
 	plan := func(projectID, needle string) string {
@@ -122,16 +122,13 @@ func TestSearchScanUsesTheTrigramIndexFromThreeCharacters(t *testing.T) {
 		return strings.Join(lines, "\n")
 	}
 	for _, needle := range []string{"abc", "a*b", "日本語", "\x00\x00\x00"} {
-		got := plan(id(1), needle)
-		for _, table := range []string{"projects_grep", "issues_grep", "comments_grep", "milestones_grep"} {
-			if !strings.Contains(got, "SCAN "+table+" VIRTUAL TABLE INDEX 0:G") {
-				t.Errorf("needle %q: no index GLOB on %s in\n%s", needle, table, got)
-			}
+		if got := plan(id(1), needle); strings.Count(got, "SCAN grep_index VIRTUAL TABLE INDEX 0:G") != 2 {
+			t.Errorf("needle %q: no index GLOB on both columns in\n%s", needle, got)
 		}
 	}
 	for _, needle := range []string{"ab", "ß", "\x00"} {
-		if got := plan("", needle); strings.Contains(got, "_grep") {
-			t.Errorf("needle %q uses a trigram table:\n%s", needle, got)
+		if got := plan("", needle); strings.Contains(got, "grep_index") || !strings.Contains(got, "SCAN grep_text") {
+			t.Errorf("needle %q does not scan grep_text:\n%s", needle, got)
 		}
 	}
 }

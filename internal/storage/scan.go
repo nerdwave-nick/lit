@@ -30,9 +30,8 @@ type SearchRecord struct {
 // type and ID: a project's description, an issue's and a milestone's title
 // and body, and a comment's body. needle is folded text that the
 // textfold.Grep fold of every matching field contains; a record is read when
-// one of its grep columns may contain it, through the trigram tables when
-// needle has three or more characters and by scanning the grep columns
-// otherwise. The records are a
+// its folded text in grep_text may contain it, through the trigram index when
+// needle has three or more characters and by scanning grep_text otherwise. The records are a
 // superset of the matches (NUL and U+FFFD read alike), so callers confirm each
 // on its original text. An empty needle reads every record of the scope. The
 // scan stops at the first error from fn or ctx.
@@ -59,44 +58,42 @@ func (q queries) SearchScan(ctx context.Context, projectID, needle string, fn fu
 // searchQuery is SearchScan's query and its arguments.
 func searchQuery(projectID, needle string) (string, []any) {
 	needle = grepSafe(needle)
-	match := grepCondition(needle)
+	hits := grepHits(needle)
+	match := func(typ string) string {
+		if hits == "" {
+			return "1"
+		}
+		return "r.id IN (SELECT owner_id FROM hits WHERE owner_type = '" + typ + "')"
+	}
 	scope := func(column string) string {
 		if projectID == "" {
 			return ""
 		}
 		return " AND " + column + " = ?1"
 	}
-	query := `SELECT 'projects' AS type, r.id, r.revision, r.id AS project_id, '' AS issue_id, '' AS issue_title, NULL AS title, r.description AS body FROM projects r WHERE ` + match("projects", "grep_description") + scope("r.id") + `
-		UNION ALL SELECT 'issues', r.id, r.revision, r.project_id, r.id, r.title, r.title, r.body FROM issues r WHERE ` + match("issues", "grep_title", "grep_body") + scope("r.project_id") + `
-		UNION ALL SELECT 'comments', r.id, r.revision, i.project_id, i.id, i.title, NULL, r.body FROM comments r JOIN issues i ON i.id = r.issue_id WHERE ` + match("comments", "grep_body") + scope("i.project_id") + `
-		UNION ALL SELECT 'milestones', r.id, r.revision, r.project_id, '', '', r.title, r.body FROM milestones r WHERE ` + match("milestones", "grep_title", "grep_body") + scope("r.project_id") + `
+	query := `SELECT 'projects' AS type, r.id, r.revision, r.id AS project_id, '' AS issue_id, '' AS issue_title, NULL AS title, r.description AS body FROM projects r WHERE ` + match(Projects) + scope("r.id") + `
+		UNION ALL SELECT 'issues', r.id, r.revision, r.project_id, r.id, r.title, r.title, r.body FROM issues r WHERE ` + match(Issues) + scope("r.project_id") + `
+		UNION ALL SELECT 'comments', r.id, r.revision, i.project_id, i.id, i.title, NULL, r.body FROM comments r JOIN issues i ON i.id = r.issue_id WHERE ` + match(Comments) + scope("i.project_id") + `
+		UNION ALL SELECT 'milestones', r.id, r.revision, r.project_id, '', '', r.title, r.body FROM milestones r WHERE ` + match(Milestones) + scope("r.project_id") + `
 		ORDER BY project_id, type, id`
+	if hits != "" {
+		query = "WITH hits (owner_type, owner_id) AS MATERIALIZED (" + hits + ") " + query
+	}
 	return query, []any{projectID, globLiteral(needle), needle}
 }
 
-// grepCondition returns, for a record table aliased r and its grep columns,
-// the condition that one of the columns may contain needle: a GLOB with the
-// pattern ?2 on the table's trigram table from three characters on (the
-// trigram index needs three), otherwise a scan of the columns for the needle
-// ?3. An empty needle matches every row.
-func grepCondition(needle string) func(table string, columns ...string) string {
-	indexed := utf8.RuneCountInString(needle) >= 3
-	return func(table string, columns ...string) string {
-		if needle == "" {
-			return "1"
-		}
-		var alternatives []string
-		for _, c := range columns {
-			if indexed {
-				alternatives = append(alternatives, "SELECT rowid FROM "+table+"_grep WHERE "+c+" GLOB ?2")
-			} else {
-				alternatives = append(alternatives, "instr(r."+c+", ?3) > 0")
-			}
-		}
-		if indexed {
-			return "r.rowid IN (" + strings.Join(alternatives, " UNION ALL ") + ")"
-		}
-		return "(" + strings.Join(alternatives, " OR ") + ")"
+// grepHits selects the records (owner_type, owner_id) whose folded title or
+// body may contain needle: a GLOB with the pattern ?2 on grep_index from
+// three characters on (the trigram index needs three), otherwise a scan of
+// grep_text for the needle ?3. An empty needle needs no selection ("").
+func grepHits(needle string) string {
+	switch {
+	case needle == "":
+		return ""
+	case utf8.RuneCountInString(needle) >= 3:
+		return "SELECT owner_type, owner_id FROM grep_text WHERE seq IN (SELECT rowid FROM grep_index WHERE title GLOB ?2 UNION ALL SELECT rowid FROM grep_index WHERE body GLOB ?2)"
+	default:
+		return "SELECT owner_type, owner_id FROM grep_text WHERE instr(title, ?3) > 0 OR instr(body, ?3) > 0"
 	}
 }
 

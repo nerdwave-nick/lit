@@ -48,12 +48,12 @@ diffs, "before" values) and insert legacy membership-list history rows that
 must be skipped.
 
 The grep index tests cover the migration to schema version 2 (a version 1
-database with rows gets filled grep columns and trigram tables after its
-pre-migration snapshot), writes keeping the columns and tables in step, the
+database with rows gets a filled `grep_text` and `grep_index` after its
+pre-migration snapshot), writes keeping both in step, the
 candidate scan (index `GLOB` from three folded characters, with literal `*`,
 `?` and `[`; a column scan below; no match across fields; NUL), its query plan,
-and the startup check rebuilding a stale trigram table and rewriting stale grep
-columns. In the service, `TestGrepThroughTheIndexMatchesTheScan` runs the
+and the startup check rebuilding a stale `grep_index` and rewriting missing,
+stale and orphaned `grep_text` rows. In the service, `TestGrepThroughTheIndexMatchesTheScan` runs the
 search acceptance cases (`net/http`, `C++`, `Go`, `UI`, `strasse`/`Straße`,
 `cafe`, `foo.bar`, `a_b`, `100%`, `APP-123`, and folding hazards such as
 decomposed accents, `İ`, the Kelvin sign, NUL and GLOB's wildcards) folded and

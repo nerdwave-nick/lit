@@ -61,11 +61,10 @@ Every start runs, before the first request is served:
    `lit-server: search index NAME failed its integrity check (...); rebuilt it`.
    Only a rebuild that fails, or a table that still fails afterwards, is a
    startup failure;
-2. the grep columns that the search tables index (the folded titles, bodies
-   and project descriptions of `lit grep`). They are recomputed from each
-   row's text; stale ones are rewritten, and the search tables follow, with a
-   log line such as
-   `lit-server: folded text of N issues rows was stale; rewrote it`;
+2. the folded text that the search index of `lit grep` indexes (`grep_text`).
+   It is recomputed from every record; missing, stale and orphaned rows are
+   rewritten, and the search index follows, with a log line such as
+   `lit-server: folded text of N issues was stale; rewrote it`;
 3. `PRAGMA integrity_check` and `PRAGMA foreign_key_check` of the whole
    database.
 
@@ -113,7 +112,7 @@ mutations among them are uncertain outcomes that clients reconcile with
 
 `lit-server verify [--data-dir DIR] [--config FILE]` verifies a database on
 demand; it never runs at startup. It runs the startup checks (including the
-automatic search index rebuild and grep column rewrite), then replays every record's field and body
+automatic search index rebuild and folded text rewrite), then replays every record's field and body
 history from its creation, in one read snapshot, and compares the result with
 the record's current state: every revision from 1 must be present, each stored
 "before" value must match the replay, each body diff must apply, and the replay

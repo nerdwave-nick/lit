@@ -24,9 +24,6 @@ var schemaV1 string
 //go:embed schema_v2.sql
 var schemaV2 string
 
-//go:embed schema_v2_index.sql
-var schemaV2Index string
-
 var migrations = []migration{
 	{1, func(ctx context.Context, tx *sql.Tx) error { _, e := tx.ExecContext(ctx, schemaV1); return e }},
 	{2, migrateGrepIndex},

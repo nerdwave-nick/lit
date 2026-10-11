@@ -8,34 +8,38 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/textfold"
 )
 
-// grepFold is a field's stored grep column: textfold.Grep of its text, then
-// grepSafe.
+// grepFold is a field's text as grep_text stores it: textfold.Grep of the
+// text, then grepSafe.
 func grepFold(s string) string { return grepSafe(textfold.Grep(s)) }
 
-// grepSafe writes NUL as U+FFFD, because GLOB stops at NUL. Stored columns
-// and needles are mapped alike, scalar by scalar, so a substring of a text
-// still maps to a substring of its column; lit grep confirms every candidate
+// grepSafe writes NUL as U+FFFD, because GLOB stops at NUL. Stored text and
+// needles are mapped alike, scalar by scalar, so a substring of a text still
+// maps to a substring of its stored fold; lit grep confirms every candidate
 // on the original text.
 func grepSafe(s string) string { return strings.ReplaceAll(s, "\x00", "\uFFFD") }
 
-// grepTable is a record table with its grep columns, each the grepFold of a
-// source column.
-type grepTable struct {
-	name    string
-	columns []grepColumn
+// grepSource is a record table and the columns of its searchable fields
+// (” for a record without a title).
+type grepSource struct{ table, title, body string }
+
+// grepSources are the record tables whose text grep_text folds.
+var grepSources = []grepSource{
+	{Projects, "''", "r.description"},
+	{Issues, "r.title", "r.body"},
+	{Comments, "''", "r.body"},
+	{Milestones, "r.title", "r.body"},
 }
 
-type grepColumn struct{ source, column string }
+// writeGrepText is the upsert of a record's grep_text row; an unchanged row is
+// not rewritten, so its index entries stay.
+const writeGrepText = `INSERT INTO grep_text (owner_type, owner_id, title, body) VALUES (?, ?, ?, ?)
+	ON CONFLICT (owner_type, owner_id) DO UPDATE SET title = excluded.title, body = excluded.body
+	WHERE title <> excluded.title OR body <> excluded.body`
 
-// grepColumns are the columns that the trigram search tables index. The NFC
-// folds (title keys, and the folded bodies of the discovery text filter) are
-// not rechecked at startup: title keys are unique keys, and NFC folding all
-// text at every start would cost about ten times as much.
-var grepColumns = []grepTable{
-	{"projects", []grepColumn{{"description", "grep_description"}}},
-	{"issues", []grepColumn{{"title", "grep_title"}, {"body", "grep_body"}}},
-	{"comments", []grepColumn{{"body", "grep_body"}}},
-	{"milestones", []grepColumn{{"title", "grep_title"}, {"body", "grep_body"}}},
+// writeGrep stores the folded text of one record in grep_text.
+func (t *WriteTx) writeGrep(ctx context.Context, typ, id, title, body string) error {
+	_, e := t.exec(ctx, writeGrepText, typ, id, grepFold(title), grepFold(body))
+	return e
 }
 
 // sqlTx is the part of a transaction that refolding uses.
@@ -44,111 +48,80 @@ type sqlTx interface {
 	QueryContext(ctx context.Context, query string, args ...any) (*sql.Rows, error)
 }
 
-// refoldBatch bounds the rows read at once while refolding.
+// refoldBatch bounds the records read at once while refolding.
 const refoldBatch = 500
 
-// refold recomputes the grep columns of every row of t and rewrites the
-// rows where a stored column differs; the search triggers keep the trigram
-// tables in step. It returns the number of rewritten rows.
-func refold(ctx context.Context, tx sqlTx, t grepTable) (int, error) {
-	var sources, columns, sets []string
-	for _, c := range t.columns {
-		sources = append(sources, c.source)
-		columns = append(columns, c.column)
-		sets = append(sets, c.column+" = ?")
-	}
-	read := "SELECT rowid, " + strings.Join(sources, ", ") + ", " + strings.Join(columns, ", ") + " FROM " + t.name + " WHERE rowid > ? ORDER BY rowid LIMIT ?"
-	update := "UPDATE " + t.name + " SET " + strings.Join(sets, ", ") + " WHERE rowid = ?"
-	n := len(t.columns)
-	rewritten := 0
-	for after := int64(-1 << 63); ; {
-		stale, last, e := staleRows(ctx, tx, read, after, t)
+// refold recomputes the grep_text rows of every record of src: missing and
+// stale rows are written and rows without a record deleted (the triggers keep
+// grep_index in step). It returns the number of rows changed.
+func refold(ctx context.Context, tx sqlTx, src grepSource) (int, error) {
+	read := "SELECT r.id, " + src.title + ", " + src.body + ", g.title, g.body FROM " + src.table + " r LEFT JOIN grep_text g ON g.owner_type = '" + src.table + "' AND g.owner_id = r.id WHERE r.id > ? ORDER BY r.id LIMIT ?"
+	changed := 0
+	for after := ""; ; {
+		stale, last, e := staleText(ctx, tx, read, after)
 		if e != nil {
-			return rewritten, e
+			return changed, e
 		}
 		for _, row := range stale {
-			args := make([]any, 0, n+1)
-			for _, v := range row.folded {
-				args = append(args, v)
-			}
-			if _, e = tx.ExecContext(ctx, update, append(args, row.rowid)...); e != nil {
-				return rewritten, e
+			if _, e = tx.ExecContext(ctx, writeGrepText, src.table, row[0], row[1], row[2]); e != nil {
+				return changed, e
 			}
 		}
-		rewritten += len(stale)
-		if last == nil {
-			return rewritten, nil
+		changed += len(stale)
+		if last == "" {
+			break
 		}
-		after = *last
+		after = last
 	}
+	r, e := tx.ExecContext(ctx, "DELETE FROM grep_text WHERE owner_type = ? AND NOT EXISTS (SELECT 1 FROM "+src.table+" r WHERE r.id = grep_text.owner_id)", src.table)
+	if e != nil {
+		return changed, e
+	}
+	n, e := r.RowsAffected()
+	return changed + int(n), e
 }
 
-type staleRow struct {
-	rowid  int64
-	folded []string
-}
-
-// staleRows reads one batch of rows after the rowid after and returns those
-// whose grep columns are stale, with their new values, and the batch's last
-// rowid (nil after the last batch).
-func staleRows(ctx context.Context, tx sqlTx, query string, after int64, t grepTable) ([]staleRow, *int64, error) {
+// staleText reads one batch of records after the ID after and returns the
+// rows (ID, folded title, folded body) whose grep_text row is missing or
+// stale, and the batch's last ID ("" after the last batch).
+func staleText(ctx context.Context, tx sqlTx, query, after string) ([][3]string, string, error) {
 	rows, e := tx.QueryContext(ctx, query, after, refoldBatch)
 	if e != nil {
-		return nil, nil, e
+		return nil, "", e
 	}
 	defer func() { _ = rows.Close() }()
-	n := len(t.columns)
-	var stale []staleRow
-	var last *int64
-	count := 0
+	var stale [][3]string
+	last, count := "", 0
 	for rows.Next() {
-		var rowid int64
-		values := make([]string, 2*n)
-		dest := []any{&rowid}
-		for i := range values {
-			dest = append(dest, &values[i])
-		}
-		if e = rows.Scan(dest...); e != nil {
-			return nil, nil, e
+		var id, title, body string
+		var storedTitle, storedBody sql.NullString
+		if e = rows.Scan(&id, &title, &body, &storedTitle, &storedBody); e != nil {
+			return nil, "", e
 		}
 		count++
-		last = &rowid
-		folded := make([]string, n)
-		changed := false
-		for i := range t.columns {
-			folded[i] = grepFold(values[i])
-			changed = changed || folded[i] != values[n+i]
-		}
-		if changed {
-			stale = append(stale, staleRow{rowid, folded})
+		last = id
+		title, body = grepFold(title), grepFold(body)
+		if !storedTitle.Valid || storedTitle.String != title || storedBody.String != body {
+			stale = append(stale, [3]string{id, title, body})
 		}
 	}
 	if e = rows.Err(); e != nil {
-		return nil, nil, e
+		return nil, "", e
 	}
 	if count < refoldBatch {
-		last = nil
+		last = ""
 	}
 	return stale, last, nil
 }
 
-// migrateGrepIndex is schema version 2: the grep columns, filled from the
-// existing rows before the trigram tables and their triggers exist, then the
-// tables, built from the filled columns.
+// migrateGrepIndex is schema version 2: grep_text and its trigram index,
+// filled from the existing records.
 func migrateGrepIndex(ctx context.Context, tx *sql.Tx) error {
 	if _, e := tx.ExecContext(ctx, schemaV2); e != nil {
 		return e
 	}
-	for _, t := range grepColumns {
-		if _, e := refold(ctx, tx, t); e != nil {
-			return e
-		}
-	}
-	if _, e := tx.ExecContext(ctx, schemaV2Index); e != nil {
-		return e
-	}
-	for _, t := range grepColumns {
-		if _, e := tx.ExecContext(ctx, "INSERT INTO "+t.name+"_grep ("+t.name+"_grep) VALUES ('rebuild')"); e != nil {
+	for _, src := range grepSources {
+		if _, e := refold(ctx, tx, src); e != nil {
 			return e
 		}
 	}

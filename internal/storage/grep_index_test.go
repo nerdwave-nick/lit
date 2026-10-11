@@ -9,16 +9,13 @@ import (
 	"testing"
 )
 
-// grepTables are the trigram search tables, one per record table.
-var grepTables = []string{"comments_grep", "issues_grep", "milestones_grep", "projects_grep"}
-
-// grepHits lists the IDs of table's records whose search table matches the
-// GLOB pattern in column, through the search table alone.
-func grepHits(t *testing.T, q interface {
+// indexHits lists the IDs of the records of type typ whose folded column
+// (title or body) matches the GLOB pattern, through grep_index alone.
+func indexHits(t *testing.T, q interface {
 	QueryContext(context.Context, string, ...any) (*sql.Rows, error)
-}, table, column, pattern string) []string {
+}, typ, column, pattern string) []string {
 	t.Helper()
-	rows, e := q.QueryContext(context.Background(), "SELECT r.id FROM "+table+"_grep s JOIN "+table+" r ON r.rowid = s.rowid WHERE s."+column+" GLOB ? ORDER BY r.id", pattern)
+	rows, e := q.QueryContext(context.Background(), "SELECT g.owner_id FROM grep_index x JOIN grep_text g ON g.seq = x.rowid WHERE g.owner_type = ? AND x."+column+" GLOB ? ORDER BY g.owner_id", typ, pattern)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -37,69 +34,60 @@ func grepHits(t *testing.T, q interface {
 	return out
 }
 
-// checkGrepTables runs each search table's FTS5 integrity-check against its
-// content table.
-func checkGrepTables(t *testing.T, db *sql.DB) {
+// checkGrepIndex runs the FTS5 integrity-check of grep_index against
+// grep_text.
+func checkGrepIndex(t *testing.T, db *sql.DB) {
 	t.Helper()
-	for _, name := range grepTables {
-		if _, e := db.Exec("INSERT INTO " + name + "(" + name + ", rank) VALUES ('integrity-check', 1)"); e != nil {
-			t.Fatalf("%s: %v", name, e)
-		}
+	if _, e := db.Exec("INSERT INTO grep_index (grep_index, rank) VALUES ('integrity-check', 1)"); e != nil {
+		t.Fatal(e)
 	}
 }
 
-func TestFreshDatabaseHasTheTrigramSearchTables(t *testing.T) {
+// foldedText reads a record's grep_text row.
+func foldedText(t *testing.T, db *sql.DB, typ, id string) (title, body string) {
+	t.Helper()
+	if e := db.QueryRow("SELECT title, body FROM grep_text WHERE owner_type = ? AND owner_id = ?", typ, id).Scan(&title, &body); e != nil {
+		t.Fatalf("%s %s: %v", typ, id, e)
+	}
+	return title, body
+}
+
+func TestFreshDatabaseHasTheTrigramIndex(t *testing.T) {
 	db := openTemp(t)
 	if db.SchemaVersion() != 2 {
 		t.Fatalf("schema version %d, want 2", db.SchemaVersion())
 	}
-	var names []string
-	o := outside(t, db)
-	rows, e := o.Query("SELECT name, sql FROM sqlite_schema WHERE type = 'table' AND sql LIKE 'CREATE VIRTUAL TABLE%' ORDER BY name")
-	if e != nil {
+	var text string
+	if e := outside(t, db).QueryRow("SELECT sql FROM sqlite_schema WHERE name = 'grep_index'").Scan(&text); e != nil {
 		t.Fatal(e)
 	}
-	defer rows.Close()
-	for rows.Next() {
-		var name, text string
-		if e := rows.Scan(&name, &text); e != nil {
-			t.Fatal(e)
+	for _, want := range []string{"fts5", "content='grep_text'", "content_rowid='seq'", "tokenize='trigram case_sensitive 1'"} {
+		if !strings.Contains(text, want) {
+			t.Errorf("grep_index lacks %s: %s", want, text)
 		}
-		names = append(names, name)
-		table := strings.TrimSuffix(name, "_grep")
-		for _, want := range []string{"fts5", "content='" + table + "'", "content_rowid='rowid'", "tokenize='trigram case_sensitive 1'"} {
-			if !strings.Contains(text, want) {
-				t.Errorf("%s lacks %s: %s", name, want, text)
-			}
-		}
-	}
-	if !slices.Equal(names, grepTables) {
-		t.Fatalf("search tables %v, want %v", names, grepTables)
 	}
 }
 
-// Writes keep the folded grep columns and the trigram tables in step with the
-// records, in the same transaction; NUL is stored as U+FFFD because GLOB stops
-// at NUL.
+// Writes keep grep_text and its trigram index in step with the records, in
+// the same transaction; NUL is stored as U+FFFD because GLOB stops at NUL.
 func TestWritesMaintainTheGrepColumnsAndIndex(t *testing.T) {
 	w := newWorld(t)
 	o := outside(t, w.db)
-	var title, body string
-	if e := o.QueryRow("SELECT grep_title, grep_body FROM issues WHERE id = ?", w.a.ID).Scan(&title, &body); e != nil || title != "strasse" || body != "body of a\n" {
-		t.Fatalf("issue grep columns %q %q %v", title, body, e)
+	if title, body := foldedText(t, o, Issues, w.a.ID); title != "strasse" || body != "body of a\n" {
+		t.Fatalf("issue folded text %q %q", title, body)
 	}
-	if e := o.QueryRow("SELECT grep_description FROM projects WHERE id = ?", w.p.ID).Scan(&body); e != nil || body != "ünïcode\r\ndescription" {
-		t.Fatalf("project grep column %q %v", body, e)
+	if title, body := foldedText(t, o, Projects, w.p.ID); title != "" || body != "ünïcode\r\ndescription" {
+		t.Fatalf("project folded text %q %q", title, body)
 	}
-	for _, c := range []struct{ table, column, pattern string }{
-		{"issues", "grep_title", "*strasse*"},
-		{"projects", "grep_description", "*cod*"},
-		{"comments", "grep_body", "*comment*"},
-		{"milestones", "grep_body", "*goa*"},
-		{"milestones", "grep_title", "*m1*"},
+	for _, c := range []struct{ typ, column, pattern string }{
+		{Issues, "title", "*strasse*"},
+		{Projects, "body", "*cod*"},
+		{Comments, "body", "*comment*"},
+		{Milestones, "body", "*goa*"},
+		{Milestones, "title", "*m1*"},
 	} {
-		if got := grepHits(t, o, c.table, c.column, c.pattern); len(got) == 0 {
-			t.Errorf("%s.%s %s found nothing", c.table, c.column, c.pattern)
+		if got := indexHits(t, o, c.typ, c.column, c.pattern); len(got) == 0 {
+			t.Errorf("%s.%s %s found nothing", c.typ, c.column, c.pattern)
 		}
 	}
 	a := next(w.a, w.stamp())
@@ -108,29 +96,29 @@ func TestWritesMaintainTheGrepColumnsAndIndex(t *testing.T) {
 	comment.Body = "Edited"
 	mustApply(t, w.db, a.UpdatedAt, a)
 	mustApply(t, w.db, comment.UpdatedAt, comment)
-	if e := o.QueryRow("SELECT grep_body FROM issues WHERE id = ?", w.a.ID).Scan(&body); e != nil || body != "nul\uFFFDafter the nul" {
-		t.Fatalf("issue grep body %q %v", body, e)
+	if _, body := foldedText(t, o, Issues, w.a.ID); body != "nul\uFFFDafter the nul" {
+		t.Fatalf("issue folded body %q", body)
 	}
 	for _, c := range []struct {
-		table, column, pattern string
-		want                   []string
+		typ, column, pattern string
+		want                 []string
 	}{
-		{"issues", "grep_title", "*strasse*", []string{w.x.ID}},
-		{"issues", "grep_title", "*renamed*", []string{w.a.ID}},
-		{"issues", "grep_body", "*body of*", []string{}},
-		{"issues", "grep_body", "*after the nul*", []string{w.a.ID}},
-		{"comments", "grep_body", "*comment*", []string{}},
-		{"comments", "grep_body", "*edited*", []string{w.comment.ID}},
+		{Issues, "title", "*strasse*", []string{w.x.ID}},
+		{Issues, "title", "*renamed*", []string{w.a.ID}},
+		{Issues, "body", "*body of*", []string{}},
+		{Issues, "body", "*after the nul*", []string{w.a.ID}},
+		{Comments, "body", "*comment*", []string{}},
+		{Comments, "body", "*edited*", []string{w.comment.ID}},
 	} {
-		if got := grepHits(t, o, c.table, c.column, c.pattern); !slices.Equal(got, c.want) {
-			t.Errorf("%s.%s %s = %v, want %v", c.table, c.column, c.pattern, got, c.want)
+		if got := indexHits(t, o, c.typ, c.column, c.pattern); !slices.Equal(got, c.want) {
+			t.Errorf("%s.%s %s = %v, want %v", c.typ, c.column, c.pattern, got, c.want)
 		}
 	}
-	checkGrepTables(t, o)
+	checkGrepIndex(t, o)
 }
 
-// A version 1 database is snapshotted, then gains the grep columns, filled
-// from its rows, and their trigram tables.
+// A version 1 database is snapshotted, then gains grep_text, filled from its
+// records, and the trigram index.
 func TestVersion1DatabaseIsMigratedWithItsGrepIndex(t *testing.T) {
 	dir := t.TempDir()
 	db, e := open(dir, migrations[:1], false)
@@ -161,9 +149,9 @@ func TestVersion1DatabaseIsMigratedWithItsGrepIndex(t *testing.T) {
 		t.Fatalf("snapshots %v", snaps)
 	}
 	o := outside(t, db)
-	var body, comment string
-	if e := o.QueryRow("SELECT grep_body FROM issues WHERE id = ?", f.i1).Scan(&body); e != nil || body != "nul\uFFFDbody" {
-		t.Fatalf("issue grep body %q %v", body, e)
+	var comment string
+	if _, body := foldedText(t, o, Issues, f.i1); body != "nul\uFFFDbody" {
+		t.Fatalf("issue folded body %q", body)
 	}
 	if e := o.QueryRow("SELECT id FROM comments").Scan(&comment); e != nil {
 		t.Fatal(e)
@@ -171,18 +159,18 @@ func TestVersion1DatabaseIsMigratedWithItsGrepIndex(t *testing.T) {
 	both := []string{f.i1, f.i2}
 	slices.Sort(both)
 	for _, c := range []struct {
-		table, column, pattern string
-		want                   []string
+		typ, column, pattern string
+		want                 []string
 	}{
-		{"projects", "grep_description", "*ünïcode desc*", []string{f.p1}},
-		{"issues", "grep_title", "*strasse*", both},
-		{"issues", "grep_body", "*\uFFFDbody*", []string{f.i1}},
-		{"comments", "grep_body", "*hi*", []string{comment}},
-		{"milestones", "grep_body", "*goal*", []string{f.m1}},
+		{Projects, "body", "*ünïcode desc*", []string{f.p1}},
+		{Issues, "title", "*strasse*", both},
+		{Issues, "body", "*\uFFFDbody*", []string{f.i1}},
+		{Comments, "body", "*hi*", []string{comment}},
+		{Milestones, "body", "*goal*", []string{f.m1}},
 	} {
-		if got := grepHits(t, o, c.table, c.column, c.pattern); !slices.Equal(got, c.want) {
-			t.Errorf("%s.%s %s = %v, want %v", c.table, c.column, c.pattern, got, c.want)
+		if got := indexHits(t, o, c.typ, c.column, c.pattern); !slices.Equal(got, c.want) {
+			t.Errorf("%s.%s %s = %v, want %v", c.typ, c.column, c.pattern, got, c.want)
 		}
 	}
-	checkGrepTables(t, o)
+	checkGrepIndex(t, o)
 }

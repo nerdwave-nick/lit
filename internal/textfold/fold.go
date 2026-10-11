@@ -17,24 +17,28 @@ import (
 // Fold returns the folded form of s, so that strasse and Straße compare equal.
 func Fold(s string) string { return norm.NFC.String(cases.Fold().String(norm.NFC.String(s))) }
 
-// bmp holds the fold of every scalar below U+10000 that folding changes,
-// computed once on first use; the others fold to themselves.
-var bmp struct {
+// blocks caches the folds of the scalars below U+10000 in blocks of 256,
+// each computed on first use; "" means the scalar folds to itself.
+var blocks [0x100]struct {
 	once  sync.Once
-	folds []string
+	folds *[0x100]string
 }
 
-func bmpFolds() []string {
-	bmp.once.Do(func() {
-		bmp.folds = make([]string, 0x10000)
+// bmpFold returns the fold of r (below U+10000) and whether it differs from r.
+func bmpFold(r rune) (string, bool) {
+	b := &blocks[r>>8]
+	b.once.Do(func() {
+		b.folds = new([0x100]string)
 		c := cases.Fold()
-		for r := rune(utf8.RuneSelf); r < 0x10000; r++ {
-			if s, f := string(r), c.String(string(r)); f != s {
-				bmp.folds[r] = f
+		for i := range b.folds {
+			s := string(r&^0xff | rune(i))
+			if f := c.String(s); f != s {
+				b.folds[i] = f
 			}
 		}
 	})
-	return bmp.folds
+	f := b.folds[r&0xff]
+	return f, f != ""
 }
 
 // Scalar returns the full case fold of the single scalar r: one or more
@@ -46,7 +50,7 @@ func Scalar(r rune) string {
 			r += 'a' - 'A'
 		}
 	case r < 0x10000:
-		if f := bmpFolds()[r]; f != "" {
+		if f, ok := bmpFold(r); ok {
 			return f
 		}
 	default:
@@ -60,7 +64,6 @@ func Scalar(r rune) string {
 // it keeps substrings: Grep(a+b) == Grep(a)+Grep(b), so a substring of s folds
 // to a substring of Grep(s). lit grep matches folded queries against it.
 func Grep(s string) string {
-	folds := bmpFolds()
 	var b strings.Builder
 	b.Grow(len(s))
 	for _, r := range s {
@@ -70,10 +73,12 @@ func Grep(s string) string {
 				r += 'a' - 'A'
 			}
 			b.WriteByte(byte(r))
-		case r < 0x10000 && folds[r] != "":
-			b.WriteString(folds[r])
 		case r < 0x10000:
-			b.WriteRune(r)
+			if f, ok := bmpFold(r); ok {
+				b.WriteString(f)
+			} else {
+				b.WriteRune(r)
+			}
 		default:
 			b.WriteString(Scalar(r))
 		}

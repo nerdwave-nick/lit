@@ -150,7 +150,7 @@ func TestStartupCheckRebuildsADamagedSearchIndex(t *testing.T) {
 			}
 			log, e := check(t, db)
 			t.Log(log)
-			if e != nil || len(log) != c.lines || !strings.Contains(log[0], "comment_search") || !strings.Contains(log[0], "rebuilt") || c.lines == 2 && !strings.Contains(log[1], "folded text of 1 comments rows") {
+			if e != nil || len(log) != c.lines || !strings.Contains(log[0], "comment_search") || !strings.Contains(log[0], "rebuilt") || c.lines == 2 && !strings.Contains(log[1], "folded text of 1 comments was stale") {
 				t.Fatal(log, e)
 			}
 			if e = ftsCheck(t, db, "comment_search"); e != nil {
@@ -176,53 +176,56 @@ func TestStartupCheckFailsWhenARebuildFails(t *testing.T) {
 	}
 }
 
-// The trigram tables of lit grep are among the checked search tables: one
-// that no longer matches its content table is rebuilt at startup, with a log
-// line, and finds its records again.
+// The trigram index of lit grep is among the checked search tables: one
+// that no longer matches grep_text is rebuilt at startup, with a log line,
+// and finds its records again.
 func TestStartupCheckRebuildsAStaleGrepIndex(t *testing.T) {
 	w := newWorld(t)
 	dir := closed(t, w.db, func(o *sql.DB) {
-		execAll(t, o, "INSERT INTO issues_grep (issues_grep, rowid, grep_title, grep_body) SELECT 'delete', rowid, grep_title, grep_body FROM issues WHERE id = '"+w.a.ID+"'")
+		execAll(t, o, "INSERT INTO grep_index (grep_index, rowid, title, body) SELECT 'delete', seq, title, body FROM grep_text WHERE owner_id = '"+w.a.ID+"'")
 	})
 	db := reopen(t, dir)
 	if got := scanFor(t, db, w.p.ID, "strasse"); len(got) != 0 {
 		t.Fatalf("damage left %d records found", len(got))
 	}
 	log, e := check(t, db)
-	if e != nil || len(log) != 1 || !strings.Contains(log[0], "search index issues_grep failed its integrity check") || !strings.Contains(log[0], "rebuilt it") {
+	if e != nil || len(log) != 1 || !strings.Contains(log[0], "search index grep_index failed its integrity check") || !strings.Contains(log[0], "rebuilt it") {
 		t.Fatal(log, e)
 	}
 	if got := scanFor(t, db, w.p.ID, "strasse"); len(got) != 1 || got[0].ID != w.a.ID {
 		t.Fatalf("after the rebuild: %v", got)
 	}
-	if e := ftsCheck(t, db, "issues_grep"); e != nil {
+	if e := ftsCheck(t, db, "grep_index"); e != nil {
 		t.Fatal(e)
 	}
 }
 
-// The grep columns are derived data too: stale ones (written by an older
-// fold, or by a writer that skipped them) are recomputed at startup, with a
-// log line per table, and the trigram tables follow.
+// The folded text is derived data too: stale rows (written by an older fold),
+// missing rows (a writer that skipped them) and rows without a record are
+// rewritten at startup, with a log line per record type, and the trigram
+// index follows.
 func TestStartupCheckRewritesStaleFoldedText(t *testing.T) {
 	w := newWorld(t)
 	dir := closed(t, w.db, func(o *sql.DB) {
 		execAll(t, o,
-			"UPDATE issues SET grep_title = '', grep_body = ''",
-			"UPDATE comments SET grep_body = 'stale'",
-			"UPDATE projects SET grep_description = 'stale' WHERE id = '"+w.p.ID+"'")
+			"UPDATE grep_text SET title = '', body = '' WHERE owner_type = 'issues'",
+			"DELETE FROM grep_text WHERE owner_type = 'comments'",
+			"UPDATE grep_text SET body = 'stale' WHERE owner_id = '"+w.p.ID+"'",
+			"INSERT INTO grep_text (owner_type, owner_id, title, body) VALUES ('milestones', '"+id(99)+"', 'orphan', 'orphan')")
 	})
 	db := reopen(t, dir)
 	if got := scanFor(t, db, "", "strasse"); len(got) != 0 {
-		t.Fatalf("stale columns still found %d records", len(got))
+		t.Fatalf("stale text still found %d records", len(got))
 	}
 	log, e := check(t, db)
 	if e != nil {
 		t.Fatal(e)
 	}
 	want := []string{
-		"lit-server: folded text of 1 projects rows was stale; rewrote it",
-		"lit-server: folded text of 4 issues rows was stale; rewrote it",
-		"lit-server: folded text of 1 comments rows was stale; rewrote it",
+		"lit-server: folded text of 1 projects was stale; rewrote it",
+		"lit-server: folded text of 4 issues was stale; rewrote it",
+		"lit-server: folded text of 1 comments was stale; rewrote it",
+		"lit-server: folded text of 1 milestones was stale; rewrote it",
 	}
 	if strings.Join(log, "\n") != strings.Join(want, "\n") {
 		t.Fatalf("log %q, want %q", log, want)
@@ -230,12 +233,14 @@ func TestStartupCheckRewritesStaleFoldedText(t *testing.T) {
 	if got := scanFor(t, db, "", "strasse"); len(got) != 2 || got[0].ID != w.a.ID || got[1].ID != w.x.ID {
 		t.Fatalf("after the rewrite: %v", got)
 	}
-	o := outside(t, db)
-	var folded string
-	if e := o.QueryRow("SELECT grep_body FROM comments WHERE id = ?", w.comment.ID).Scan(&folded); e != nil || folded != "a comment" {
-		t.Fatalf("comment grep body %q %v", folded, e)
+	if got := scanFor(t, db, "", "orphan"); len(got) != 0 {
+		t.Fatalf("orphan found: %v", got)
 	}
-	checkGrepTables(t, o)
+	o := outside(t, db)
+	if _, body := foldedText(t, o, Comments, w.comment.ID); body != "a comment" {
+		t.Fatalf("comment folded body %q", body)
+	}
+	checkGrepIndex(t, o)
 	if log, e := check(t, db); e != nil || len(log) != 0 {
 		t.Fatal("second check:", log, e)
 	}

@@ -36,9 +36,9 @@ const maxProblems = 100
 //     table too. Search tables are derived from rows of the same database, so
 //     a table that fails is rebuilt, and logf reports it with one line; a
 //     table that cannot be rebuilt is a problem;
-//  2. the grep columns of every record table (see grepColumns), which are
-//     derived from the rows' text in Go: stale ones are recomputed, and logf
-//     reports each table with stale rows; the search tables follow;
+//  2. the folded text of lit grep (grep_text), derived from the records in
+//     Go: missing, stale and orphaned rows are rewritten, and logf reports
+//     each record type with changes; the search index follows;
 //  3. PRAGMA integrity_check and PRAGMA foreign_key_check of the whole
 //     database.
 //
@@ -64,15 +64,12 @@ func (db *DB) CheckIntegrity(ctx context.Context, logf func(format string, args 
 		}
 		problems = append(problems, p...)
 	}
-	for _, t := range grepColumns {
-		p, e := checkFolded(ctx, w, t, logf)
-		if e != nil {
-			return e
-		}
-		problems = append(problems, p...)
-	}
-	p, e := checkTables(ctx, w)
+	p, e := checkFolded(ctx, w, logf)
 	if e != nil {
+		return e
+	}
+	problems = append(problems, p...)
+	if p, e = checkTables(ctx, w); e != nil {
 		return e
 	}
 	if problems = append(problems, p...); len(problems) > 0 {
@@ -119,26 +116,38 @@ func checkSearchTable(ctx context.Context, w *Writer, name string, logf func(str
 	return nil, nil
 }
 
-// checkFolded recomputes the grep columns of table t in one write
-// transaction and commits it when rows were stale. A damaged table that
-// cannot be read is a problem; PRAGMA integrity_check reports the details.
-func checkFolded(ctx context.Context, w *Writer, t grepTable, logf func(string, ...any)) ([]string, error) {
+// checkFolded recomputes the grep_text rows of every record in one write
+// transaction and commits it when rows changed. A damaged table that cannot
+// be read is a problem; PRAGMA integrity_check reports the details.
+func checkFolded(ctx context.Context, w *Writer, logf func(string, ...any)) ([]string, error) {
 	tx, e := w.Begin(ctx)
 	if e != nil {
 		return nil, e
 	}
 	defer func() { _ = tx.Rollback() }()
-	n, e := refold(ctx, tx.tx, t)
-	if e = classify(e); errors.Is(e, ErrFatal) {
-		return []string{fmt.Sprintf("folded text of %s could not be checked: %v", t.name, e)}, nil
+	changed := make([]int, len(grepSources))
+	total := 0
+	for i, src := range grepSources {
+		changed[i], e = refold(ctx, tx.tx, src)
+		if e = classify(e); errors.Is(e, ErrFatal) {
+			return []string{fmt.Sprintf("folded text of %s could not be checked: %v", src.table, e)}, nil
+		}
+		if e != nil {
+			return nil, e
+		}
+		total += changed[i]
 	}
-	if e != nil || n == 0 {
-		return nil, e
+	if total == 0 {
+		return nil, nil
 	}
 	if e = tx.Commit(); e != nil {
 		return nil, e
 	}
-	logf("lit-server: folded text of %d %s rows was stale; rewrote it", n, t.name)
+	for i, src := range grepSources {
+		if changed[i] > 0 {
+			logf("lit-server: folded text of %d %s was stale; rewrote it", changed[i], src.table)
+		}
+	}
 	return nil, nil
 }
 

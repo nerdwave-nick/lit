@@ -332,7 +332,7 @@ under `locks/pending/`, separately from versioned pending JSON.
 Requests read only the records they involve, through indexed queries, so their
 cost no longer grows with the whole store. `lit grep` reads only the candidate
 records that its trigram index (or, for queries under three folded characters,
-a scan of the folded columns) yields; completion still lists the records of one
+a scan of the folded text) yields; completion still lists the records of one
 type. Reads run concurrently in WAL snapshots and
 writes are serialized by one write lock; the benchmark is later milestone work.
 Startup integrity checks, degraded mode and `lit-server verify` are described

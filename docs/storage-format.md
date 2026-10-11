@@ -77,9 +77,8 @@ never as `storage_error`. Searches stop when their request is cancelled.
 All tables are `STRICT`. The schema is version 2:
 [`internal/storage/schema_v1.sql`](../internal/storage/schema_v1.sql), then
 the migration to version 2
-([`schema_v2.sql`](../internal/storage/schema_v2.sql) and
-[`schema_v2_index.sql`](../internal/storage/schema_v2_index.sql), the search
-index of `lit grep`). The version is recorded in the `service` table with the
+([`schema_v2.sql`](../internal/storage/schema_v2.sql), the search index of
+`lit grep`). The version is recorded in the `service` table with the
 service identity.
 
 | Table | Holds |
@@ -94,7 +93,8 @@ service identity.
 | `claims` | one live or expired claim per issue; release deletes the row |
 | `transactions` | one row per committed durable request: request hash, canonical intent, actor, timestamp, results |
 | `history` | one row per changed record per request: changed fields and the body diff |
-| `projects_grep`, `issues_grep`, `comments_grep`, `milestones_grep` | FTS5 `trigram case_sensitive 1` tables over the grep columns of their record table (external content, keyed by its rowid) |
+| `grep_text` | one row per record (`owner_type`, `owner_id`): its searchable fields folded for `lit grep`, `title` and `body` |
+| `grep_index` | FTS5 `trigram case_sensitive 1` table over `grep_text` as external content |
 
 Records keep their exact text: titles, bodies (CR bytes, Unicode and a missing
 final newline included) and RFC 3339 timestamps. Record and transaction stamps
@@ -109,27 +109,28 @@ folds:
 - title keys and the `folded_*` columns of bodies and project descriptions:
   NFC, full case fold, NFC (`textfold.Fold`). They serve title lookup and
   uniqueness, and the discovery text filter (`q`);
-- the `grep_*` columns of titles, bodies and project descriptions: the full
-  case fold of each scalar on its own, without normalization
-  (`textfold.Grep`), which is what `lit grep` matches against, with NUL
-  written as U+FFFD. Unlike NFC, this fold keeps substrings: a substring of a
-  text folds to a substring of its fold.
+- `grep_text`: an issue's and a milestone's title and body, a comment's body
+  and a project's description, each as the full case fold of each scalar on
+  its own, without normalization (`textfold.Grep`), which is what `lit grep`
+  matches against, with NUL written as U+FFFD. Unlike NFC, this fold keeps
+  substrings: a substring of a text folds to a substring of its fold.
 
 ## Search
 
 `lit grep` reads only candidate records. The service folds the query as it
 matches it (its full case fold, or for `--case-sensitive` its scalar-by-scalar
 fold, which every case-sensitive match also contains) and asks the storage
-module for the records whose grep columns may contain it:
+module for the records whose `grep_text` may contain it:
 
-- from three folded characters on, through the trigram tables with `GLOB`,
+- from three folded characters on, through `grep_index` with `GLOB`,
   with `*`, `?` and `[` written as bracket expressions (`LIKE ... ESCAPE`
   cannot use the trigram index);
-- below that, by scanning the grep columns.
+- below that, by scanning `grep_text`.
 
-Triggers keep the trigram tables in step with the grep columns in the same
-transaction as the records, so every writer, including the setup import,
-maintains them. The final match and the excerpts are computed by the service
+The storage module writes a record's `grep_text` row in the same transaction
+as the record, and triggers keep `grep_index` in step with `grep_text`. A
+writer that skips `grep_text` (or a changed fold) is repaired by the next
+startup check. The final match and the excerpts are computed by the service
 on the original text, exactly as before the index, so results, excerpts and
 pages are unchanged; the scan stops once a page and the start of the next one
 are found.
@@ -182,7 +183,7 @@ while it runs; do not write to it from outside.
 ## Integrity
 
 Every start runs the FTS5 `integrity-check` of each search table (rebuilding
-one that fails), recomputes the grep columns (rewriting stale ones),
+one that fails), recomputes `grep_text` (rewriting missing, stale and orphaned rows),
 `PRAGMA integrity_check` and `PRAGMA foreign_key_check`. A
 damaged database puts lit-server in degraded mode (`503 recovery_required` for
 every request); damage met while serving makes it exit for its supervisor to
