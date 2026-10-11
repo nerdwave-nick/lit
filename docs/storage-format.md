@@ -38,13 +38,36 @@ durable.
 
 ## Requests and transactions
 
-Each request holds the process write lock and runs in one write transaction
-(`BEGIN IMMEDIATE`) that reads, validates and writes. The response is
-materialized and bounded before the commit; whatever fails, including an
-oversized response after the writes, rolls the whole transaction back.
+One static route table (`internal/service/routes.go`) classifies every route
+as a read or a write; the HTTP method cannot, because several reads use `POST`
+(`/v1/search`, `/v1/snapshots`, `/v1/claim-snapshots`, `/v1/issue-summaries`,
+`/v1/transaction-previews`). A route missing from the table is a write.
+
+- **Reads** run in parallel, each in one WAL read snapshot for the whole
+  handler, without the write lock. At most `read_concurrency` snapshots are open
+  at once (default 8); further reads wait until one closes or their request
+  ends. A read handler cannot write: it has no write transaction.
+- **Writes** hold the process write lock and run in one write transaction
+  (`BEGIN IMMEDIATE`) that reads, validates and writes, re-reading the client
+  inside it. Connect, client updates, disconnect, every mutation and
+  `transactions status` with the `/requests/{hash}` lookups are writes, so a
+  reconciliation never reports a request that is still waiting for or holding
+  the write lock as uncommitted. The response is materialized and bounded
+  before the commit; whatever fails, including an oversized response after the
+  writes, rolls the whole transaction back.
+
 Previews (`/v1/transaction-previews`) and `transactions status` never commit.
-Lock contention from outside lit-server is reported as `503 storage_busy`,
-never as `storage_error`.
+Request times come from one monotonic process clock (`max(last issued, wall
+clock)`): a read samples it before its snapshot begins, a write after taking
+the write lock. A claim snapshot's `server_time` is therefore never later than
+the clock of a claim write that follows it, so renewing for one hour from it
+never exceeds the one-hour cap. A read may briefly see a claim as expired while
+its renewal commits, for at most one write's duration; writes always re-check,
+so a competing acquire still gets `claim_conflict`.
+
+Lock contention from outside lit-server, and a request that ends while waiting
+for the write lock or a read snapshot, are reported as `503 storage_busy`,
+never as `storage_error`. Searches stop when their request is cancelled.
 
 ## Schema
 

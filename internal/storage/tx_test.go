@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"os"
 	"path/filepath"
 	"testing"
 	"time"
@@ -219,7 +220,7 @@ func TestReadsOverTheCapWait(t *testing.T) {
 	db := openTemp(t)
 	ctx := context.Background()
 	var open []*ReadTx
-	for range readConns {
+	for range DefaultReadConcurrency {
 		r, e := db.Read(ctx)
 		if e != nil {
 			t.Fatal(e)
@@ -244,6 +245,47 @@ func TestReadsOverTheCapWait(t *testing.T) {
 		t.Fatal(e)
 	}
 	r.Close()
+}
+
+// The read cap is configurable: with a cap of two, a third snapshot waits
+// until one closes or its context ends.
+func TestReadConcurrencyIsConfigurable(t *testing.T) {
+	db, e := OpenWith(t.TempDir(), Options{ReadConcurrency: 2})
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer db.Close()
+	ctx := context.Background()
+	first, e := db.Read(ctx)
+	if e != nil {
+		t.Fatal(e)
+	}
+	second, e := db.Read(ctx)
+	if e != nil {
+		t.Fatal(e)
+	}
+	waiting, cancel := context.WithTimeout(ctx, 50*time.Millisecond)
+	defer cancel()
+	if r, e := db.Read(waiting); !errors.Is(e, context.DeadlineExceeded) {
+		if r != nil {
+			r.Close()
+		}
+		t.Fatalf("read over a cap of two: %v", e)
+	}
+	first.Close()
+	third, e := db.Read(ctx)
+	if e != nil {
+		t.Fatal(e)
+	}
+	third.Close()
+	second.Close()
+	dir := filepath.Join(t.TempDir(), "refused")
+	if _, e = OpenWith(dir, Options{ReadConcurrency: -1}); e == nil {
+		t.Fatal("opened with a negative read cap")
+	}
+	if _, e = os.Stat(dir); !errors.Is(e, os.ErrNotExist) {
+		t.Fatal("refused open created the data directory", e)
+	}
 }
 
 func TestRequestTimesFollowTheProcessClock(t *testing.T) {

@@ -163,6 +163,11 @@ JSON, defaults:
 | `--config` | `LIT_CONFIG_FILE` | selects the file |
 | `--data-dir` | `LIT_DATA_DIR` | `data_dir` |
 | `--listen` | `LIT_LISTEN` | `listen` |
+| none | `LIT_READ_CONCURRENCY` | `read_concurrency` |
+
+`read_concurrency` caps how many read requests run at once (default 8, a
+positive integer); further reads wait until one finishes or their request ends.
+Writes are always serialized and do not count against it.
 
 Changes require an explicit restart. Invalid/unknown configuration fields and
 unsupported format versions fail clearly. First explicit startup initializes an

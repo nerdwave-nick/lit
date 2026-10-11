@@ -37,10 +37,14 @@ Deferred archives, editing windows, drafts, and saved plans have no routes.
   client writes. Only a `Writer`, which proves the process write lock is held,
   begins a write transaction. There is no fault-injection seam: atomicity rests
   on SQLite transactions and is tested by failing requests after their writes.
-- `internal/service.New` takes the open storage module. Each request takes the
-  write lock and runs in one write transaction; request-body network reads happen
-  first, response bytes are materialized in the transaction and transmitted
-  after the lock is released. Resource handlers belong in separate files and are
+- `internal/service.New` takes the open storage module. The static route table
+  in `routes.go` classifies every route as a read (one WAL read snapshot, no
+  lock, at most `read_concurrency` at once) or a write (the write lock and one
+  write transaction); add each new route there, or it is serialized as a write.
+  Each request runs on a request-scoped `Server` holding its transaction and
+  request time. Request-body network reads happen first, response bytes are
+  materialized in the transaction and transmitted after the snapshot closes or
+  the lock is released. Resource handlers belong in separate files and are
   dispatched from `route`. Mutations apply their writes, bound the success output
   and only then commit; a limit rejection rolls everything back.
 - `internal/litclient.Session` is the client safety core shared by every Go
@@ -113,7 +117,8 @@ files carry version 1.
   engine.
 - `commitResponse` applies the writes, constructs and checks the exact success
   bytes, and commits. Responses are transmitted after the write lock is
-  released. Durable HTTP results use `data.results`; CLI output uses `items`.
+  released. A read request has no write transaction, so a write attempted from
+  a route misclassified as a read fails instead of running unserialized. Durable HTTP results use `data.results`; CLI output uses `items`.
   List/snapshot/history pages use top-level HTTP `items` and `next_cursor`.
 - History holds only changed field before/after values and the body change as a
   forward diff, which the history API turns back into whole-body hunks. Each
@@ -327,9 +332,9 @@ under `locks/pending/`, separately from versioned pending JSON.
 Requests read only the records they involve, through indexed queries, so their
 cost no longer grows with the whole store. Two passes still scan: `lit grep`
 reads the stored text of its scope until the search index exists, and completion
-lists the records of one type. Requests are still serialized by one write lock;
-concurrent reads, startup integrity checks and the benchmark are later
-milestone work.
+lists the records of one type. Reads run concurrently in WAL snapshots and
+writes are serialized by one write lock; startup integrity checks and the
+benchmark are later milestone work.
 
 See [recovery limitations](../recovery.md) for uncertainty that retained evidence
 cannot currently resolve; no human repair or retirement interface is shipped.

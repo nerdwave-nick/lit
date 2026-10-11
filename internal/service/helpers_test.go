@@ -8,19 +8,19 @@ import (
 // These run unexported request steps as requests of their own.
 
 func recordPageOf(s *Server, q ProjectQuery) (ProjectPage, error) {
-	return inRequest(s, func() (ProjectPage, error) { return s.recordPage(q) })
+	return inSnapshot(s, func(rs *Server) (ProjectPage, error) { return rs.recordPage(q) })
 }
 func searchPageOf(s *Server, q protocol.SearchRequest, c protocol.Client) (ProjectPage, error) {
-	return inRequest(s, func() (ProjectPage, error) { return s.searchPage(q, c) })
+	return inSnapshot(s, func(rs *Server) (ProjectPage, error) { return rs.searchPage(q, c) })
 }
 func resolveRecordOf(s *Server, typ, selector, project string) (any, error) {
-	return inRequest(s, func() (any, error) { return s.resolveRecord(typ, selector, project) })
+	return inSnapshot(s, func(rs *Server) (any, error) { return rs.resolveRecord(typ, selector, project) })
 }
 
 // dryRun validates a durable request without committing it.
 func dryRun(s *Server, i protocol.Intent, hash string, c protocol.Client, tokens ...protocol.ClaimToken) error {
-	_, e := inRequest(s, func() (protocol.MutationResult, error) {
-		_, r, e := s.recordTransaction(i, hash, c, tokens...)
+	_, e := inSnapshot(s, func(rs *Server) (protocol.MutationResult, error) {
+		_, r, e := rs.recordTransaction(i, hash, c, tokens...)
 		return r, e
 	})
 	return e
@@ -28,27 +28,27 @@ func dryRun(s *Server, i protocol.Intent, hash string, c protocol.Client, tokens
 
 // allRecords reads every stored record with its history, in type and ID order.
 func allRecords(s *Server) ([]any, error) {
-	return inRequest(s, func() ([]any, error) {
+	return inSnapshot(s, func(rs *Server) ([]any, error) {
 		out := []any{}
-		ctx := s.ctx()
-		projects, e := s.q().List(ctx, storage.ListQuery{Type: "projects"})
+		ctx := rs.ctx()
+		projects, e := rs.q().List(ctx, storage.ListQuery{Type: "projects"})
 		if e != nil {
 			return nil, e
 		}
-		issues, e := s.q().List(ctx, storage.ListQuery{Type: "issues"})
+		issues, e := rs.q().List(ctx, storage.ListQuery{Type: "issues"})
 		if e != nil {
 			return nil, e
 		}
 		records := append(append([]any{}, projects...), issues...)
 		for _, p := range projects {
-			ms, e := s.q().List(ctx, storage.ListQuery{Type: "milestones", ProjectID: p.(protocol.Project).ID})
+			ms, e := rs.q().List(ctx, storage.ListQuery{Type: "milestones", ProjectID: p.(protocol.Project).ID})
 			if e != nil {
 				return nil, e
 			}
 			records = append(records, ms...)
 		}
 		for _, i := range issues {
-			cs, e := s.q().List(ctx, storage.ListQuery{Type: "comments", IssueID: i.(protocol.Issue).ID})
+			cs, e := rs.q().List(ctx, storage.ListQuery{Type: "comments", IssueID: i.(protocol.Issue).ID})
 			if e != nil {
 				return nil, e
 			}
@@ -56,7 +56,7 @@ func allRecords(s *Server) ([]any, error) {
 		}
 		for _, r := range records {
 			typ, id, _, _, _ := recordIdentity(r)
-			hs, e := s.recordHistory(typ, id)
+			hs, e := rs.recordHistory(typ, id)
 			if e != nil {
 				return nil, e
 			}

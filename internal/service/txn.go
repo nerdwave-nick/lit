@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"time"
 
@@ -10,19 +11,48 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 )
 
-// requestState is the request being served: its write transaction and its times.
+// reads are the storage reads of a request, shared by read snapshots
+// (*storage.ReadTx) and write transactions (*storage.WriteTx).
+type reads interface {
+	Record(ctx context.Context, typ, id string) (any, error)
+	IDByTitle(ctx context.Context, typ, projectID, title string) (string, bool, error)
+	IDsByPrefix(ctx context.Context, typ, prefix, projectID string, limit int) ([]string, error)
+	List(ctx context.Context, l storage.ListQuery) ([]any, error)
+	StructuralSet(ctx context.Context, issueIDs []string) ([]storage.RecordRef, error)
+	NewestStamp(ctx context.Context) (string, error)
+	Client(ctx context.Context, id string) (protocol.Client, bool, error)
+	Claim(ctx context.Context, issueID string) (*protocol.Claim, error)
+	LiveClaim(ctx context.Context, issueID string, now time.Time) (*protocol.Claim, error)
+	LiveClaims(ctx context.Context, owner string, now time.Time) ([]protocol.Claim, error)
+	MilestoneProgress(ctx context.Context, milestoneID string, now time.Time) ([]storage.MemberProgress, error)
+	History(ctx context.Context, typ, id string, afterRevision int64, limit int) ([]storage.HistoryEntry, error)
+	HistoryRevision(ctx context.Context, typ, id, hash string) (int64, string, bool, error)
+	HistoryByRequest(ctx context.Context, typ, id, hash string) (storage.HistoryEntry, bool, error)
+	Transaction(ctx context.Context, hash string) (storage.Request, bool, error)
+	SearchScan(ctx context.Context, projectID string, fn func(storage.SearchRecord) error) error
+	CompletionCandidates(ctx context.Context, typ, projectID string) ([]protocol.Completion, error)
+}
+
+// requestState is the request being served: its storage transaction and its times.
 type requestState struct {
 	ctx context.Context
-	tx  *storage.WriteTx
+	q   reads
+	// tx is the write transaction of a write; reads have none.
+	tx *storage.WriteTx
 	// now is the request time for claims and responses; stamp is the process
 	// clock's time for record stamps.
 	now, stamp time.Time
 }
 
-// serialized runs f as one request: it waits for the process write lock,
+// errReadOnly reports a write attempted by a request classified as a read:
+// the route table must classify it as a write.
+var errReadOnly = errors.New("a read request cannot write; classify its route as a write")
+
+// serialized runs f as one write: it waits for the process write lock,
 // refuses work once the service is stopping, and opens the write transaction
-// f reads and writes through. Whatever f does not commit is rolled back.
-func (s *Server) serialized(ctx context.Context, f func() error) error {
+// f reads and writes through. The request time is sampled after the lock is
+// taken. Whatever f does not commit is rolled back.
+func (s *Server) serialized(ctx context.Context, f func(*Server) error) error {
 	w, e := s.DB.LockWrites(ctx)
 	if e != nil {
 		return e
@@ -35,18 +65,42 @@ func (s *Server) serialized(ctx context.Context, f func() error) error {
 	if e != nil {
 		return e
 	}
-	now := w.Now()
-	if s.claimClock != nil {
-		now = s.claimClock().UTC()
+	return f(s.serving(&requestState{ctx: ctx, q: tx, tx: tx, now: w.Now(), stamp: w.Now()}))
+}
+
+// snapshot runs f as one read in one WAL read snapshot, without the write
+// lock. The request time is sampled before the snapshot begins. A read waits
+// while the maximum number of snapshots is open, until ctx ends.
+func (s *Server) snapshot(ctx context.Context, f func(*Server) error) error {
+	r, e := s.DB.Read(ctx)
+	if e != nil {
+		return e
 	}
-	s.cur = &requestState{ctx: ctx, tx: tx, now: now, stamp: w.Now()}
-	defer func() { s.cur = nil }()
-	return f()
+	defer r.Close()
+	return f(s.serving(&requestState{ctx: ctx, q: r, now: r.Now(), stamp: r.Now()}))
+}
+
+// serving returns the request-scoped Server for st. Tests may replace the
+// request time with claimClock, which is consulted once the request's
+// transaction is open.
+func (s *Server) serving(st *requestState) *Server {
+	if s.claimClock != nil {
+		st.now = s.claimClock().UTC()
+	}
+	return &Server{shared: s.shared, cur: st}
 }
 
 // q reads through the current request's transaction.
-func (s *Server) q() *storage.WriteTx  { return s.cur.tx }
+func (s *Server) q() reads             { return s.cur.q }
 func (s *Server) ctx() context.Context { return s.cur.ctx }
+
+// writeTx is the current request's write transaction.
+func (s *Server) writeTx() (*storage.WriteTx, error) {
+	if s.cur.tx == nil {
+		return nil, errReadOnly
+	}
+	return s.cur.tx, nil
+}
 
 // changes are a request's writes, applied together just before it commits.
 type changes struct {
@@ -64,7 +118,11 @@ func (c changes) empty() bool {
 }
 
 func (s *Server) apply(c changes) error {
-	tx, ctx := s.q(), s.ctx()
+	tx, e := s.writeTx()
+	if e != nil {
+		return e
+	}
+	ctx := s.ctx()
 	for _, id := range c.release {
 		if _, e := tx.DeleteClaim(ctx, id); e != nil {
 			return e
@@ -107,7 +165,7 @@ func (s *Server) commitResponse(w http.ResponseWriter, status int, data any, c c
 		return protocol.E(413, "limit_exceeded", "response exceeds snapshot limit")
 	}
 	if !c.empty() {
-		if e = s.q().Commit(); e != nil {
+		if e = s.cur.tx.Commit(); e != nil {
 			return e
 		}
 	}

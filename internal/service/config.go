@@ -3,6 +3,7 @@ package service
 import (
 	"fmt"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 	"net"
 	"os"
 	"path/filepath"
@@ -15,6 +16,8 @@ type Config struct {
 	Listen        string          `json:"listen"`
 	Limits        protocol.Limits `json:"limits"`
 	TitlePrefixes []string        `json:"title_prefixes"`
+	// ReadConcurrency caps concurrent read snapshots (LIT_READ_CONCURRENCY).
+	ReadConcurrency int `json:"read_concurrency,omitempty"`
 }
 
 func xdg(key, fallback string) string {
@@ -26,7 +29,7 @@ func xdg(key, fallback string) string {
 	return filepath.Join(h, fallback)
 }
 func LoadConfig(args []string) (Config, error) {
-	c := Config{SchemaVersion: 1, DataDir: filepath.Join(xdg("XDG_DATA_HOME", ".local/share"), "lit-server"), Listen: "127.0.0.1:7411", Limits: protocol.DefaultLimits(), TitlePrefixes: []string{"feat", "fix", "refactor", "docs", "test", "chore", "decision", "research", "spec"}}
+	c := Config{SchemaVersion: 1, DataDir: filepath.Join(xdg("XDG_DATA_HOME", ".local/share"), "lit-server"), Listen: "127.0.0.1:7411", Limits: protocol.DefaultLimits(), TitlePrefixes: []string{"feat", "fix", "refactor", "docs", "test", "chore", "decision", "research", "spec"}, ReadConcurrency: storage.DefaultReadConcurrency}
 	f := map[string]string{}
 	for i := 0; i < len(args); i++ {
 		k := args[i]
@@ -69,6 +72,13 @@ func LoadConfig(args []string) (Config, error) {
 	if v := os.Getenv("LIT_LISTEN"); v != "" {
 		c.Listen = v
 	}
+	if v := os.Getenv("LIT_READ_CONCURRENCY"); v != "" {
+		n, e := strconv.Atoi(v)
+		if e != nil {
+			return c, fmt.Errorf("invalid LIT_READ_CONCURRENCY %q", v)
+		}
+		c.ReadConcurrency = n
+	}
 	if v, ok := f["--data-dir"]; ok {
 		c.DataDir = v
 	}
@@ -80,6 +90,9 @@ func LoadConfig(args []string) (Config, error) {
 	}
 	if c.DataDir == "" {
 		return c, fmt.Errorf("data_dir must not be empty")
+	}
+	if c.ReadConcurrency < 1 {
+		return c, fmt.Errorf("read_concurrency must be a positive integer")
 	}
 	host, port, e := net.SplitHostPort(c.Listen)
 	if e != nil {

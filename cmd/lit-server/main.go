@@ -16,7 +16,7 @@ import (
 func main()    { os.Exit(run()) }
 func run() int { return runCLI(os.Args[1:], os.Stdout, os.Stderr) }
 func runService(c service.Config, errOut io.Writer) int {
-	db, e := storage.Open(c.DataDir)
+	db, e := storage.OpenWith(c.DataDir, storage.Options{ReadConcurrency: c.ReadConcurrency})
 	if e != nil {
 		fmt.Fprintln(errOut, e)
 		return 1
