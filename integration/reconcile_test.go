@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/cli"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"io"
 	"net/http"
@@ -228,7 +228,7 @@ func TestKilledCLIFullMutationReconciliation(t *testing.T) {
 			}
 			original, _ := os.ReadFile(pending[0])
 			captured := <-sent
-			var retained cli.Pending
+			var retained litclient.Pending
 			if e := json.Unmarshal(original, &retained); e != nil {
 				t.Fatal(e)
 			}
@@ -336,7 +336,7 @@ func TestInterruptedFirstConnectRemainsUnidentifiable(t *testing.T) {
 		t.Fatal(files)
 	}
 	before, _ := os.ReadFile(files[0])
-	var p cli.Pending
+	var p litclient.Pending
 	json.Unmarshal(before, &p)
 	if p.ClientID != "" {
 		t.Fatal("invented client ID", p)
@@ -364,9 +364,9 @@ func TestTransactionStatusExplicitSessionAndEndpointBinding(t *testing.T) {
 	a := item(run(t, cwd, state, 0, "connect", "--session", "a", "--endpoint", s.endpoint, "--format", "json"))
 	b := item(run(t, cwd, state, 0, "connect", "--session", "b", "--endpoint", s.endpoint, "--format", "json"))
 	write := func(client map[string]any) string {
-		p := cli.Pending{SchemaVersion: 1, RequestID: protocol.UUID(), ServiceID: client["service_id"].(string), ClientID: client["client_id"].(string), Endpoint: s.endpoint, Method: "POST", Path: "/v1/disconnect", Body: json.RawMessage(`{}`), Headers: map[string]string{"If-Match": "\"client:1\""}, CreatedAt: protocol.Now()}
+		p := litclient.Pending{SchemaVersion: 1, RequestID: protocol.UUID(), ServiceID: client["service_id"].(string), ClientID: client["client_id"].(string), Endpoint: s.endpoint, Method: "POST", Path: "/v1/disconnect", Body: json.RawMessage(`{}`), Headers: map[string]string{"If-Match": "\"client:1\""}, CreatedAt: protocol.Now()}
 		path := filepath.Join(state, "pending", p.RequestID+".json")
-		if e := cli.WriteJSON(path, p); e != nil {
+		if e := litclient.WriteJSON(path, p); e != nil {
 			t.Fatal(e)
 		}
 		return path
@@ -399,7 +399,7 @@ func TestRetainedAcquireAcceptsActualServiceCap(t *testing.T) {
 	// The public argument layer rejects >1h durations. Exercise its retained-call
 	// validator against the direct HTTP contract's legitimate acquisition cap.
 	cid, sid := client["client_id"].(string), client["service_id"].(string)
-	a := &cli.App{StateDir: state, Endpoint: s.endpoint, Mapping: cli.Mapping{ClientID: cid, ServiceID: sid}, Meta: protocol.Meta{ServiceID: sid}, HTTP: http.DefaultClient, Context: context.Background(), Err: new(bytes.Buffer)}
+	a := &litclient.Session{StateDir: state, Endpoint: s.endpoint, Mapping: litclient.Mapping{ClientID: cid, ServiceID: sid}, Meta: protocol.Meta{ServiceID: sid}, HTTP: http.DefaultClient, Context: context.Background()}
 	op := protocol.ClaimOperation{Operation: "claims.acquire", OwnerClientID: cid, Selection: "explicit", Items: []protocol.ClaimItem{{IssueID: issue, ExtendTo: time.Now().UTC().Add(2 * time.Hour).Format(time.RFC3339Nano)}}}
 	var result protocol.ClaimResult
 	if e := a.Call("POST", "/v1/operations", op, nil, &result, true); e != nil {

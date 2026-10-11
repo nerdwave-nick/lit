@@ -55,7 +55,7 @@ func (s *Server) readClaim(id string) (*protocol.Claim, error) {
 	c := v.Claim
 	acquired, ea := time.Parse(time.RFC3339Nano, c.AcquiredAt)
 	expires, ee := time.Parse(time.RFC3339Nano, c.ExpiresAt)
-	if c.SchemaVersion != 1 || c.IssueID != id || !protocol.ValidUUID(c.OwnerClientID) || !protocol.ValidUUID(c.Token) || ea != nil || ee != nil || !expires.After(acquired) || acquired.Location() != time.UTC || expires.Location() != time.UTC {
+	if c.SchemaVersion != 1 || c.IssueID != id || c.OwnerActor != nil || !protocol.ValidUUID(c.OwnerClientID) || !protocol.ValidUUID(c.Token) || ea != nil || ee != nil || !expires.After(acquired) || acquired.Location() != time.UTC || expires.Location() != time.UTC {
 		return nil, fmt.Errorf("invalid claim record")
 	}
 	owner, e := s.Client(c.OwnerClientID)

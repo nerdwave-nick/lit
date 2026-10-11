@@ -21,6 +21,8 @@ func requirementsFor(path string) (string, string) {
 		return "Required flags: none. No session or service is needed.", prefix
 	case "setup-skills":
 		return "Required flags: --scope and --agent.\n--path is required with custom scope and forbidden with local or user scope.\nNo tracker session or service is needed.", prefix + " --scope local|user --agent codex|claude|both\n" + prefix + " --scope custom --path DIRECTORY --agent codex|claude|both"
+	case "tui":
+		return "Required flags: none. No session is needed; lit-tui must be installed next to lit or on PATH.\nlit tui needs an interactive terminal; lit-tui refuses to start without one.", prefix + " [--endpoint URL]\nlit [--endpoint URL]  # on a terminal"
 	case "transactions status":
 		return "Required flags: none. Without --file, inspect all retained request files.\n--file selects one retained request envelope (not a mutation array or stdin).\nOnly explicit --session filters by service/client binding; LIT_SESSION does not filter.\nEach retained request supplies its own endpoint; this command never replays mutations.", prefix + " [--session NAME]\n" + prefix + " --file PATH [--session NAME]"
 	case "grep":

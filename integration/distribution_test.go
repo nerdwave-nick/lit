@@ -24,12 +24,12 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 	}
 	root := t.TempDir()
 	bin := filepath.Join(root, "bin")
-	build := exec.Command("go", "install", "../cmd/lit-server", "../cmd/lit")
+	build := exec.Command("go", "install", "../cmd/lit-server", "../cmd/lit", "../cmd/lit-tui")
 	build.Env = append(os.Environ(), "GOBIN="+bin)
 	if out, err := build.CombinedOutput(); err != nil {
 		t.Fatalf("standard go install: %v: %s", err, out)
 	}
-	for _, name := range []string{"lit", "lit-server"} {
+	for _, name := range []string{"lit", "lit-server", "lit-tui"} {
 		if info, err := os.Stat(filepath.Join(bin, name)); err != nil || !info.Mode().IsRegular() {
 			t.Fatalf("missing installed %s: %v", name, err)
 		}
@@ -68,6 +68,29 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 			t.Fatalf("%v JSON: %v: %s", args, err, out)
 		}
 		return result
+	}
+	// Outside a terminal, bare lit keeps its usage error for scripts and agents,
+	// while lit tui hands over to the installed lit-tui, which needs a terminal.
+	for _, tc := range []struct {
+		args         []string
+		code         int
+		stderr, from string
+	}{
+		{nil, 2, `{"error":{"code":"invalid_arguments","message":"a subcommand is required for lit; run 'lit --help'","details":{}}}`, "lit"},
+		{[]string{"tui"}, 2, "lit-tui needs an interactive terminal: stdin and stdout must be terminals", "lit-tui"},
+		{[]string{"tui", "--endpoint", "http://127.0.0.1:1"}, 2, "lit-tui needs an interactive terminal: stdin and stdout must be terminals", "lit-tui"},
+	} {
+		c := exec.Command(cli, tc.args...)
+		c.Dir, c.Env = cwd, env
+		var stdout, stderr bytes.Buffer
+		c.Stdout, c.Stderr = &stdout, &stderr
+		_ = c.Run()
+		if c.ProcessState.ExitCode() != tc.code || stdout.Len() != 0 || strings.TrimSpace(stderr.String()) != tc.stderr {
+			t.Fatalf("lit %v outside a terminal (want the %s result): %d, stdout %q, stderr %q", tc.args, tc.from, c.ProcessState.ExitCode(), &stdout, &stderr)
+		}
+	}
+	if out, err := exec.Command(filepath.Join(bin, "lit-tui"), "--version").CombinedOutput(); err != nil || strings.TrimSpace(string(out)) != "dev" {
+		t.Fatalf("lit-tui --version: %v: %s", err, out)
 	}
 	// Setup has no service available and no usable inherited tracker selection.
 	for _, args := range [][]string{{"--scope", "local", "--agent", "both"}, {"--scope", "user", "--agent", "both"}, {"--scope", "custom", "--path", custom, "--agent", "both"}} {
@@ -212,5 +235,5 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 	if err != nil || len(mappings) != 4 {
 		t.Fatal("checkout mappings", mappings, err)
 	}
-	t.Log("PASS: standard Go install; source-free offline setup all scopes/both hosts/16 skills; real service; four isolated sessions; cross-checkout resume/mappings; claims/checkpoints/closure")
+	t.Log("PASS: standard Go install (lit, lit-server, lit-tui); non-terminal lit/lit tui dispatch; source-free offline setup all scopes/both hosts/16 skills; real service; four isolated sessions; cross-checkout resume/mappings; claims/checkpoints/closure")
 }

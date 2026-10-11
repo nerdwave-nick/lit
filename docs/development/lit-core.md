@@ -46,12 +46,34 @@ Deferred archives, editing windows, drafts, and saved plans have no routes.
   transmitted afterwards. Resource handlers belong in separate files and are
   dispatched from `route`. Mutations must check bounded success output before
   committing; never return a definite limit rejection after changing state.
-- `internal/cli.App` holds arguments, client/service binding, deadline, output
-  preference, and last observed service time. `Call` persists exact outgoing
+- `internal/litclient.Session` is the client safety core shared by every Go
+  client: it holds the client/service binding, deadline, last observed service
+  time and an injected warning writer. `Lock` holds a logical session's mapping
+  lock until `Close` (`LockPath` does the same for a mapping outside the
+  `sessions/` namespace, which lit-tui uses for its per-instance registry); `Open` resolves the endpoint, checks the service's API
+  major and identity, and reads the client. `Call` persists exact outgoing
   operational requests before transmission. Failed local persistence prevents
-  sending. Uncertain transport or response results retain pending evidence and
-  exit 4. Ticket 06 supplies complete operational reconciliation/status; this
-  foundation deliberately never blindly replays a pending request.
+  sending. Uncertain transport or response results retain pending evidence (the
+  CLI exits 4) and are reconciled read-only, never blindly replayed. A `Session`
+  is not safe for concurrent use.
+- Typed operations on `Session` take a per-operation `context.Context` and
+  return `*protocol.Error` values; `litclient.Code(err)` exposes the stable
+  code, so callers never branch on HTTP status. `Get`/`List` read snapshot
+  targets and typed `Query` pages (cursors, limits, `All`). `Prepare` returns
+  an opaque `Prepared` and `Commit` sends exactly that preview with the claim
+  tokens of the `RequiredClaims` the client owned; a `Prepared` is bound to
+  its client and submitted at most once, so a commit refused because any
+  affected record (including mirrors and guards) changed is never prepared
+  again. Request builders cover issue, comment, project and milestone
+  mutations. `AcquireClaims`/`RenewClaims`/`ReleaseClaims` follow the CLI
+  (renewing an absent or expired claim is `claim_expired` and never
+  reacquires). `TransactionStatus` reconciles retained requests read-only and
+  never replays, moves or deletes evidence. `Connect` registers a fresh client
+  for a locked, unmapped session and saves its mapping; `Disconnect` releases
+  the client's claims. The CLI uses Prepare/Commit, the claim operations and
+  Disconnect; its connect and `transactions status` stay in `internal/cli`.
+- `internal/cli.App` embeds that session and adds arguments and output
+  preference; it passes its stderr as the warning writer.
 - Resource CLI verbs should live in separate files, expanding argument validation
   and dispatch. Session selections are property selectors, distinct from the
   global project context used by later resource commands. Grouped resource flags
@@ -232,6 +254,12 @@ absolute targets at one hour, retaining its 30-minute default. Duplicate/older t
 matching claim remain no-ops, even when the requested target is now in the past.
 
 Current issue reads project live `claim`/`claimed` outside the durable schema.
+Every claim status a read exposes (issue reads and query pages, issue summaries,
+claim snapshots, claim lists and `GET /v1/issues/<id>/claim`) adds `owner_actor`
+with only the owner's actor `name` and `kind`; clients still cannot read other
+clients' records. The member is projected on a copy and a durable claim envelope
+carrying it is invalid. Claim operation results and `Prepared.RequiredClaims`
+are unchanged.
 Claim lists support owner/issue filters and query-bound cursors, acquisition-time
 (`created_at`) ordering with issue UUID ties, direction and bounded all-results
 reads. Owner-wide renewal still uses a complete atomic claim snapshot.
@@ -260,6 +288,14 @@ times, deterministic sort/UUID ordering, and cursors bound to normalized queries
 `all` remains one bounded snapshot, never a page loop. Nullable parent/assignee
 JSON filters use null for absence; the literal string `none` remains a real name,
 while CLI `--assignee none` and URL `assignee=none` select absence.
+
+`POST /v1/issue-summaries` takes `{"schema_version":1,"query":{...}}` with an
+issue query (`type` omitted or `issues`; the session project applies as for
+snapshot queries) and returns `protocol.IssueSummary` pages: identity, revision,
+timestamps, title, state, labels, assignee, project, parent/children, link sets
+and live `claimed`/`claim`, never bodies or comments. It reuses `recordPage`, so
+filters, `default_page`/`max_page`, query-bound cursors, `all` and the 413
+`limit_exceeded` item and `snapshot_bytes` bounds behave exactly as for snapshots.
 
 ## Interrupted-request reconciliation
 

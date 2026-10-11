@@ -290,17 +290,13 @@ func (a *App) records() (Result, error) {
 		if e != nil {
 			return result, protocol.E(400, "invalid_arguments", e.Error())
 		}
-		var plan protocol.Prepared
 		req := protocol.PrepareRequest{SchemaVersion: 1, Operation: strings.TrimSuffix(resource, "s") + "." + a.Args.Verb, Project: project, Items: items, Force: a.Args.Has("force")}
-		if e = a.Call("POST", "/v1/transaction-previews", req, nil, &plan, false); e != nil {
+		plan, e := a.Prepare(a.Context, req)
+		if e != nil {
 			return result, e
 		}
-		b, hash, e := protocol.Canonical(plan.Intent)
-		if e != nil || hash != plan.RequestHash || plan.SchemaVersion != 1 || plan.ServiceID != a.Meta.ServiceID || plan.ClientID != a.Client.ClientID || string(b) != plan.CanonicalJSON {
-			return result, protocol.E(500, "invalid_response", "invalid prepared transaction")
-		}
-		var mutation protocol.MutationResult
-		if e = a.Call("POST", "/v1/transactions", protocol.DurableRequest{SchemaVersion: 1, Intent: plan.Intent, RequestHash: hash, Claims: preparedTokens(plan)}, nil, &mutation, true); e != nil {
+		mutation, e := a.Commit(a.Context, plan)
+		if e != nil {
 			return result, e
 		}
 		result.Outcome = mutation.Outcome

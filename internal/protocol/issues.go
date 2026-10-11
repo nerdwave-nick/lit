@@ -23,6 +23,40 @@ type Issue struct {
 	BlockedBy     []string `json:"blocked_by"`
 	Related       []string `json:"related"`
 }
+
+// IssueSummary is the bodiless list projection served by POST /v1/issue-summaries:
+// issue identity, tree and link members, and live claim status (with the
+// owner's actor) but never the body or comments.
+type IssueSummary struct {
+	ID        string   `json:"id"`
+	Revision  int64    `json:"revision"`
+	CreatedAt string   `json:"created_at"`
+	UpdatedAt string   `json:"updated_at"`
+	Title     string   `json:"title"`
+	State     string   `json:"state"`
+	Labels    []string `json:"labels"`
+	Assignee  *string  `json:"assignee"`
+	ProjectID string   `json:"project_id"`
+	ParentID  *string  `json:"parent_id"`
+	ChildIDs  []string `json:"child_ids"`
+	Blocks    []string `json:"blocks"`
+	BlockedBy []string `json:"blocked_by"`
+	Related   []string `json:"related"`
+	Claimed   bool     `json:"claimed"`
+	Claim     *Claim   `json:"claim"`
+}
+
+// Summarize projects an issue and its live claim without the body or comments.
+func (i Issue) Summarize(claim *Claim) IssueSummary {
+	nonNil := func(v []string) []string {
+		if v == nil {
+			return []string{}
+		}
+		return v
+	}
+	return IssueSummary{ID: i.ID, Revision: i.Revision, CreatedAt: i.CreatedAt, UpdatedAt: i.UpdatedAt, Title: i.Title, State: i.State, Labels: nonNil(i.Labels), Assignee: i.Assignee, ProjectID: i.ProjectID, ParentID: i.ParentID, ChildIDs: nonNil(i.ChildIDs), Blocks: nonNil(i.Blocks), BlockedBy: nonNil(i.BlockedBy), Related: nonNil(i.Related), Claimed: claim != nil, Claim: claim}
+}
+
 type Comment struct {
 	SchemaVersion int    `json:"schema_version"`
 	ID            string `json:"id"`

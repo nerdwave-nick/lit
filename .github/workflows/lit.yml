@@ -20,7 +20,7 @@ jobs:
         env:
           NWCLI_REQUIRE_SHELLS: "1" # completion scripts are tested in real bash, zsh and fish
       - run: go vet ./...
-      - run: go build -o ./bin/ ./cmd/lit-server ./cmd/lit
+      - run: go build -o ./bin/ ./cmd/lit-server ./cmd/lit ./cmd/lit-tui
   cross-build:
     runs-on: ubuntu-latest
     strategy:
@@ -37,7 +37,7 @@ jobs:
           TARGET: ${{ matrix.target }}
         run: |
           export GOOS="${TARGET%/*}" GOARCH="${TARGET#*/}" CGO_ENABLED=0
-          go build -trimpath -o ./bin/ ./cmd/lit
+          go build -trimpath -o ./bin/ ./cmd/lit ./cmd/lit-tui
           if [[ "$GOOS" == linux ]]; then
             go build -trimpath -o ./bin/ ./cmd/lit-server
           fi
@@ -62,7 +62,7 @@ jobs:
             export GOOS="${target%/*}" GOARCH="${target#*/}" CGO_ENABLED=0
             destination="dist/${GOOS}-${GOARCH}"
             mkdir "$destination"
-            go build -trimpath -ldflags "-X github.com/nerdwave-nick/nerdwave-workflows/internal/protocol.ReleaseVersion=$RELEASE_VERSION" -o "$destination/" ./cmd/lit
+            go build -trimpath -ldflags "-X github.com/nerdwave-nick/nerdwave-workflows/internal/protocol.ReleaseVersion=$RELEASE_VERSION" -o "$destination/" ./cmd/lit ./cmd/lit-tui
             cp docs/installation.md "$destination/INSTALL.md"
             if [[ "$GOOS" == linux ]]; then
               go build -trimpath -ldflags "-X github.com/nerdwave-nick/nerdwave-workflows/internal/protocol.ReleaseVersion=$RELEASE_VERSION" -o "$destination/" ./cmd/lit-server
@@ -71,11 +71,11 @@ jobs:
             fi
             archive="lit-${RELEASE_VERSION}-${GOOS}-${GOARCH}"
             if [[ "$GOOS" == windows ]]; then
-              (cd "$destination" && zip "../$archive.zip" lit.exe INSTALL.md)
+              (cd "$destination" && zip "../$archive.zip" lit.exe lit-tui.exe INSTALL.md)
             elif [[ "$GOOS" == linux ]]; then
-              tar -czf "dist/$archive.tar.gz" -C "$destination" lit-server lit INSTALL.md lit.service.in lit.socket
+              tar -czf "dist/$archive.tar.gz" -C "$destination" lit-server lit lit-tui INSTALL.md lit.service.in lit.socket
             else
-              tar -czf "dist/$archive.tar.gz" -C "$destination" lit INSTALL.md
+              tar -czf "dist/$archive.tar.gz" -C "$destination" lit lit-tui INSTALL.md
             fi
           done
           (cd dist && sha256sum *.tar.gz *.zip > SHA256SUMS)

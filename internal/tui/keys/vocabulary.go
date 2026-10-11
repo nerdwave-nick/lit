@@ -1,0 +1,199 @@
+// Package keys is lit-tui's keymap: the action vocabulary, the default
+// bindings, validation of rebindings from the preferences file, key lookup per
+// context, and help drawn from the effective bindings.
+//
+// Ctrl-C is reserved: it always starts the orderly shutdown, is never returned
+// by Lookup and cannot be bound.
+package keys
+
+// Context is where a binding applies. Tree, detail and menu inherit the global
+// bindings; a key bound in global cannot also be bound in another context.
+type Context string
+
+const (
+	Global Context = "global" // everywhere
+	Tree   Context = "tree"   // the issue hierarchy
+	Detail Context = "detail" // the issue detail
+	Menu   Context = "menu"   // menus, pickers, prompts and the help overlay
+)
+
+// Contexts lists every context in display order.
+var Contexts = []Context{Global, Tree, Detail, Menu}
+
+// Action is a named user command. Later screens may add actions.
+type Action string
+
+const (
+	Quit          Action = "quit"
+	Help          Action = "help"
+	Cancel        Action = "cancel"
+	Refresh       Action = "refresh"
+	SwitchProject Action = "switch_project"
+	ActionMenu    Action = "action_menu"
+	Up            Action = "up"
+	Down          Action = "down"
+	Left          Action = "left"
+	Right         Action = "right"
+	Open          Action = "open"
+	Back          Action = "back"
+	Expand        Action = "expand"
+	Collapse      Action = "collapse"
+	PageUp        Action = "page_up"
+	PageDown      Action = "page_down"
+	Top           Action = "top"
+	Bottom        Action = "bottom"
+	NextBlock     Action = "next_block"
+	PrevBlock     Action = "prev_block"
+	Search        Action = "search"
+	Filter        Action = "filter"
+	ClearFilters  Action = "clear_filters"
+	Claim         Action = "claim"
+	Release       Action = "release"
+	// History opens the read-only history of the selected issue or of one
+	// of its comments.
+	History Action = "history"
+	// Quick actions: one previewed transaction each.
+	EditTitle   Action = "edit_title"
+	SetState    Action = "set_state"
+	SetLabels   Action = "set_labels"
+	SetAssignee Action = "set_assignee"
+	SetParent   Action = "set_parent"
+	Link        Action = "link"
+	Unlink      Action = "unlink"
+	// UncertainRequests opens the read-only view of retained requests whose
+	// outcome is not established.
+	UncertainRequests Action = "uncertain_requests"
+	// Edit edits the selected issue's body in the editor (suspending the
+	// TUI); EditDetached shows the draft's path for any editor and watches it.
+	Edit         Action = "edit"
+	EditDetached Action = "edit_detached"
+	// Drafts opens the Drafts view: the unapplied TUI drafts of every
+	// project, to resume, diff against the current record or discard.
+	Drafts Action = "drafts"
+	// NewComment writes a new comment on the selected issue in the editor;
+	// EditComment chooses one of its comments and edits it.
+	NewComment  Action = "new_comment"
+	EditComment Action = "edit_comment"
+	// NewProject creates a project from the project switcher; EditSpec
+	// edits the current project's shared specification in the editor;
+	// EditRepositories changes its repository list.
+	NewProject       Action = "new_project"
+	EditSpec         Action = "edit_spec"
+	EditRepositories Action = "edit_repositories"
+	// NewIssue creates a top-level issue and NewChild a child of the
+	// selected issue: the title inline, the body in a draft.
+	NewIssue Action = "new_issue"
+	NewChild Action = "new_child"
+	// Milestones opens the Milestones view of the project: progress,
+	// creation, titles and descriptions. SetMilestones adds the selected
+	// issue to a milestone or removes it.
+	Milestones    Action = "milestones"
+	SetMilestones Action = "set_milestones"
+)
+
+// Required actions must keep at least one key, so the way out, help and
+// dismissing a prompt are always reachable.
+var required = []struct {
+	Context Context
+	Action  Action
+}{{Global, Quit}, {Global, Help}, {Menu, Cancel}}
+
+// Shutdown is the reserved key that starts the orderly shutdown.
+const Shutdown = "ctrl+c"
+
+type entry struct {
+	action      Action
+	description string
+	keys        []string
+}
+
+// vocabulary is the default keymap, in display order per context. Arrows,
+// Enter and Escape come first, with vim-style alternates.
+var vocabulary = map[Context][]entry{
+	Global: {
+		{Quit, "quit", []string{"q"}},
+		{Help, "show or hide help", []string{"?"}},
+		{Refresh, "refresh", []string{"r"}},
+		{SwitchProject, "switch project", []string{"p"}},
+		{ActionMenu, "open the action menu", []string{"m"}},
+		{UncertainRequests, "show uncertain requests", []string{"U"}},
+		{Drafts, "show the unapplied drafts", []string{"D"}},
+		{Milestones, "show the project's milestones", []string{"M"}},
+	},
+	Tree: {
+		{Up, "select the previous issue", []string{"up", "k"}},
+		{Down, "select the next issue", []string{"down", "j"}},
+		{Collapse, "collapse", []string{"left", "h"}},
+		{Expand, "expand", []string{"right", "l"}},
+		{Open, "open the detail", []string{"enter"}},
+		{PageUp, "page up", []string{"pgup", "ctrl+u"}},
+		{PageDown, "page down", []string{"pgdown", "ctrl+d"}},
+		{Top, "select the first issue", []string{"home", "g"}},
+		{Bottom, "select the last issue", []string{"end", "G"}},
+		{Search, "search issue content", []string{"/"}},
+		{Filter, "filter the tree", []string{"f"}},
+		{ClearFilters, "clear the filters and the search", []string{"F"}},
+		{Claim, "claim the issue, or reacquire a lost claim", []string{"c"}},
+		{Release, "release the issue's claim", []string{"u"}},
+		{History, "show the issue's history", []string{"H"}},
+		{EditTitle, "edit the title", []string{"t"}},
+		{SetState, "close or reopen the issue", []string{"s"}},
+		{SetLabels, "change the labels", []string{"#"}},
+		{SetAssignee, "change the assignee", []string{"A"}},
+		{SetParent, "change the parent", []string{"P"}},
+		{Link, "add a link: blocker, blocked or related issue", []string{"b"}},
+		{Unlink, "remove a link", []string{"B"}},
+		{Edit, "edit the body, or resume, apply or discard its draft", []string{"e"}},
+		{EditDetached, "edit the body in any editor (shows the draft path)", []string{"E"}},
+		{NewComment, "add a comment, or resume its draft", []string{"a"}},
+		{EditComment, "edit one of the issue's comments", []string{"o"}},
+		{EditSpec, "edit the project's specification, or resume its draft", []string{"S"}},
+		{EditRepositories, "change the project's repositories", []string{"R"}},
+		{NewIssue, "create a top-level issue", []string{"N"}},
+		{NewChild, "create a child of the issue", []string{"C"}},
+		{SetMilestones, "add to or remove from a milestone", []string{"W"}},
+	},
+	Detail: {
+		{Up, "scroll up", []string{"up", "k"}},
+		{Down, "scroll down", []string{"down", "j"}},
+		{Left, "scroll a wide block left", []string{"left", "h"}},
+		{Right, "scroll a wide block right", []string{"right", "l"}},
+		{NextBlock, "focus the next wide block", []string{"tab", "]"}},
+		{PrevBlock, "focus the previous wide block", []string{"shift+tab", "["}},
+		{Back, "back to the tree", []string{"esc"}},
+		{PageUp, "page up", []string{"pgup", "ctrl+u"}},
+		{PageDown, "page down", []string{"pgdown", "ctrl+d"}},
+		{Top, "go to the top", []string{"home", "g"}},
+		{Bottom, "go to the bottom", []string{"end", "G"}},
+		{Claim, "claim the issue, or reacquire a lost claim", []string{"c"}},
+		{Release, "release the issue's claim", []string{"u"}},
+		{History, "show the history of the issue or a comment", []string{"H"}},
+		{EditTitle, "edit the title", []string{"t"}},
+		{SetState, "close or reopen the issue", []string{"s"}},
+		{SetLabels, "change the labels", []string{"#"}},
+		{SetAssignee, "change the assignee", []string{"A"}},
+		{SetParent, "change the parent", []string{"P"}},
+		{Link, "add a link: blocker, blocked or related issue", []string{"b"}},
+		{Unlink, "remove a link", []string{"B"}},
+		{Edit, "edit the body, or resume, apply or discard its draft", []string{"e"}},
+		{EditDetached, "edit the body in any editor (shows the draft path)", []string{"E"}},
+		{NewComment, "add a comment, or resume its draft", []string{"a"}},
+		{EditComment, "edit one of the issue's comments", []string{"o"}},
+		{EditSpec, "edit the project's specification, or resume its draft", []string{"S"}},
+		{EditRepositories, "change the project's repositories", []string{"R"}},
+		{NewIssue, "create a top-level issue", []string{"N"}},
+		{NewChild, "create a child of the issue", []string{"C"}},
+		{SetMilestones, "add to or remove from a milestone", []string{"W"}},
+	},
+	Menu: {
+		{Up, "previous item", []string{"up", "k"}},
+		{Down, "next item", []string{"down", "j"}},
+		{Open, "choose the item", []string{"enter"}},
+		{Cancel, "close", []string{"esc"}},
+		{PageUp, "page up", []string{"pgup", "ctrl+u"}},
+		{PageDown, "page down", []string{"pgdown", "ctrl+d"}},
+		{Top, "first item", []string{"home", "g"}},
+		{Bottom, "last item", []string{"end", "G"}},
+		{NewProject, "create a project (in the project switcher)", []string{"n"}},
+	},
+}

@@ -2,14 +2,13 @@ package cli
 
 import (
 	"fmt"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"net/url"
 	"strconv"
 	"strings"
 	"time"
 )
-
-type claimView = protocol.RequiredClaim
 
 func validateClaimArgs(a Args) error {
 	switch a.Verb {
@@ -58,98 +57,39 @@ func validateClaimArgs(a Args) error {
 	}
 	return nil
 }
-func claimTarget(a Args, serverTime string) (string, error) {
-	now, e := time.Parse(time.RFC3339Nano, serverTime)
-	if e != nil {
-		return "", protocol.E(500, "invalid_response", "claim snapshot omitted valid server time")
-	}
-	d := 30 * time.Minute
+
+// claimRequest maps the validated claim arguments onto the typed operation.
+func claimRequest(a Args) litclient.ClaimRequest {
+	r := litclient.ClaimRequest{ClaimSelection: litclient.ClaimSelection{Project: a.One("project"), Issues: a.Positionals, All: a.Has("all")}, Force: a.Has("force")}
 	if a.Has("for") {
-		d, e = time.ParseDuration(a.One("for"))
-		if e != nil {
-			return "", e
-		}
+		r.For, _ = time.ParseDuration(a.One("for"))
 	}
-	target := now.Add(d)
 	if a.Has("until") {
-		target, e = time.Parse(time.RFC3339Nano, a.One("until"))
-		if e != nil {
-			return "", e
-		}
+		until, _ := time.Parse(time.RFC3339Nano, a.One("until"))
+		r.Until = &until
 	}
-	if !target.After(now) || target.After(now.Add(time.Hour)) {
-		return "", protocol.E(400, "invalid_arguments", "claim expiry must be in the future and at most one hour from service time")
-	}
-	return target.UTC().Format(time.RFC3339Nano), nil
+	return r
 }
 func (a *App) claims() (Result, error) {
 	if a.Args.Verb == "list" {
 		return a.claimList()
 	}
-	query := map[string]any{}
-	if a.Args.Verb == "list" || a.Args.Has("all") {
-		query["owner_client_id"] = a.Mapping.ClientID
-	} else {
-		query["targets"] = a.Args.Positionals
-		if a.Args.Has("project") {
-			query["project"] = a.Args.One("project")
-		} else if a.Client.ProjectID != nil {
-			query["project"] = *a.Client.ProjectID
-		}
+	r := claimRequest(a.Args)
+	var result protocol.ClaimResult
+	var e error
+	switch a.Args.Verb {
+	case "get":
+		var snapshot litclient.ClaimSnapshot
+		snapshot, e = a.SnapshotClaims(a.Context, r.ClaimSelection)
+		result.Items = snapshot.Items
+	case "acquire":
+		result, e = a.AcquireClaims(a.Context, r)
+	case "renew":
+		result, e = a.RenewClaims(a.Context, r)
+	case "release":
+		result, e = a.ReleaseClaims(a.Context, r.ClaimSelection)
 	}
-	var snapshot struct {
-		Items      []claimView `json:"items"`
-		ServerTime string      `json:"server_time"`
-	}
-	if e := a.Call("POST", "/v1/claim-snapshots", query, nil, &snapshot, false); e != nil {
-		return Result{}, e
-	}
-	if a.Args.Verb == "list" || a.Args.Verb == "get" {
-		items := []any{}
-		for _, v := range snapshot.Items {
-			items = append(items, v)
-		}
-		return Result{Items: items}, nil
-	}
-	target := ""
-	if a.Args.Verb == "acquire" || a.Args.Verb == "renew" {
-		clock := snapshot.ServerTime
-		if clock == "" {
-			clock = a.ServerTime
-		}
-		var e error
-		target, e = claimTarget(a.Args, clock)
-		if e != nil {
-			return Result{}, e
-		}
-	}
-	items := []map[string]any{}
-	for _, v := range snapshot.Items {
-		if a.Args.Verb == "renew" && v.Claim == nil {
-			return Result{}, protocol.E(409, "claim_expired", "cannot renew an absent or expired claim")
-		}
-		item := map[string]any{"issue_id": v.IssueID}
-		if a.Args.Verb != "acquire" && v.Claim != nil {
-			item["token"] = v.Claim.Token
-		}
-		if target != "" {
-			item["extend_to"] = target
-		}
-		if a.Args.Has("force") {
-			item["force"] = true
-		}
-		items = append(items, item)
-	}
-	selection := "explicit"
-	if a.Args.Has("all") {
-		selection = "all_owned"
-	}
-	payload := map[string]any{"schema_version": 1, "operation": "claims." + a.Args.Verb, "owner_client_id": a.Mapping.ClientID, "selection": selection, "items": items}
-	var result struct {
-		Outcome string      `json:"outcome"`
-		Items   []claimView `json:"items"`
-	}
-	if e := a.Call("POST", "/v1/operations", payload, nil, &result, true); e != nil {
+	if e != nil {
 		return Result{}, e
 	}
 	out := []any{}
@@ -157,16 +97,6 @@ func (a *App) claims() (Result, error) {
 		out = append(out, v)
 	}
 	return Result{Items: out, Outcome: result.Outcome}, nil
-}
-
-func preparedTokens(p protocol.Prepared) []protocol.ClaimToken {
-	out := []protocol.ClaimToken{}
-	for _, r := range p.RequiredClaims {
-		if r.Claim != nil && r.Claim.OwnerClientID == p.ClientID {
-			out = append(out, protocol.ClaimToken{IssueID: r.IssueID, Token: r.Claim.Token})
-		}
-	}
-	return out
 }
 
 func (a *App) claimList() (Result, error) {

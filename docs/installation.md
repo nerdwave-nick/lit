@@ -1,21 +1,24 @@
 # Building and installing lit
 
-The service supports Linux amd64/arm64 with local filesystem storage. The client
-supports Linux amd64/arm64, macOS amd64/arm64, and Windows amd64. Linux behavior
+The service supports Linux amd64/arm64 with local filesystem storage. The clients,
+`lit` and the terminal UI `lit-tui`, support Linux amd64/arm64, macOS amd64/arm64,
+and Windows amd64. Linux behavior
 is tested; cross-compilation does not demonstrate native macOS/Windows behavior.
 Python is not required to build, install, or run the binaries and workflow skills.
 
 ## Standard Go build and install
 
-Install Go matching `go.mod` (1.24 or later). From the repository root:
+Install Go matching `go.mod` (1.27 or later). From the repository root:
 
 ```sh
-go build -o ./bin/ ./cmd/lit-server ./cmd/lit  # Linux: create both executables
-go install ./cmd/lit-server ./cmd/lit         # Linux: install checkout versions
+go build -o ./bin/ ./cmd/lit-server ./cmd/lit ./cmd/lit-tui  # Linux: create all three executables
+go install ./cmd/lit-server ./cmd/lit ./cmd/lit-tui         # Linux: install checkout versions
 ```
 
-On macOS or Windows, build/install only `./cmd/lit`. Separate commands such as
-`go build ./cmd/lit` also work and leave the executable in the current directory.
+On macOS or Windows, build/install only `./cmd/lit` and `./cmd/lit-tui`. Install
+`lit-tui` into the same directory as `lit` (as `go install` does); see
+[Terminal UI](#terminal-ui). Separate commands such as `go build ./cmd/lit` also
+work and leave the executable in the current directory.
 Installation uses `GOBIN`, or `GOPATH/bin` when unset (normally `$HOME/go/bin`).
 Check `go env GOBIN GOPATH` and add the appropriate directory to PATH yourself;
 installation does not edit your shell profile.
@@ -25,6 +28,7 @@ checkout uses an explicit version query:
 
 ```sh
 go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit@latest
+go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-tui@latest
 # Linux service, if needed:
 go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-server@latest
 ```
@@ -32,6 +36,35 @@ go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-server@latest
 Replace `latest` with a published tag to pin a version. Remote publication and
 installation availability have not been verified; these commands describe the
 supported Go interface, not an already published release.
+
+## Terminal UI
+
+`lit-tui` is the terminal UI for people. It is a separate executable so that only
+it links the Charm terminal and Markdown libraries; `lit` and `lit-server` stay
+small and quick to start. Start it with `lit tui`, or with bare `lit` when both
+stdin and stdout are terminals. `lit` looks for `lit-tui` in the directory of its
+own executable first, then on `PATH`, and passes `--endpoint` through. On Unix,
+`lit` is replaced by `lit-tui` (process replacement), so signals reach the TUI
+directly; on Windows, `lit` runs it as a child process on the same console and
+waits for it. `lit-tui` can also be run directly; its endpoint is `--endpoint`,
+then `LIT_ENDPOINT`, then `http://127.0.0.1:7411`.
+
+Theme, mouse and keymap preferences live in
+`${XDG_CONFIG_HOME:-$HOME/.config}/lit/tui.json`, with `LIT_TUI_*` environment
+variables and `lit-tui` flags taking precedence. `lit tui` passes only
+`--endpoint` through. See [docs/tui.md](tui.md) for the file format
+and the default keymap.
+
+Outside a terminal, bare `lit` is unchanged: it exits with status 2 and the
+`invalid_arguments` error `a subcommand is required for lit`, so scripts and
+agents are unaffected. `lit tui` itself always hands over to `lit-tui`, which
+refuses to start without a terminal (status 2). If `lit-tui` is not installed,
+`lit tui` fails with the error code `tui_not_found`, naming where it looked and
+the install command:
+
+```sh
+go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-tui@latest
+```
 
 ## Shell completion
 
@@ -75,9 +108,9 @@ reference for explicit session setup.
 
 ## Release archives
 
-CI cross-builds seven binaries across five targets: Linux amd64/arm64 archives
-contain `lit-server` and `lit`; macOS amd64/arm64 and Windows amd64 archives contain
-only `lit` (`lit.exe` on Windows). All archives contain `INSTALL.md`; Linux
+CI cross-builds twelve binaries across five targets: Linux amd64/arm64 archives
+contain `lit-server`, `lit` and `lit-tui`; macOS amd64/arm64 and Windows amd64
+archives contain `lit` and `lit-tui` (`lit.exe` and `lit-tui.exe` on Windows). All archives contain `INSTALL.md`; Linux
 archives also contain the optional `lit.service.in` template and `lit.socket` unit. Skills are embedded
 in the client, so no separate installer or Python program is included.
 
@@ -85,14 +118,14 @@ Pull requests run Go race tests, vet, and cross-builds. Version tags
 (`vMAJOR.MINOR.PATCH`, optionally `-PRERELEASE`) additionally produce five archives
 and `SHA256SUMS` as GitHub Actions artifacts. CI uses ordinary Go commands and
 shell archive utilities; it does not create GitHub Releases. Publishing remains
-an explicit separate action. CI embeds the release identifier in `lit-server --version`
-and `lit version`; source builds without that override report `dev`.
+an explicit separate action. CI embeds the release identifier in `lit-server --version`,
+`lit version` and `lit-tui --version`; source builds without that override report `dev`.
 
 Verify checksums before extracting: `sha256sum -c SHA256SUMS` on Linux,
 `shasum -a 256 -c SHA256SUMS` on macOS, or compare PowerShell
 `Get-FileHash .\lit-v0.1.0-windows-amd64.zip -Algorithm SHA256` with its checksum
 entry. Download all listed archives for a full checksum check, or select the
-entry matching your archive. Copy extracted binaries to a directory on PATH.
+entry matching your archive. Copy extracted binaries together to a directory on PATH.
 No custom build or binary installation tool is necessary.
 
 ## Start and stop explicitly
@@ -287,8 +320,8 @@ or tracker migration tool.
 ```sh
 go test -count=1 -race ./...
 go vet ./...
-GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o ./bin/linux-arm64/ ./cmd/lit-server ./cmd/lit
-GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o ./bin/darwin-arm64/ ./cmd/lit
+GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o ./bin/linux-arm64/ ./cmd/lit-server ./cmd/lit ./cmd/lit-tui
+GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o ./bin/darwin-arm64/ ./cmd/lit ./cmd/lit-tui
 ```
 
 The workflow in `.github/workflows/lit.yml` contains the full accepted matrix
