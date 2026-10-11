@@ -1,9 +1,15 @@
 package service
 
 import (
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"crypto/sha256"
+	"encoding/base64"
+	"encoding/hex"
+	"sort"
 	"strings"
 	"time"
+
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 )
 
 func validateDiscovery(q ProjectQuery) error {
@@ -30,99 +36,169 @@ func validateDiscovery(q ProjectQuery) error {
 	}
 	return nil
 }
-func (s *Server) matchesQuery(q ProjectQuery, r any, state RecordState) (bool, error) {
-	_, id, _, created, updated := recordIdentity(r)
-	if len(q.ID) > 0 && !contains(q.ID, id) {
-		return false, nil
+
+// recordPage is the basic enumeration seam for dependency/discovery and grep.
+// It materializes accepted records under Server.Mu; later filters extend Query.
+func (s *Server) recordPage(q ProjectQuery) (ProjectPage, error) {
+	if e := validateQueryFields(q); e != nil {
+		return ProjectPage{}, e
 	}
-	for _, b := range []struct {
-		value, bound string
-		after        bool
-	}{{created, q.CreatedAfter, true}, {created, q.CreatedBefore, false}, {updated, q.UpdatedAfter, true}, {updated, q.UpdatedBefore, false}} {
-		if b.bound != "" {
-			v, _ := time.Parse(time.RFC3339Nano, b.value)
-			limit, _ := time.Parse(time.RFC3339Nano, b.bound)
-			if b.after && v.Before(limit) || !b.after && !v.Before(limit) {
-				return false, nil
-			}
+	if q.Type == "projects" {
+		if q.ProjectID != "" || q.IssueID != "" || q.AllProjects {
+			return ProjectPage{}, invalid("inapplicable project filters")
 		}
 	}
-	title, body := "", ""
-	switch p := r.(type) {
-	case protocol.Project:
-		title = p.Title
-		body = p.Description
-		for _, ref := range q.RepositoryRef {
-			if !contains(p.RepositoryRefs, ref) {
-				return false, nil
-			}
+	out := ProjectPage{Items: []any{}}
+	if q.Type != "issues" && q.Type != "comments" && q.Type != "projects" && q.Type != "milestones" {
+		return out, invalid("invalid query type")
+	}
+	if q.Type == "issues" {
+		if q.IssueID != "" || q.AllProjects && q.ProjectID != "" || (q.AllProjects || q.Fields["all_projects"]) && (q.MilestoneID != "" || q.Fields["milestone_id"]) {
+			return out, invalid("inapplicable issue scope")
 		}
-	case protocol.Issue:
-		if q.Claimed != nil || q.OwnerClientID != "" {
-			claim, e := s.LiveClaim(p.ID)
+		if !q.AllProjects {
+			if q.ProjectID == "" {
+				return out, invalid("select a project or all_projects")
+			}
+			p, e := s.resolveProject(q.ProjectID)
 			if e != nil {
-				return false, e
+				return out, e
 			}
-			if q.Claimed != nil && *q.Claimed != (claim != nil) {
-				return false, nil
-			}
-			if q.OwnerClientID != "" && (claim == nil || claim.OwnerClientID != q.OwnerClientID) {
-				return false, nil
-			}
+			q.ProjectID = p.ID
 		}
-		title = p.Title
-		body = p.Body
-		if q.State != "" && p.State != q.State {
-			return false, nil
-		}
-		if q.ParentID != nil && !same(p.ParentID, *q.ParentID) || q.Assignee != nil && !same(p.Assignee, *q.Assignee) {
-			return false, nil
-		}
-		for _, label := range q.LabelsAll {
-			if !contains(p.Labels, label) {
-				return false, nil
+		if q.MilestoneID != "" {
+			if q.ProjectID == "" {
+				return out, invalid("milestone filter requires project scope")
 			}
-		}
-		if len(q.LabelsAny) > 0 {
-			found := false
-			for _, label := range q.LabelsAny {
-				found = found || contains(p.Labels, label)
+			m, e := s.resolveMilestone(q.MilestoneID, q.ProjectID)
+			if e != nil {
+				return out, e
 			}
-			if !found {
-				return false, nil
-			}
+			q.MilestoneID = m.ID
 		}
-		for _, label := range q.LabelsNone {
-			if contains(p.Labels, label) {
-				return false, nil
-			}
+		if q.Fields["milestone_id"] && q.MilestoneID == "" {
+			return out, invalid("milestone_id must not be empty")
 		}
-		if q.Blocked != nil {
-			blocked := false
-			for _, id := range p.BlockedBy {
-				blocker, ok := state[recordKey("issues", id)].(protocol.Issue)
-				if !ok {
-					return false, invalid("missing blocker")
-				}
-				blocked = blocked || blocker.State == "open"
-			}
-			if blocked != *q.Blocked {
-				return false, nil
-			}
+	} else if q.Type == "milestones" {
+		if q.AllProjects || q.Fields["all_projects"] || q.IssueID != "" || q.MilestoneID != "" || q.ParentID != nil || q.State != "" || len(q.LabelsAll)+len(q.LabelsAny)+len(q.LabelsNone) > 0 || q.Assignee != nil || q.Blocked != nil || q.Claimed != nil || q.OwnerClientID != "" || q.Author != "" || len(q.RepositoryRef) > 0 {
+			return out, invalid("inapplicable milestone filter")
 		}
-	case protocol.Comment:
-		body = p.Body
-		if q.Author != "" && p.Author != q.Author {
-			return false, nil
+		if q.ProjectID == "" {
+			return out, invalid("select a project for milestone query")
 		}
-	case protocol.Milestone:
-		title, body = p.Title, p.Body
+		p, e := s.resolveProject(q.ProjectID)
+		if e != nil {
+			return out, e
+		}
+		q.ProjectID = p.ID
+	} else if q.Type == "comments" {
+		if q.ProjectID != "" || q.AllProjects {
+			return out, invalid("comments require issue scope")
+		}
+		if q.IssueID == "" {
+			return out, invalid("comments require issue_id")
+		}
+		p, e := s.resolveIssue(q.IssueID, "")
+		if e != nil {
+			return out, e
+		}
+		q.IssueID = p.ID
 	}
-	if q.Title != "" && IssueTitleKey(q.Title) != IssueTitleKey(title) {
-		return false, nil
+	if q.All && (q.Limit != 0 || q.Cursor != "" || q.Fields["limit"] || q.Fields["cursor"]) {
+		return out, invalid("all conflicts with pagination")
 	}
-	if q.Q != "" && !strings.Contains(IssueTitleKey(title+"\n"+body), IssueTitleKey(q.Q)) {
-		return false, nil
+	if q.Sort == "" {
+		q.Sort = "created_at"
 	}
-	return true, nil
+	q.Sort = strings.ReplaceAll(q.Sort, "-", "_")
+	if q.Sort != "created_at" && q.Sort != "updated_at" && (q.Sort != "title" || q.Type == "comments") {
+		return out, invalid("invalid sort")
+	}
+	if q.Direction == "" {
+		q.Direction = "asc"
+	}
+	if q.Direction != "asc" && q.Direction != "desc" {
+		return out, invalid("invalid direction")
+	}
+	if q.Fields["limit"] && q.Limit == 0 {
+		return out, invalid("limit must be positive")
+	}
+	if q.Limit == 0 {
+		q.Limit = s.Config.Limits.DefaultPage
+	}
+	if q.Limit < 1 || q.Limit > s.Config.Limits.MaxPage {
+		return out, invalid("invalid limit")
+	}
+	if e := validateDiscovery(q); e != nil {
+		return out, e
+	}
+	for _, set := range []*[]string{&q.ID, &q.RepositoryRef, &q.LabelsAll, &q.LabelsAny, &q.LabelsNone} {
+		*set = union(nil, *set)
+		sort.Strings(*set)
+	}
+	binding := q
+	binding.Fields = nil
+	binding.Cursor = ""
+	hashBytes := sha256.Sum256(mustJSON(binding))
+	hash := hex.EncodeToString(hashBytes[:])
+	var cursor struct {
+		Hash string `json:"hash"`
+		Key  string `json:"key"`
+		ID   string `json:"id"`
+	}
+	l := listQuery(q, s.claimNow())
+	if q.Cursor != "" {
+		b, e := base64.RawURLEncoding.DecodeString(q.Cursor)
+		if e != nil || protocol.Decode(b, &cursor) != nil || cursor.Hash != hash || !protocol.ValidUUID(cursor.ID) || cursor.Key == "" {
+			return out, protocol.E(400, "invalid_cursor", "cursor does not match query")
+		}
+		l.After = &storage.ListPosition{Key: cursor.Key, ID: cursor.ID}
+	}
+	// One more record than a page tells whether another page follows.
+	l.Limit = q.Limit + 1
+	if q.All {
+		l.Limit = s.Config.Limits.ExpandedRecords + 1
+	}
+	rs, e := s.q().List(s.ctx(), l)
+	if e != nil {
+		return out, e
+	}
+	if !q.All && len(rs) > q.Limit {
+		rs = rs[:q.Limit]
+		last := rs[len(rs)-1]
+		_, cursor.ID, _, _, _ = recordIdentity(last)
+		cursor.Key = storage.SortKey(q.Sort, last)
+		cursor.Hash = hash
+		v := base64.RawURLEncoding.EncodeToString(mustJSON(cursor))
+		out.NextCursor = &v
+	}
+	if len(rs) > s.Config.Limits.ExpandedRecords {
+		return out, protocol.E(413, "limit_exceeded", "snapshot item limit exceeded")
+	}
+	out.Items = append(out.Items, rs...)
+	return out, nil
+}
+
+// listQuery maps a validated discovery query onto the storage list query.
+func listQuery(q ProjectQuery, now time.Time) storage.ListQuery {
+	l := storage.ListQuery{Type: q.Type, IDs: q.ID, Title: q.Title, Text: q.Q, RepositoryRefs: q.RepositoryRef,
+		ParentID: q.ParentID, Assignee: q.Assignee, State: q.State, LabelsAll: q.LabelsAll, LabelsAny: q.LabelsAny, LabelsNone: q.LabelsNone,
+		Blocked: q.Blocked, Claimed: q.Claimed, OwnerClientID: q.OwnerClientID, Author: q.Author,
+		CreatedAfter: q.CreatedAfter, CreatedBefore: q.CreatedBefore, UpdatedAfter: q.UpdatedAfter, UpdatedBefore: q.UpdatedBefore,
+		Sort: q.Sort, Descending: q.Direction == "desc"}
+	if q.Claimed != nil || q.OwnerClientID != "" {
+		l.Now = now
+	}
+	switch q.Type {
+	case "issues":
+		l.MilestoneID = q.MilestoneID
+		if !q.AllProjects {
+			l.ProjectID = q.ProjectID
+		}
+	case "milestones":
+		l.ProjectID = q.ProjectID
+	case "comments":
+		l.IssueID = q.IssueID
+	}
+	return l
 }

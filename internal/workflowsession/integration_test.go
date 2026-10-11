@@ -12,7 +12,7 @@ import (
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 )
 
 func TestRealServiceLifecycle(t *testing.T) {
@@ -25,7 +25,7 @@ func TestRealServiceLifecycle(t *testing.T) {
 	if output, e := build.CombinedOutput(); e != nil {
 		t.Fatalf("build: %s %v", output, e)
 	}
-	data, e := store.Open(filepath.Join(root, "data"))
+	data, e := storage.Open(filepath.Join(root, "data"))
 	if e != nil {
 		t.Fatal(e)
 	}

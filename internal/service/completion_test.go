@@ -3,10 +3,7 @@ package service
 import (
 	"crypto/sha256"
 	"encoding/json"
-	"io/fs"
 	"net/url"
-	"os"
-	"path/filepath"
 	"reflect"
 	"strings"
 	"testing"
@@ -17,7 +14,7 @@ import (
 func TestCompletionMetadataScopeAndReferences(t *testing.T) {
 	root := t.TempDir()
 	s, client := projectTestServer(t, root)
-	defer s.Store.Close()
+	defer s.DB.Close()
 	const secret = "CONTENT_MUST_NEVER_BE_EXPORTED"
 	projects := []string{protocol.UUID(), protocol.UUID()}
 	for i, title := range []string{"feat/alpha", "feat/zulu"} {
@@ -31,14 +28,14 @@ func TestCompletionMetadataScopeAndReferences(t *testing.T) {
 	if err := s.SaveClient(client); err != nil {
 		t.Fatal(err)
 	}
-	before := completionTree(t, root)
+	before := completionTree(t, s, client)
 	for _, kind := range []string{"projects", "issues", "comments", "milestones"} {
 		code, body := directRequest(t, s, protocol.Client{}, "GET", "/v1/completions/"+kind, nil)
 		if code != 200 {
 			t.Fatalf("%s: %d %v", kind, code, body)
 		}
 		data := body["data"].(map[string]any)
-		if data["service_id"] != s.Store.Identity.ServiceID || data["api_major"] != float64(1) {
+		if data["service_id"] != s.DB.ServiceID() || data["api_major"] != float64(1) {
 			t.Fatal(data)
 		}
 		items := data["items"].([]any)
@@ -58,7 +55,7 @@ func TestCompletionMetadataScopeAndReferences(t *testing.T) {
 					t.Fatalf("unapproved completion field: %s", key)
 				}
 			}
-			resolved, err := s.resolveRecord(kind, item["value"].(string), "")
+			resolved, err := resolveRecordOf(s, kind, item["value"].(string), "")
 			if err != nil {
 				t.Fatal(kind, item, err)
 			}
@@ -104,7 +101,7 @@ func TestCompletionMetadataScopeAndReferences(t *testing.T) {
 	if code != 200 || len(items) != 1 || items[0].(map[string]any)["id"] != projects[1] {
 		t.Fatal(code, body)
 	}
-	if !reflect.DeepEqual(before, completionTree(t, root)) {
+	if !reflect.DeepEqual(before, completionTree(t, s, client)) {
 		t.Fatal("completion changed durable state")
 	}
 	client.Status = "disconnected"
@@ -119,7 +116,7 @@ func TestCompletionMetadataScopeAndReferences(t *testing.T) {
 
 func TestCompletionValidationAndContentReadGate(t *testing.T) {
 	s, _ := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	for _, tc := range []struct {
 		method, path string
 		status       int
@@ -147,7 +144,7 @@ func TestCompletionValidationAndContentReadGate(t *testing.T) {
 
 func TestCompletionAmbiguousTitlesRoundTrip(t *testing.T) {
 	s, client := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	project := protocol.UUID()
 	executeRecordTest(t, s, client, prepareProjectTest(t, s, client, "create", protocol.ProjectInput{ID: project, Title: textPointer("feat/refs")}))
 	for _, title := range []string{"help", "deadbeef", "title:literal", "id:literal", "Refactor a/b: cleanup", "-flag", "Quotes 'and' \"spaces\" $HOME; (echo nope)"} {
@@ -172,21 +169,17 @@ func TestCompletionAmbiguousTitlesRoundTrip(t *testing.T) {
 	}
 }
 
-func completionTree(t *testing.T, root string) map[string][32]byte {
+// completionTree is the durable state a completion must not change: every
+// record with its history, and the client.
+func completionTree(t *testing.T, s *Server, c protocol.Client) [32]byte {
 	t.Helper()
-	result := map[string][32]byte{}
-	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
-		if err != nil || d.IsDir() {
-			return err
-		}
-		b, err := os.ReadFile(path)
-		if err == nil {
-			result[path] = sha256.Sum256(b)
-		}
-		return err
-	})
+	records, err := allRecords(s)
 	if err != nil {
 		t.Fatal(err)
 	}
-	return result
+	client, err := s.Client(c.ClientID)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return sha256.Sum256(mustJSON([]any{records, client}))
 }

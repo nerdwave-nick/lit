@@ -6,6 +6,7 @@ import (
 	"fmt"
 	_ "github.com/nerdwave-nick/nerdwave-workflows/internal/cli"
 	_ "github.com/nerdwave-nick/nerdwave-workflows/internal/service"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 	"net"
 	"net/http"
 	"os"
@@ -256,9 +257,8 @@ func TestConcurrentSameNameConnect(t *testing.T) {
 	if ids[0] != ids[1] {
 		t.Fatal("same name acquired multiple identities", ids)
 	}
-	entries, e := os.ReadDir(filepath.Join(root, "data", "clients"))
-	if e != nil || len(entries) != 1 {
-		t.Fatal(entries, e)
+	if n := clientCount(t, filepath.Join(root, "data")); n != 1 {
+		t.Fatal("clients stored:", n)
 	}
 }
 func TestExclusiveStoreAndPortAndVersionRejection(t *testing.T) {
@@ -276,23 +276,28 @@ func TestExclusiveStoreAndPortAndVersionRejection(t *testing.T) {
 		t.Fatal(e, string(b))
 	}
 	state := filepath.Join(root, "state")
-	v := item(run(t, root, state, 0, "connect", "--endpoint", s.endpoint, "--format", "json"))
+	run(t, root, state, 0, "connect", "--endpoint", s.endpoint, "--format", "json")
 	s.stop(t)
-	p := filepath.Join(data, "clients", v["client_id"].(string)+".json")
+	// A database whose schema is newer than this lit-server knows is refused
+	// before anything is written to it.
+	db := database(t, data)
+	if _, e := db.Exec("UPDATE service SET schema_version = schema_version + 1"); e != nil {
+		t.Fatal(e)
+	}
+	db.Close() // the last connection checkpoints its change into the database file
+	p := filepath.Join(data, storage.DatabaseFile)
 	b, e = os.ReadFile(p)
 	if e != nil {
 		t.Fatal(e)
 	}
-	b = bytes.Replace(b, []byte(`"schema_version":1`), []byte(`"schema_version":2`), 1)
-	os.WriteFile(p, b, 0600)
 	c = exec.Command(litBin, "--data-dir", data, "--listen", "127.0.0.1:0")
 	got, e := c.CombinedOutput()
-	if e == nil || !bytes.Contains(got, []byte("invalid client record")) {
+	if e == nil || !bytes.Contains(got, []byte("newer than this lit-server supports")) {
 		t.Fatal(e, string(got))
 	}
 	after, _ := os.ReadFile(p)
 	if !bytes.Equal(after, b) {
-		t.Fatal("rewrote unsupported record")
+		t.Fatal("rewrote unsupported database")
 	}
 }
 

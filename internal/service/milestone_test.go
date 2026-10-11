@@ -4,12 +4,11 @@ import (
 	"testing"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
 )
 
 func TestMilestoneCreatePrepareAndMembershipProjection(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	project, issue, milestone := protocol.UUID(), protocol.UUID(), protocol.UUID()
 	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: project, Title: textPointer("feat/milestone")}))
 	executeRecordTest(t, s, c, prepareRecordTest(t, s, c, project, "issue.create", protocol.ProjectInput{ID: issue, Title: textPointer("Member")}))
@@ -113,7 +112,7 @@ func TestMilestoneCreatePrepareAndMembershipProjection(t *testing.T) {
 
 func TestMilestoneMembershipGuardsAndProjectValidation(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	p1, p2 := protocol.UUID(), protocol.UUID()
 	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: p1, Title: textPointer("feat/one")}, protocol.ProjectInput{ID: p2, Title: textPointer("feat/two")}))
 	i1, i2 := protocol.UUID(), protocol.UUID()
@@ -183,7 +182,7 @@ func TestMilestoneMembershipGuardsAndProjectValidation(t *testing.T) {
 
 func TestMilestoneSelectorKeepsUnscopedHexAsIDOnly(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	project := protocol.UUID()
 	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: project, Title: textPointer("feat/selectors")}))
 	const prefixID = "abcdef12-0000-4000-8000-000000000001"
@@ -206,11 +205,6 @@ func TestMilestoneSelectorKeepsUnscopedHexAsIDOnly(t *testing.T) {
 func TestMilestoneProjectionBlockersClaimsHistoryAndRestart(t *testing.T) {
 	root := t.TempDir()
 	s, c := projectTestServer(t, root)
-	defer func() {
-		if s.Store != nil {
-			_ = s.Store.Close()
-		}
-	}()
 	p1, p2 := protocol.UUID(), protocol.UUID()
 	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: p1, Title: textPointer("feat/members")}, protocol.ProjectInput{ID: p2, Title: textPointer("feat/external")}))
 	openID, closedID, blockerID := protocol.UUID(), protocol.UUID(), protocol.UUID()
@@ -247,19 +241,10 @@ func TestMilestoneProjectionBlockersClaimsHistoryAndRestart(t *testing.T) {
 	if code != 200 || response["data"].(map[string]any)["outcome"] != "recorded" {
 		t.Fatalf("request reconciliation: %d %#v", code, response)
 	}
-	if err = s.Store.Close(); err != nil {
+	if err = s.DB.Close(); err != nil {
 		t.Fatal(err)
 	}
-	st, err := store.Open(root)
-	if err != nil {
-		t.Fatal(err)
-	}
-	reopened, err := New(st, s.Config)
-	if err != nil {
-		st.Close()
-		t.Fatal("restart rejected milestone history:", err)
-	}
-	s = reopened
+	s = openTestServer(t, root, s.Config)
 	reloaded, err := s.Milestone(mID)
 	if err != nil || !same(reloaded, milestoneAfter) {
 		t.Fatalf("restart changed milestone: %#v %v", reloaded, err)
@@ -268,7 +253,7 @@ func TestMilestoneProjectionBlockersClaimsHistoryAndRestart(t *testing.T) {
 
 func TestMilestoneHistoryHonorsExplicitProjectAndPagination(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	project, selected := protocol.UUID(), protocol.UUID()
 	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: project, Title: textPointer("feat/history")}, protocol.ProjectInput{ID: selected, Title: textPointer("feat/selected")}))
 	mID := protocol.UUID()

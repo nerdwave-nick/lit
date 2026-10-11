@@ -33,11 +33,12 @@ func TestHistoryKeyShowsTheSelectedIssuesHistory(t *testing.T) {
 
 	b.press("H")
 	v := b.view()
-	b.expect("the issue's history", strings.HasPrefix(v, `History · issue "Plan v2" · read-only · 4 entries`) &&
+	// Comments do not change the issue: its history is the creation and the retitling.
+	b.expect("the issue's history", strings.HasPrefix(v, `History · issue "Plan v2" · read-only · 2 entries`) &&
 		strings.Contains(v, "#1 · created · rev 1") && strings.Contains(v, "Claude (agent)") && strings.Contains(v, "+ ## Plan") &&
-		strings.Contains(v, "comment create") && strings.Contains(v, "person (human)"))
+		!strings.Contains(v, "comment create"))
 	b.press("j", "G")
-	b.expect("the retitling at the end", strings.Contains(b.view(), "#4 · rev 3 → 4") && strings.Contains(b.view(), `title: "Plan" → "Plan v2"`))
+	b.expect("the retitling at the end", strings.Contains(b.view(), "#2 · rev 1 → 2") && strings.Contains(b.view(), `title: "Plan" → "Plan v2"`))
 	b.press("k", "esc")
 	b.expect("the same tree and selection", b.view() == before)
 	if writes(srv) != wrote {

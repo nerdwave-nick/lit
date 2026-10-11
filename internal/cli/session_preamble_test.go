@@ -14,7 +14,7 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 )
 
 // preambleService starts a real service and isolates CLI state, cwd caches and
@@ -27,7 +27,7 @@ func preambleService(t *testing.T, wrap func(http.Handler) http.Handler) (state 
 	state = t.TempDir()
 	t.Setenv("LIT_STATE_DIR", state)
 	t.Setenv("LIT_SESSION", "")
-	data, err := store.Open(t.TempDir())
+	data, err := storage.Open(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}

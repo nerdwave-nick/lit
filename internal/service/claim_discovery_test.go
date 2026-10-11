@@ -24,12 +24,12 @@ func TestClaimFiltersProjectionAndBothLinkEndpoints(t *testing.T) {
 	}
 	yes, no := true, false
 	for _, q := range []ProjectQuery{{Type: "issues", AllProjects: true, Claimed: &yes}, {Type: "issues", AllProjects: true, OwnerClientID: c.ClientID}} {
-		page, e := s.recordPage(q)
+		page, e := recordPageOf(s, q)
 		if e != nil || len(page.Items) != 1 {
 			t.Fatal(page, e)
 		}
 	}
-	page, e := s.recordPage(ProjectQuery{Type: "issues", AllProjects: true, Claimed: &no})
+	page, e := recordPageOf(s, ProjectQuery{Type: "issues", AllProjects: true, Claimed: &no})
 	if e != nil || len(page.Items) != 1 {
 		t.Fatal(page, e)
 	}
@@ -54,7 +54,7 @@ func TestClaimFiltersProjectionAndBothLinkEndpoints(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	if _, _, e = s.recordTransaction(plan.Intent, plan.RequestHash, c, protocol.ClaimToken{IssueID: id, Token: protocol.UUID()}); e == nil {
+	if e = dryRun(s, plan.Intent, plan.RequestHash, c, protocol.ClaimToken{IssueID: id, Token: protocol.UUID()}); e == nil {
 		t.Fatal("stale no-op link token accepted")
 	}
 	// Blocked issues remain maintenance-claimable, regardless discovery frontier.
@@ -80,7 +80,7 @@ func TestClaimFiltersProjectionAndBothLinkEndpoints(t *testing.T) {
 		t.Fatal(e)
 	}
 	now = now.Add(time.Hour)
-	page, e = s.recordPage(ProjectQuery{Type: "issues", AllProjects: true, Claimed: &yes})
+	page, e = recordPageOf(s, ProjectQuery{Type: "issues", AllProjects: true, Claimed: &yes})
 	if e != nil || len(page.Items) != 0 {
 		t.Fatal(page, e)
 	}

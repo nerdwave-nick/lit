@@ -29,9 +29,9 @@ func TestHistoryReadsImmutableEntriesThroughCursors(t *testing.T) {
 	ctx := context.Background()
 
 	page, err := s.History(ctx, "issues", id, litclient.HistoryQuery{})
-	// Five entries: creation, title, body, close, and the comment's creation,
-	// which changed the issue's comment_ids.
-	if err != nil || page.NextCursor != nil || len(page.Items) != 5 {
+	// Four entries: creation, title, body and close. Adding the comment did
+	// not change the issue: its comment_ids are computed, not stored.
+	if err != nil || page.NextCursor != nil || len(page.Items) != 4 {
 		t.Fatalf("issue history: %+v %v", page, err)
 	}
 	for i, e := range page.Items {
@@ -49,8 +49,10 @@ func TestHistoryReadsImmutableEntriesThroughCursors(t *testing.T) {
 	if d := page.Items[3].Differences["state"]; string(d.Before) != `"open"` || string(d.After) != `"closed"` {
 		t.Fatalf("close: %+v", page.Items[3])
 	}
-	if d := page.Items[4].Differences["comment_ids"]; string(d.After) != `["`+commentID+`"]` || page.Items[4].Intent.Operations[0].Type != "comments" {
-		t.Fatalf("comment creation: %+v", page.Items[4])
+	for _, e := range page.Items {
+		if _, ok := e.Differences["comment_ids"]; ok {
+			t.Fatalf("history records the computed comment_ids: %+v", e)
+		}
 	}
 
 	// One entry per page, following every cursor, yields the same entries.
@@ -67,7 +69,7 @@ func TestHistoryReadsImmutableEntriesThroughCursors(t *testing.T) {
 		}
 		q.Cursor = *p.NextCursor
 	}
-	if len(paged) != 5 {
+	if len(paged) != 4 {
 		t.Fatalf("paged %d entries", len(paged))
 	}
 	for i := range paged {

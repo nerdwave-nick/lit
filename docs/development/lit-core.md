@@ -11,9 +11,10 @@ working directories. It never starts a persistent service or consults vendors.
 `lit-server` reads strict version-1 JSON configuration. Flags override environment,
 which overrides JSON, which overrides defaults. The listener defaults to
 `127.0.0.1:7411`. An explicitly selected missing configuration is an error.
-The service holds its Linux OS lock before automatic recovery and releases it
-only after HTTP shutdown has drained storage work. SIGINT and SIGTERM allow up
-to thirty seconds; exceeding that bound terminates and leaves replay evidence.
+The service holds its Linux owner lock (`lit.db.lock`) from opening the database
+and releases it only after HTTP shutdown has drained storage work. SIGINT and
+SIGTERM allow up to thirty seconds; exceeding that bound terminates, and SQLite
+discards the uncommitted transaction on the next start.
 
 Ticket 01 provides connect, disconnect, and the available session properties.
 Project references need ticket 02's project resolver; no project is invented by
@@ -27,25 +28,21 @@ Deferred archives, editing windows, drafts, and saved plans have no routes.
   stable errors, UUID generation, and HTTP envelopes. Response decoding is
   intentionally additive; unknown successful mutation outcomes retain pending
   evidence. Add canonical durable encoding here with the projects slice.
-- `internal/store.Store` owns the directory, identity, OS lock, and redo journal.
-  `Commit([]Write)` atomically establishes one batch's commitment and replays its
-  fixed bytes. `JSONWrite` is a convenience for versioned envelopes. Durable
-  object slices can write Markdown and relationship/history files through the
-  same batch. Paths are store-relative and cannot target identity or journal
-  machinery. The store fences externally changed authoritative files; it never
-  accepts silent repairs. Derived-index rebuilding belongs to its owning slice.
-- `Store.Fault` is a narrow in-process test seam for journal boundaries:
-  `after_journal_directory`, `after_payload`, `before_commit`, `after_commit`,
-  `after_write:N`, `cleanup_after_marker`, and `cleanup_after_payload`. It is not
-  enabled by production environment variables. A fault poisons further writes
-  until the store is reopened. `OpenWithFault` additionally exercises interrupted
-  startup replay; production startup never supplies it. Tests preserve exact replay bytes and service ID
-  across two restarts, and reject damaged or symlink-directed evidence.
-- `internal/service.Server.Mu` serializes logical reads and writes. Request-body
-  network reads happen first; response bytes are materialized under the mutex and
-  transmitted afterwards. Resource handlers belong in separate files and are
-  dispatched from `route`. Mutations must check bounded success output before
-  committing; never return a definite limit rejection after changing state.
+- `internal/storage` owns the SQLite database: the owner lock, the schema and
+  its migrations, and every query (see [the storage format](../storage-format.md)).
+  Reads are typed around the service's use cases (records by ID, selectors,
+  filtered keyset lists, neighbours, milestone progress, claims, history, the
+  client, the search scan). Writes go through `WriteTx.WriteRequest` (records,
+  history and the transaction record of one durable request), the claim and
+  client writes. Only a `Writer`, which proves the process write lock is held,
+  begins a write transaction. There is no fault-injection seam: atomicity rests
+  on SQLite transactions and is tested by failing requests after their writes.
+- `internal/service.New` takes the open storage module. Each request takes the
+  write lock and runs in one write transaction; request-body network reads happen
+  first, response bytes are materialized in the transaction and transmitted
+  after the lock is released. Resource handlers belong in separate files and are
+  dispatched from `route`. Mutations apply their writes, bound the success output
+  and only then commit; a limit rejection rolls everything back.
 - `internal/litclient.Session` is the client safety core shared by every Go
   client: it holds the client/service binding, deadline, last observed service
   time and an injected warning writer. `Lock` holds a logical session's mapping
@@ -85,8 +82,8 @@ The separate cwd `.lit/<client-id>/state.json` caches only output preference and
 binding. A corrupt/mismatched cache grants no authority; offline output falls
 back to JSON. Server-held project/output settings remain authoritative online.
 
-Testing limitations: fault tests exercise deterministic filesystem boundaries and
-reopening; they do not simulate a physical disk or power failure. Linux is the
+Testing limitations: atomicity tests fail requests after their writes and reopen
+the database; they do not simulate a physical disk or power failure. Linux is the
 service runtime boundary. Cross-compilation is not native macOS/Windows runtime
 validation. The later build/install ticket owns release automation and installation.
 
@@ -109,55 +106,40 @@ files carry version 1.
   never introduce arbitrary JSON mutation maps. Expand strict per-command presence
   validation when adding fields. Repeated compatible descriptors merge before
   canonical encoding, while duplicate members inside one input are invalid.
-- `Server.PrepareProjects` resolves all selectors under the server mutex, merges
-  semantic groups, fixes IDs/revisions, and validates the complete final state.
-  `projectTransaction` returns journal writes plus changed-owner results without
-  committing. Both preparation and execution use that engine. Later resource
-  slices should extend the same complete-state validation/expansion boundary;
-  project membership changes must participate as ordinary changed owners.
-- `commitDurableResponse` constructs and checks the exact success bytes before
-  committing. Reads and mutation responses are transmitted after `Server.Mu` is
+- `prepareProjects` resolves all selectors in the request's transaction, merges
+  semantic groups, fixes IDs/revisions, and validates the final state.
+  `recordTransaction` returns the request's writes plus changed-owner results
+  without applying them. Preparation, execution and reconciliation use that
+  engine.
+- `commitResponse` applies the writes, constructs and checks the exact success
+  bytes, and commits. Responses are transmitted after the write lock is
   released. Durable HTTP results use `data.results`; CLI output uses `items`.
   List/snapshot/history pages use top-level HTTP `items` and `next_cursor`.
-- Each project is `projects/<uuid>/content.md` plus `relationships.json`. The
-  Markdown front matter is readable block YAML, preserving the description bytes
-  after the closing delimiter. JSON and root flow-map metadata are unsupported;
-  the service neither migrates nor deletes old test data. See
-  [the storage format](../storage-format.md) for the strict metadata rules. Membership is stored only
-  in the separate versioned relationship file. No direct source edits are accepted.
-- `ProjectHistory` contains only changed metadata/membership before/after values,
-  optional reversible whole-body replacement hunks, owner revisions, and the
-  complete intent/result descriptor. Whole-body hunks favor simple lossless
-  reconstruction over line-diff compression; they preserve all Markdown bytes.
-  Files are immutable `history/<fixed-width-UTC-microseconds>-<hash>.json`.
-  Time advances past the maximum accepted project timestamp even if the clock
-  repeats or moves backward. Changed owners advance once; guards/no-ops do not.
-- `InitProjects` reconstructs metadata/body history, validates canonical operations
-  against differences and current sources, and checks matching results across
-  every changed owner. Only then does it rebuild `indexes/titles.json`. Current
-  titles use the configured prefix allowlist; historical titles may retain retired
-  prefixes. When extending to issues, add authoritative membership validation and
-  issue index generation here instead of overwriting their derived mappings.
-- `ResolveProject`, `Project`, `Projects`, `ProjectHistory`, and the existing store
-  API are the read seams for subsequent resource/discovery/reconciliation slices.
+- History holds only changed field before/after values and the body change as a
+  forward diff, which the history API turns back into whole-body hunks. Each
+  request's intent and results are stored once. Time advances past the newest
+  committed transaction even if the clock repeats or moves backward. Changed
+  owners advance once; guards/no-ops do not.
+- The resolvers (`resolveProject`, `resolveIssue`, ...), the record reads and
+  the storage module's queries are the read seams for resource, discovery and
+  reconciliation handlers. The exported `Server` methods (`ApplyClaims`,
+  `PrepareRecords`, `Issue`, `RecordHistory`, ...) run as requests of their own
+  for embedders and tests.
   UUID prefixes accept case-insensitive hex and standard-position hyphens. History
   detail/request outcome routes use UUID owners. Missing owner request lookup is
   `not_recorded_here`; it does not prove an entire batch failed.
 
 Project tests exercise actual CLI binaries against a real temporary service,
 including a proxy that drops a committed mutation's response. Pending evidence
-retains its creation IDs/hash and owner history establishes the committed outcome.
-Narrow storage tests interrupt before/after commitment, after each of seven files
-in a two-project transaction, and during cleanup, then reopen twice. They check
-complete content, membership, history and index, identity, and unchanged replay
-bytes. These deterministic seams do not simulate physical power failure. Complete
+retains its creation IDs/hash and the transaction record establishes the
+committed outcome. Atomicity tests fail multi-record requests after their
+writes and reopen the database. They do not simulate physical power failure. Complete
 interactive transaction reconciliation remains ticket 06's scope.
 
-Successor slices must preserve canonical history hashes and supported YAML
-record semantics. Add typed optional fields with omission rules that leave
-canonical request bytes unchanged. The old project-only JSON frontmatter fixture
-now verifies startup rejection without modification; it is not a compatibility
-promise. YAML restart and mutation tests cover projects, issues and comments.
+Successor slices must preserve canonical history hashes. Add typed optional
+fields with omission rules that leave canonical request bytes unchanged. The old
+project-only file store fixture now verifies that a legacy store is refused
+without modification; it is not a compatibility promise.
 
 ## Issues, comments, and shared record transactions
 
@@ -171,35 +153,29 @@ value means assignment. Custom decoding preserves all three states. Input
 `clear` is translated into those typed null fields; body clears are empty text.
 All other null set values and inapplicable resource fields are rejected.
 
-- `records.go` owns `Issue`, `Comment`, `Issues`, `Comments`, `Records`, exact
-  resolvers, shared NFC/default-fold `IssueTitleKey`, and strict Markdown /
-  relationship decoding. Metadata and relationship fields have distinct locations;
-  a frontmatter body or misplaced membership is corruption, not an ignored field.
-- `ReadRecordState` enumerates one accepted state under `Server.Mu`. The read
-  helpers do not acquire the mutex themselves. HTTP and later discovery/grep
-  handlers must hold it while collecting their complete snapshot.
-- `record_transaction.go` is the shared complete-state engine used by project,
-  issue, and comment preparation/execution. `finalState` applies typed operations,
-  derives memberships from final ownership, then validates uniqueness and cycles.
-  `requiredGuards` captures unchanged projects/owners/ancestors relied upon during
-  resolution and structure validation. Explicit targets plus changed indirect
-  owners are revision preconditions; guards never get revisions or history.
+- `records.go` owns the record reads, the exact resolvers and the shared
+  NFC/default-fold `IssueTitleKey`.
+- `loadState` reads only what one request involves: its records, the records
+  they name, and the structural closure (ancestors, transitively blocked issues
+  and their projects) found with recursive queries. `finalState` applies typed
+  operations and validates the changed records, their references, title
+  uniqueness (in the request and in storage) and cycles. Membership lists are
+  computed by storage and never rebuilt or compared. `requiredGuards` captures
+  unchanged projects/owners/ancestors relied upon during resolution and
+  structure validation. Explicit targets are revision preconditions; guards
+  never get revisions or history.
   Each changed owner advances once. Future relationship operations should extend
   typed operations and this engine, without introducing a second commit path.
 - `recordTransaction` checks actor/service/client binding, revisions and expanded
   limits, produces validated writes/results, and leaves commitment to the existing
   bounded `commitDurableResponse`. Claims can add policy checks at this shared
   execution boundary before writes are produced; this slice invents no claims.
-- `record_history.go` replays each entire historical semantic transaction against
-  its pre-state, checks affected owners, guards, diffs, timestamps and result
-  descriptors, and compares accepted authority. It reconstructs memberships using
-  the same engine. Only then does it rebuild project and issue title indexes.
-  `InitProjects` remains a compatibility wrapper around `InitRecords`.
+- `record_history.go` pages history through the storage module.
 - `record_http.go` extends the snapshot/query seam and resource routes. Basic
   issue lists require a project or explicit all-projects; comments require an
   owning issue. `ProjectQuery` retains its existing name and adds those scope
-  fields, with strict field presence validation. Ticket 04 owns further discovery
-  filters and links. Ticket 07 can use the same serialized enumeration for grep.
+  fields, with strict field presence validation; storage applies the filters and
+  keyset pages.
 - `cli/records.go` owns grouped issue/comment arguments, JSON array/file/stdin
   inputs, mutation preparation and read commands. CLI mutation results remain
   `items`; HTTP mutation results remain `data.results`, and snapshot/list/history
@@ -214,17 +190,15 @@ children; no move, archive, restore or deletion behavior was added.
 
 ## Claims and live execution policy
 
-Ticket 05 keeps claims solely in version-1 `issues/<id>/claim.json` envelopes.
-The required `claim` member is either a `protocol.Claim` or explicit null after
-release. Expired claims never appear as live and never regain time on restart.
-`Server.LiveClaim(id)` and `Server.Claims(ownerID)` are the serialized read seams;
-call them under `Server.Mu`. HTTP handling captures one request time under that
-mutex for claim filtering, ownership fencing, projections and success response
-timestamps; a later request evaluates expiry anew. They validate the authoritative file, and startup
-validates all claims including expired records. Discovery must use these seams.
+Ticket 05 keeps claims in the `claims` table, one row per issue; release
+deletes the row. Expired claims never appear as live and never regain time on
+restart. `liveClaim(id)` and `liveClaims(ownerID)` are the read seams. Each
+request captures one request time for claim filtering, ownership fencing,
+projections and success response timestamps; a later request evaluates expiry
+anew.
 
 `claimTransaction` validates and returns operational writes; HTTP materializes
-and bounds the exact response before the one journal commit. `POST /v1/operations`
+and bounds the exact response before the commit. `POST /v1/operations`
 accepts `protocol.ClaimOperation` for atomic acquire/renew/release batches;
 `selection: all_owned` fences the complete live ID/token set. Singular issue
 claim routes use that engine. `POST /v1/claim-snapshots` resolves explicit issue
@@ -240,12 +214,12 @@ a transaction-only reservation; the CLI forwards same-client tokens through
 claim, while supplied stale tokens never get replaced silently. Link mutations
 must forward prepared tokens just like other durable mutations.
 
-The policy covers explicit existing issues, changed indirect issue owners, and
-existing comment owners. Comment append alone is exempt. Structural guards and
-historical semantic replay remain independent of live ownership. No persisted
-transient lease is needed because the mutex spans validation and journal commit.
-Closing and explicit force append claim-release writes to the durable journal;
-disconnect appends all owned live/expired releases to the client-state journal.
+The policy covers explicit existing issues, existing parents that gain or lose a
+child, and existing comment owners. Comment append changes no issue and needs no
+claim. Structural guards remain independent of live ownership. No persisted
+transient lease is needed because one transaction spans validation and commit.
+Closing and explicit force release claims in the same transaction; disconnect
+deletes all owned live and expired claims with the client's transition.
 Claim changes alone do not increment durable revisions or create object history.
 
 Excessive absolute renewal targets are rejected (user-confirmed), preserving the one-hour
@@ -348,16 +322,14 @@ from removing evidence while that CLI still owns the request. Lock files live
 under `locks/pending/`, separately from versioned pending JSON.
 
 
-## Current storage growth limitation
+## Storage growth
 
-The external-change fence scans and hashes authoritative store files, including
-immutable history, before routing requests under the service mutex. Commit paths
-perform another check. Startup also reconstructs and validates retained history.
-Consequently read latency and startup time can grow with total retained data and
-history, even for a request about one issue. This is a correctness-first initial
-implementation, not a measured scalability guarantee; no large-store throughput
-benchmark has been accepted. Preserve the fence and history checks when profiling
-or designing an optimization rather than disabling them to gain speed.
+Requests read only the records they involve, through indexed queries, so their
+cost no longer grows with the whole store. Two passes still scan: `lit grep`
+reads the stored text of its scope until the search index exists, and completion
+lists the records of one type. Requests are still serialized by one write lock;
+concurrent reads, startup integrity checks and the benchmark are later
+milestone work.
 
 See [recovery limitations](../recovery.md) for uncertainty that retained evidence
 cannot currently resolve; no human repair or retirement interface is shipped.

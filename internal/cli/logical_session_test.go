@@ -13,14 +13,14 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 )
 
 func TestConnectSessionIDOnly(t *testing.T) {
 	t.Chdir(t.TempDir())
 	t.Setenv("LIT_STATE_DIR", t.TempDir())
 	t.Setenv("LIT_SESSION", "")
-	data, err := store.Open(t.TempDir())
+	data, err := storage.Open(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -78,7 +78,7 @@ func TestConnectLogicalSessions(t *testing.T) {
 	state := t.TempDir()
 	t.Setenv("LIT_STATE_DIR", state)
 	t.Setenv("LIT_SESSION", "")
-	data, err := store.Open(t.TempDir())
+	data, err := storage.Open(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -229,7 +229,7 @@ func TestConnectMappingSaveFailureCanRecoverRegisteredClient(t *testing.T) {
 	t.Setenv("LIT_STATE_DIR", state)
 	t.Setenv("LIT_SESSION", "")
 	t.Setenv("LIT_ENDPOINT", "http://127.0.0.1:7411")
-	data, err := store.Open(t.TempDir())
+	data, err := storage.Open(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}

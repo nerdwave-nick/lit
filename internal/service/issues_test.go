@@ -8,7 +8,7 @@ import (
 
 func TestIssueHierarchyAtomic(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	project := protocol.UUID()
 	executeProjectTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: project, Title: textPointer("feat/issues")}))
 	parent, child := protocol.UUID(), protocol.UUID()
@@ -24,7 +24,8 @@ func TestIssueHierarchyAtomic(t *testing.T) {
 	p, _ := s.Project(project)
 	a, _ := s.Issue(parent)
 	b, _ := s.Issue(child)
-	if p.Revision != 2 || a.Revision != 1 || len(a.ChildIDs) != 1 || b.ParentID == nil || *b.ParentID != parent {
+	// Membership lists are computed: creating issues does not revise their project.
+	if p.Revision != 1 || len(p.IssueIDs) != 2 || a.Revision != 1 || len(a.ChildIDs) != 1 || b.ParentID == nil || *b.ParentID != parent {
 		t.Fatal(p, a, b)
 	}
 	if _, e := s.ResolveIssue("STRASSE", project); e != nil {
@@ -37,20 +38,17 @@ func TestIssueHierarchyAtomic(t *testing.T) {
 	executeProjectTest(t, s, c, prep("comment.create", protocol.ProjectInput{ID: comment, Issue: child, Content: textPointer("# Exact\r\n雪\n")}))
 	b, _ = s.Issue(child)
 	note, _ := s.Comment(comment)
-	if b.Revision != 2 || len(b.CommentIDs) != 1 || note.Author != c.Actor.Name {
+	if b.Revision != 1 || len(b.CommentIDs) != 1 || note.Author != c.Actor.Name {
 		t.Fatal(b, note)
 	}
 	executeProjectTest(t, s, c, prep("issue.update", protocol.ProjectInput{Target: child, Set: protocol.ProjectSet{State: textPointer("closed")}}))
-	if e := s.InitProjects(); e != nil {
-		t.Fatal(e)
-	}
 }
 
 func TestIssueStaleStructuralGuards(t *testing.T) {
 	for _, mode := range []string{"project", "ancestor"} {
 		t.Run(mode, func(t *testing.T) {
 			s, c := projectTestServer(t, t.TempDir())
-			defer s.Store.Close()
+			defer s.DB.Close()
 			project := protocol.UUID()
 			executeProjectTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: project, Title: textPointer("feat/guard")}))
 			parent, child := protocol.UUID(), protocol.UUID()
@@ -74,13 +72,13 @@ func TestIssueStaleStructuralGuards(t *testing.T) {
 				executeProjectTest(t, s, c, prepare("issue.update", protocol.ProjectInput{Target: parent, Set: protocol.ProjectSet{Body: textPointer("changed ancestor")}}))
 			}
 			before, _ := s.Issue(child)
-			hs, _ := s.IssueHistory(child)
+			hs, _ := s.RecordHistory("issues", child)
 			code, body := executeProjectTest(t, s, c, pending)
 			if code != 409 {
 				t.Fatalf("stale structural guard accepted: %d %s", code, body)
 			}
 			after, _ := s.Issue(child)
-			newHistory, _ := s.IssueHistory(child)
+			newHistory, _ := s.RecordHistory("issues", child)
 			if !same(before, after) || len(newHistory) != len(hs) {
 				t.Fatal("stale guard changed owner")
 			}
@@ -89,7 +87,7 @@ func TestIssueStaleStructuralGuards(t *testing.T) {
 }
 func TestIssueTitleAndSemanticValidation(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	project := protocol.UUID()
 	executeProjectTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: project, Title: textPointer("feat/title")}))
 	prepare := func(op string, items ...protocol.ProjectInput) (protocol.Prepared, error) {
@@ -159,7 +157,7 @@ func TestIssueTitleAndSemanticValidation(t *testing.T) {
 
 func TestContradictoryParentInputs(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	project, a, b, child := protocol.UUID(), protocol.UUID(), protocol.UUID(), protocol.UUID()
 	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: project, Title: textPointer("feat/parents")}))
 	executeRecordTest(t, s, c, prepareRecordTest(t, s, c, project, "issue.create", protocol.ProjectInput{ID: a, Title: textPointer("A")}, protocol.ProjectInput{ID: b, Title: textPointer("B")}, protocol.ProjectInput{ID: child, Title: textPointer("Child")}))

@@ -287,8 +287,9 @@ func TestAStaleSummaryIsRefusedAtPreview(t *testing.T) {
 	}
 }
 
-// Every action previews and applies its change; a parent change lists the
-// old and the new parent as other affected issues.
+// Every action previews and applies its change. A parent change writes only
+// the issue itself: the old and the new parent keep their revisions (their
+// children are computed) and are read without changing, fenced as guards.
 func TestEveryActionPreviewsAndAppliesItsChange(t *testing.T) {
 	f := newFixture(t, "Work", "Old parent", "New parent", "Other")
 	old := f.summary("Old parent")
@@ -315,8 +316,8 @@ func TestEveryActionPreviewsAndAppliesItsChange(t *testing.T) {
 		{"parent", func(i protocol.IssueSummary) quick.Change {
 			return quick.Parent(project, i, f.ids["New parent"], "New parent")
 		},
-			func(i protocol.IssueSummary) bool { return i.ParentID != nil && *i.ParentID == f.ids["New parent"] }, []string{"Old parent", "New parent"}},
-		{"no parent", func(i protocol.IssueSummary) quick.Change { return quick.Parent(project, i, "", "") }, func(i protocol.IssueSummary) bool { return i.ParentID == nil }, []string{"New parent"}},
+			func(i protocol.IssueSummary) bool { return i.ParentID != nil && *i.ParentID == f.ids["New parent"] }, nil},
+		{"no parent", func(i protocol.IssueSummary) quick.Change { return quick.Parent(project, i, "", "") }, func(i protocol.IssueSummary) bool { return i.ParentID == nil }, nil},
 		{"related", func(i protocol.IssueSummary) quick.Change {
 			return quick.Link(project, i, quick.Related, other, "Other")
 		},
@@ -346,6 +347,20 @@ func TestEveryActionPreviewsAndAppliesItsChange(t *testing.T) {
 		want := slices.Sorted(slices.Values(step.others))
 		if !slices.Equal(others, want) {
 			t.Fatalf("%s: other affected issues %v, want %v", step.name, others, want)
+		}
+		if step.name == "parent" || step.name == "no parent" {
+			read := map[string]bool{}
+			for _, a := range p.Affected {
+				read[a.Title] = read[a.Title] || a.Type == "issues" && !a.Changed
+			}
+			for _, parent := range []string{"Old parent", "New parent"} {
+				if step.name == "no parent" && parent == "Old parent" {
+					continue
+				}
+				if !read[parent] {
+					t.Fatalf("%s: %s is not read as a guard: %+v", step.name, parent, p.Affected)
+				}
+			}
 		}
 		if out := quick.Commit(context.Background(), f.l, p); out.Err != nil {
 			t.Fatalf("%s: commit: %v", step.name, out.Err)

@@ -178,15 +178,23 @@ func (q queries) History(ctx context.Context, typ, id string, afterRevision int6
 	return out, nil
 }
 
+// HistoryRevision finds the revision of one record that the request with the
+// given hash committed, and the request's timestamp; found is false when that
+// request did not change the record.
+func (q queries) HistoryRevision(ctx context.Context, typ, id, hash string) (revision int64, timestamp string, found bool, err error) {
+	e := q.queryRow(ctx, []any{&revision, &timestamp}, `SELECT h.revision, t.timestamp FROM history h JOIN transactions t ON t.request_hash = h.request_hash
+		WHERE h.owner_type = ? AND h.owner_id = ? AND h.request_hash = ?`, typ, id, hash)
+	if errors.Is(e, sql.ErrNoRows) {
+		return 0, "", false, nil
+	}
+	return revision, timestamp, e == nil, e
+}
+
 // HistoryByRequest reads the revision of one record that the request with the
 // given hash committed; found is false when that request did not change it.
 func (q queries) HistoryByRequest(ctx context.Context, typ, id, hash string) (HistoryEntry, bool, error) {
-	var rev int64
-	e := q.queryRow(ctx, []any{&rev}, "SELECT revision FROM history WHERE owner_type = ? AND owner_id = ? AND request_hash = ?", typ, id, hash)
-	if errors.Is(e, sql.ErrNoRows) {
-		return HistoryEntry{}, false, nil
-	}
-	if e != nil {
+	rev, _, found, e := q.HistoryRevision(ctx, typ, id, hash)
+	if e != nil || !found {
 		return HistoryEntry{}, false, e
 	}
 	hs, e := q.History(ctx, typ, id, rev-1, 1)

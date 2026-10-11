@@ -352,8 +352,8 @@ func TestInterruptedFirstConnectRemainsUnidentifiable(t *testing.T) {
 		t.Fatal("lost first registration evidence")
 	}
 	mappings, _ := filepath.Glob(filepath.Join(state, "sessions", "*.json"))
-	clients, _ := filepath.Glob(filepath.Join(data, "clients", "*.json"))
-	if len(mappings) != 0 || len(clients) != 1 || calls.Load() != 1 {
+	clients := clientCount(t, data)
+	if len(mappings) != 0 || clients != 1 || calls.Load() != 1 {
 		t.Fatal("replayed or invented registration", mappings, clients, calls.Load())
 	}
 }

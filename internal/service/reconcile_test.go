@@ -10,7 +10,7 @@ import (
 func reconcileDurableTest(t *testing.T, s *Server, c protocol.Client, p protocol.Prepared) protocol.TransactionStatus {
 	t.Helper()
 	b, _ := json.Marshal(protocol.DurableRequest{SchemaVersion: 1, Intent: p.Intent, RequestHash: p.RequestHash})
-	v, e := s.Reconcile(protocol.ReconcileRequest{ServiceID: s.Store.Identity.ServiceID, ClientID: c.ClientID, Method: "POST", Path: "/v1/transactions", Body: b}, c)
+	v, e := s.Reconcile(protocol.ReconcileRequest{ServiceID: s.DB.ServiceID(), ClientID: c.ClientID, Method: "POST", Path: "/v1/transactions", Body: b}, c)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -18,7 +18,7 @@ func reconcileDurableTest(t *testing.T, s *Server, c protocol.Client, p protocol
 }
 func TestReconcileDurableHistoryAndNoop(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	p := prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: protocol.UUID(), Title: textPointer("feat/a")}, protocol.ProjectInput{ID: protocol.UUID(), Title: textPointer("feat/b")})
 	if v := reconcileDurableTest(t, s, c, p); v.Status != "uncommitted" {
 		t.Fatal(v)
@@ -52,7 +52,7 @@ func TestReconcileClaimEvidence(t *testing.T) {
 	check := func(want string) {
 		t.Helper()
 		b, _ := json.Marshal(op)
-		v, e := s.Reconcile(protocol.ReconcileRequest{ServiceID: s.Store.Identity.ServiceID, ClientID: c.ClientID, Method: "POST", Path: "/v1/operations", Body: b}, c)
+		v, e := s.Reconcile(protocol.ReconcileRequest{ServiceID: s.DB.ServiceID(), ClientID: c.ClientID, Method: "POST", Path: "/v1/operations", Body: b}, c)
 		if e != nil || v.Status != want {
 			t.Fatalf("%+v %v", v, e)
 		}
@@ -109,11 +109,11 @@ func TestReconcileNoopDoesNotBypassOriginalOwnershipOrRevisions(t *testing.T) {
 }
 func TestReconcileRejectsFutureRetainedVersionEvenWithHistory(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	plan := prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: protocol.UUID(), Title: textPointer("feat/version")})
 	executeProjectTest(t, s, c, plan)
 	b, _ := json.Marshal(protocol.DurableRequest{SchemaVersion: 2, Intent: plan.Intent, RequestHash: plan.RequestHash})
-	if _, e := s.Reconcile(protocol.ReconcileRequest{ServiceID: s.Store.Identity.ServiceID, ClientID: c.ClientID, Method: "POST", Path: "/v1/transactions", Body: b}, c); e == nil {
+	if _, e := s.Reconcile(protocol.ReconcileRequest{ServiceID: s.DB.ServiceID(), ClientID: c.ClientID, Method: "POST", Path: "/v1/transactions", Body: b}, c); e == nil {
 		t.Fatal("future retained version accepted")
 	}
 }

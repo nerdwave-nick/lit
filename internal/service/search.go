@@ -11,6 +11,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 	"golang.org/x/text/cases"
 )
 
@@ -103,7 +104,7 @@ func (s *Server) searchPage(q protocol.SearchRequest, c protocol.Client) (Projec
 		if q.Scope.ProjectID == "" {
 			return out, invalid("select a project or all_projects")
 		}
-		p, e := s.ResolveProject(q.Scope.ProjectID)
+		p, e := s.resolveProject(q.Scope.ProjectID)
 		if e != nil {
 			return out, e
 		}
@@ -136,51 +137,29 @@ func (s *Server) searchPage(q protocol.SearchRequest, c protocol.Client) (Projec
 		}
 		after = cursor.After
 	}
-	state, e := s.ReadRecordState()
-	if e != nil {
-		return out, e
-	}
+	// Search scans the stored text of its scope; the search index comes later.
 	matches := []protocol.SearchResult{}
-	for _, record := range state {
-		typ, id, rev, _, _ := recordIdentity(record)
-		result := protocol.SearchResult{Type: typ, ID: id, Revision: rev, Excerpts: []protocol.SearchExcerpt{}}
-		fields := [][2]string{}
-		switch v := record.(type) {
-		case protocol.Project:
-			result.ProjectID = v.ID
-			fields = append(fields, [2]string{"description", v.Description})
-		case protocol.Issue:
-			result.ProjectID = v.ProjectID
-			result.IssueID = v.ID
-			result.IssueTitle = v.Title
-			fields = append(fields, [2]string{"title", v.Title}, [2]string{"body", v.Body})
-		case protocol.Comment:
-			owner, ok := state[recordKey("issues", v.IssueID)].(protocol.Issue)
-			if !ok {
-				return out, invalid("comment owner missing")
-			}
-			result.ProjectID = owner.ProjectID
-			result.IssueID = owner.ID
-			result.IssueTitle = owner.Title
-			fields = append(fields, [2]string{"body", v.Body})
-		case protocol.Milestone:
-			result.ProjectID = v.ProjectID
-			fields = append(fields, [2]string{"title", v.Title}, [2]string{"body", v.Body})
-		}
-		if !q.Scope.AllProjects && result.ProjectID != q.Scope.ProjectID {
-			continue
-		}
+	scope := ""
+	if !q.Scope.AllProjects {
+		scope = q.Scope.ProjectID
+	}
+	e := s.q().SearchScan(s.ctx(), scope, func(record storage.SearchRecord) error {
+		result := protocol.SearchResult{Type: record.Type, ID: record.ID, ProjectID: record.ProjectID, IssueID: record.IssueID, IssueTitle: record.IssueTitle, Revision: record.Revision, Excerpts: []protocol.SearchExcerpt{}}
 		if searchKey(result) <= after {
-			continue
+			return nil
 		}
-		for _, field := range fields {
-			if ex, ok := searchExcerpt(field[0], field[1], q.Query, q.CaseSensitive, q.ContextLines); ok {
+		for _, field := range record.Fields {
+			if ex, ok := searchExcerpt(field.Name, field.Text, q.Query, q.CaseSensitive, q.ContextLines); ok {
 				result.Excerpts = append(result.Excerpts, ex)
 			}
 		}
 		if len(result.Excerpts) > 0 {
 			matches = append(matches, result)
 		}
+		return nil
+	})
+	if e != nil {
+		return out, e
 	}
 	sort.Slice(matches, func(i, j int) bool { return searchKey(matches[i]) < searchKey(matches[j]) })
 	if len(matches) > q.Limit {
