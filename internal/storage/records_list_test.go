@@ -99,7 +99,7 @@ func TestListFiltersIssues(t *testing.T) {
 	} {
 		t.Run(c.name, func(t *testing.T) {
 			c.q.Type = Issues
-			jsonEqual(t, listIDs(t, w.db, c.q), c.want)
+			sameJSON(t, listIDs(t, w.db, c.q), c.want)
 		})
 	}
 }
@@ -121,7 +121,7 @@ func TestListSortsAndPagesByKeyset(t *testing.T) {
 		{"title", true, []string{a, d.ID, c, b}},
 	} {
 		q := ListQuery{Type: Issues, ProjectID: p, Sort: s.sort, Descending: s.desc}
-		jsonEqual(t, listIDs(t, w.db, q), s.want)
+		sameJSON(t, listIDs(t, w.db, q), s.want)
 		// Page through two at a time from each returned position.
 		var paged []string
 		q.Limit = 2
@@ -144,7 +144,7 @@ func TestListSortsAndPagesByKeyset(t *testing.T) {
 			_, id, _, _, _, _ := identity(last)
 			q.After = &ListPosition{Key: SortKey(s.sort, last), ID: id}
 		}
-		jsonEqual(t, paged, s.want)
+		sameJSON(t, paged, s.want)
 	}
 }
 
@@ -171,7 +171,7 @@ func TestListOtherRecordTypes(t *testing.T) {
 		{"milestones by title text", ListQuery{Type: Milestones, ProjectID: w.p.ID, Text: "m1\ngoal"}, []string{w.milestone.ID}},
 		{"milestones of another project", ListQuery{Type: Milestones, ProjectID: w.q.ID}, []string{}},
 	} {
-		t.Run(c.name, func(t *testing.T) { jsonEqual(t, listIDs(t, w.db, c.q), c.want) })
+		t.Run(c.name, func(t *testing.T) { sameJSON(t, listIDs(t, w.db, c.q), c.want) })
 	}
 	// Listed records are complete, with their computed lists.
 	read(t, w.db, func(ctx context.Context, r *ReadTx) {
@@ -183,7 +183,7 @@ func TestListOtherRecordTypes(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		jsonEqual(t, rs[0], one)
+		sameJSON(t, rs[0], one)
 	})
 }
 

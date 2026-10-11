@@ -2,33 +2,11 @@ package storage
 
 import (
 	"context"
-	"encoding/json"
 	"errors"
 	"testing"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 )
-
-// read runs f in a fresh read snapshot.
-func read(t *testing.T, db *DB, f func(ctx context.Context, r *ReadTx)) {
-	t.Helper()
-	ctx := context.Background()
-	r, e := db.Read(ctx)
-	if e != nil {
-		t.Fatal(e)
-	}
-	defer func() { _ = r.Close() }()
-	f(ctx, r)
-}
-
-func jsonEqual(t *testing.T, got, want any) {
-	t.Helper()
-	g, _ := json.Marshal(got)
-	w, _ := json.Marshal(want)
-	if string(g) != string(w) {
-		t.Fatalf("got  %s\nwant %s", g, w)
-	}
-}
 
 // rawRecords seeds rows directly, independent of the write path.
 type rawRecords struct {
@@ -68,27 +46,27 @@ func TestRecordsReadWithComputedMembershipLists(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		jsonEqual(t, p, protocol.Project{SchemaVersion: 1, ID: f.p1, Revision: 2, CreatedAt: stamp, UpdatedAt: "2026-10-11T12:00:01.000000Z", Title: "feat/one", Description: "First\r\nproject", RepositoryRefs: []string{"https://example.org/a", "https://example.org/b"}, IssueIDs: []string{f.i1, f.i3}})
+		sameJSON(t, p, protocol.Project{SchemaVersion: 1, ID: f.p1, Revision: 2, CreatedAt: stamp, UpdatedAt: "2026-10-11T12:00:01.000000Z", Title: "feat/one", Description: "First\r\nproject", RepositoryRefs: []string{"https://example.org/a", "https://example.org/b"}, IssueIDs: []string{f.i1, f.i3}})
 		i, e := r.Issue(ctx, f.i1)
 		if e != nil {
 			t.Fatal(e)
 		}
-		jsonEqual(t, i, protocol.Issue{SchemaVersion: 1, ID: f.i1, Revision: 3, CreatedAt: stamp, UpdatedAt: stamp, Title: "Straße", Body: "body\x00 with NUL", State: "open", Labels: []string{"bug", "ui"}, Assignee: &nick, ProjectID: f.p1, ChildIDs: []string{f.i3}, CommentIDs: []string{f.c1}, Blocks: []string{f.i2}, BlockedBy: []string{f.i3}, Related: []string{f.i3}})
+		sameJSON(t, i, protocol.Issue{SchemaVersion: 1, ID: f.i1, Revision: 3, CreatedAt: stamp, UpdatedAt: stamp, Title: "Straße", Body: "body\x00 with NUL", State: "open", Labels: []string{"bug", "ui"}, Assignee: &nick, ProjectID: f.p1, ChildIDs: []string{f.i3}, CommentIDs: []string{f.c1}, Blocks: []string{f.i2}, BlockedBy: []string{f.i3}, Related: []string{f.i3}})
 		i, e = r.Issue(ctx, f.i2)
 		if e != nil {
 			t.Fatal(e)
 		}
-		jsonEqual(t, i, protocol.Issue{SchemaVersion: 1, ID: f.i2, Revision: 3, CreatedAt: stamp, UpdatedAt: stamp, Title: "Other", State: "open", Labels: []string{}, ProjectID: f.p2, ChildIDs: []string{}, CommentIDs: []string{}, Blocks: []string{}, BlockedBy: []string{f.i1}, Related: []string{}})
+		sameJSON(t, i, protocol.Issue{SchemaVersion: 1, ID: f.i2, Revision: 3, CreatedAt: stamp, UpdatedAt: stamp, Title: "Other", State: "open", Labels: []string{}, ProjectID: f.p2, ChildIDs: []string{}, CommentIDs: []string{}, Blocks: []string{}, BlockedBy: []string{f.i1}, Related: []string{}})
 		c, e := r.Comment(ctx, f.c1)
 		if e != nil {
 			t.Fatal(e)
 		}
-		jsonEqual(t, c, protocol.Comment{SchemaVersion: 1, ID: f.c1, Revision: 1, CreatedAt: stamp, UpdatedAt: stamp, Body: "Hi", Author: "me", IssueID: f.i1})
+		sameJSON(t, c, protocol.Comment{SchemaVersion: 1, ID: f.c1, Revision: 1, CreatedAt: stamp, UpdatedAt: stamp, Body: "Hi", Author: "me", IssueID: f.i1})
 		m, e := r.Milestone(ctx, f.m1)
 		if e != nil {
 			t.Fatal(e)
 		}
-		jsonEqual(t, m, protocol.Milestone{SchemaVersion: 1, ID: f.m1, Revision: 1, CreatedAt: stamp, UpdatedAt: stamp, Title: "M1", Body: "goal", ProjectID: f.p1, IssueIDs: []string{f.i1, f.i3}})
+		sameJSON(t, m, protocol.Milestone{SchemaVersion: 1, ID: f.m1, Revision: 1, CreatedAt: stamp, UpdatedAt: stamp, Title: "M1", Body: "goal", ProjectID: f.p1, IssueIDs: []string{f.i1, f.i3}})
 		any, e := r.Record(ctx, Issues, f.i3)
 		if e != nil {
 			t.Fatal(e)

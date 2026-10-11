@@ -55,21 +55,21 @@ func TestWriteRequestCreatesRecordsReadBackWithComputedLists(t *testing.T) {
 		}
 		want := w.p
 		want.IssueIDs = []string{w.a.ID, w.b.ID, w.c.ID}
-		jsonEqual(t, p, want)
+		sameJSON(t, p, want)
 		a, e := r.Issue(ctx, w.a.ID)
 		if e != nil {
 			t.Fatal(e)
 		}
 		wantA := w.a
 		wantA.ChildIDs, wantA.CommentIDs = []string{w.b.ID}, []string{w.comment.ID}
-		jsonEqual(t, a, wantA)
+		sameJSON(t, a, wantA)
 		for _, rec := range []any{w.b, w.c, w.x, w.comment, w.milestone} {
 			typ, id, _, _, _, _ := identity(rec)
 			got, e := r.Record(ctx, typ, id)
 			if e != nil {
 				t.Fatal(e)
 			}
-			jsonEqual(t, got, rec)
+			sameJSON(t, got, rec)
 		}
 		// Folded columns: title keys and folded bodies, computed in Go.
 		var key, body, desc string
@@ -114,26 +114,26 @@ func TestWriteRequestUpdatesFieldsSetsAndLinks(t *testing.T) {
 			t.Fatal(e)
 		}
 		p.IssueIDs = []string{w.a.ID, w.b.ID, w.c.ID}
-		jsonEqual(t, got, p)
+		sameJSON(t, got, p)
 		ga, e := r.Issue(ctx, a.ID)
 		if e != nil {
 			t.Fatal(e)
 		}
 		a2.CommentIDs = []string{w.comment.ID}
-		jsonEqual(t, ga, a2)
+		sameJSON(t, ga, a2)
 		gc, e := r.Issue(ctx, c.ID)
 		if e != nil {
 			t.Fatal(e)
 		}
 		c2.ChildIDs = []string{b.ID}
-		jsonEqual(t, gc, c2)
+		sameJSON(t, gc, c2)
 		for _, rec := range []any{b2, comment, m} {
 			typ, id, _, _, _, _ := identity(rec)
 			got, e := r.Record(ctx, typ, id)
 			if e != nil {
 				t.Fatal(e)
 			}
-			jsonEqual(t, got, rec)
+			sameJSON(t, got, rec)
 		}
 		var n int
 		if e = r.queryRow(ctx, []any{&n}, "SELECT count(*) FROM issue_links"); e != nil || n != 0 {

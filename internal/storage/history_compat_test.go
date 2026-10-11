@@ -91,7 +91,7 @@ func TestHistoryMatchesTheLegacyHistoryAPI(t *testing.T) {
 					before = nil
 				}
 			})
-			if before != nil && sameJSON(withoutStamp(before), withoutStamp(after)) {
+			if before != nil && equalJSON(withoutStamp(before), withoutStamp(after)) {
 				skipped[result.Type+"/"+result.ID] = true
 				continue
 			}
@@ -118,7 +118,7 @@ func TestHistoryMatchesTheLegacyHistoryAPI(t *testing.T) {
 			legacy[n].Results = results[legacy[n].RequestHash]
 		}
 		typ, id, _ := strings.Cut(key, "/")
-		jsonEqual(t, history(t, db, typ, id, 0, 0), legacy)
+		sameJSON(t, history(t, db, typ, id, 0, 0), legacy)
 		compared++
 	}
 	if compared != 5 || len(skipped) != 2 {

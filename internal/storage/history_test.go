@@ -60,17 +60,17 @@ func TestHistoryRebuildsFullBodiesFromStoredDiffs(t *testing.T) {
 			"revision": {raw("3"), raw("4")}, "updated_at": {raw(`"` + at(4) + `"`), raw(`"` + at(5) + `"`)},
 		}, []BodyHunk{{bodies[2], ""}}},
 	}
-	jsonEqual(t, got, want)
+	sameJSON(t, got, want)
 	// Keyset pages replay the earlier diffs they do not return.
-	jsonEqual(t, history(t, db, Issues, i.ID, 1, 2), want[1:3])
-	jsonEqual(t, history(t, db, Issues, i.ID, 3, 5), want[3:])
-	jsonEqual(t, history(t, db, Issues, i.ID, 4, 0), []HistoryEntry{})
+	sameJSON(t, history(t, db, Issues, i.ID, 1, 2), want[1:3])
+	sameJSON(t, history(t, db, Issues, i.ID, 3, 5), want[3:])
+	sameJSON(t, history(t, db, Issues, i.ID, 4, 0), []HistoryEntry{})
 	read(t, db, func(ctx context.Context, r *ReadTx) {
 		e, found, err := r.HistoryByRequest(ctx, Issues, i.ID, requests[1].Hash)
 		if err != nil || !found {
 			t.Fatal(found, err)
 		}
-		jsonEqual(t, e, want[1])
+		sameJSON(t, e, want[1])
 		if _, found, err = r.HistoryByRequest(ctx, Issues, i.ID, requests[0].Hash+"0"); err != nil || found {
 			t.Fatal("unknown hash", found, err)
 		}
@@ -108,8 +108,8 @@ func TestHistoryOfEveryRecordType(t *testing.T) {
 		if len(hs) != 2 {
 			t.Fatalf("%s: %d entries", x.typ, len(hs))
 		}
-		jsonEqual(t, hs[0].BodyHunks, []BodyHunk{{"", x.before}})
-		jsonEqual(t, hs[1].BodyHunks, []BodyHunk{{x.before, x.after}})
+		sameJSON(t, hs[0].BodyHunks, []BodyHunk{{"", x.before}})
+		sameJSON(t, hs[1].BodyHunks, []BodyHunk{{x.before, x.after}})
 		if _, ok := hs[0].Differences[x.field]; !ok {
 			t.Fatalf("%s creation lacks %s: %v", x.typ, x.field, hs[0].Differences)
 		}

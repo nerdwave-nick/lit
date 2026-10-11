@@ -102,7 +102,7 @@ func TestTransactionsStoreEachRequestOnce(t *testing.T) {
 		if e != nil || !found {
 			t.Fatal(found, e)
 		}
-		jsonEqual(t, got, r)
+		sameJSON(t, got, r)
 		if _, found, e = q.Transaction(ctx, "unknown"); e != nil || found {
 			t.Fatal("unknown hash", found, e)
 		}

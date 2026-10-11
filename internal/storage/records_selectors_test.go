@@ -30,7 +30,7 @@ func TestSelectorsResolveIDPrefixes(t *testing.T) {
 			if e != nil {
 				t.Fatal(c, e)
 			}
-			jsonEqual(t, got, c.want)
+			sameJSON(t, got, c.want)
 		}
 		for _, bad := range []string{"", "xyz", "0000-0000", "00000000-0000-4000-8000-0000000000111"} {
 			if _, e := r.IDsByPrefix(ctx, Issues, bad, "", 0); e == nil {

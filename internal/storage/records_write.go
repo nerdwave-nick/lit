@@ -76,7 +76,7 @@ func (t *WriteTx) writeRecords(ctx context.Context, r Request, records []any) er
 			if c.before != nil {
 				b = c.before.(protocol.Issue)
 			}
-			if !sameJSON(a.ParentID, b.ParentID) {
+			if !equalJSON(a.ParentID, b.ParentID) {
 				if _, e := t.exec(ctx, "UPDATE issues SET parent_id = ? WHERE id = ?", a.ParentID, a.ID); e != nil {
 					return e
 				}
@@ -261,7 +261,7 @@ func ownFields(r any) map[string]json.RawMessage {
 
 func ownJSON(r any) []byte { b, _ := json.Marshal(ownFields(r)); return b }
 
-func sameJSON(a, b any) bool {
+func equalJSON(a, b any) bool {
 	x, _ := json.Marshal(a)
 	y, _ := json.Marshal(b)
 	return bytes.Equal(x, y)

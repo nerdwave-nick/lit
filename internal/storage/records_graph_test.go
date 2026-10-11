@@ -28,7 +28,7 @@ func TestNeighboursOfAnIssue(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		jsonEqual(t, got, []Neighbour{
+		sameJSON(t, got, []Neighbour{
 			{"blocked_by", w.c.ID, w.p.ID, "closed", w.c.Revision},
 			{"blocks", w.b.ID, w.p.ID, "open", w.b.Revision},
 			{"child", w.b.ID, w.p.ID, "open", w.b.Revision},
@@ -38,7 +38,7 @@ func TestNeighboursOfAnIssue(t *testing.T) {
 		if e != nil {
 			t.Fatal(e)
 		}
-		jsonEqual(t, got, []Neighbour{
+		sameJSON(t, got, []Neighbour{
 			{"blocked_by", w.a.ID, w.p.ID, "open", w.a.Revision},
 			{"parent", w.a.ID, w.p.ID, "open", w.a.Revision},
 		})
@@ -58,7 +58,7 @@ func TestMilestoneProgressInputs(t *testing.T) {
 		}
 		// a's blocker c is closed; b's blocker a is open. a's claim is live,
 		// b's expired.
-		jsonEqual(t, got, []MemberProgress{
+		sameJSON(t, got, []MemberProgress{
 			{ID: w.a.ID, State: "open", OpenBlockers: []string{}, Claimed: true},
 			{ID: w.b.ID, State: "open", OpenBlockers: []string{w.a.ID}, Claimed: false},
 		})
@@ -88,7 +88,7 @@ func TestStructuralSetFollowsParentsAndBlocks(t *testing.T) {
 			if e != nil {
 				t.Fatal(e)
 			}
-			jsonEqual(t, got, x.want)
+			sameJSON(t, got, x.want)
 		}
 	})
 }
