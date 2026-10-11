@@ -112,3 +112,12 @@ corrupts data.
 
 Use the service API or `lit` to change records. lit-server owns the database
 while it runs; do not write to it from outside.
+
+## Integrity
+
+Every start runs the FTS5 `integrity-check` of each search table (rebuilding
+one that fails), `PRAGMA integrity_check` and `PRAGMA foreign_key_check`. A
+damaged database puts lit-server in degraded mode (`503 recovery_required` for
+every request); damage met while serving makes it exit for its supervisor to
+restart it. `lit-server verify` replays all history against current state on
+demand. See [damaged tracker database](recovery.md#damaged-tracker-database).

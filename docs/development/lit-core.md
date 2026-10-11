@@ -328,8 +328,9 @@ Requests read only the records they involve, through indexed queries, so their
 cost no longer grows with the whole store. Two passes still scan: `lit grep`
 reads the stored text of its scope until the search index exists, and completion
 lists the records of one type. Requests are still serialized by one write lock;
-concurrent reads, startup integrity checks and the benchmark are later
-milestone work.
+concurrent reads and the benchmark are later milestone work. Startup integrity
+checks, degraded mode and `lit-server verify` are described in
+[recovery](../recovery.md#damaged-tracker-database).
 
 See [recovery limitations](../recovery.md) for uncertainty that retained evidence
 cannot currently resolve; no human repair or retirement interface is shipped.

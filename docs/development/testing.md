@@ -37,6 +37,15 @@ legacy file store in `internal/storage/testdata/history_compat.json` and
 compares the history output. The recording is fixed: the file store and the
 generator that wrote it are gone. Opening a directory that holds a legacy file
 store (its `service.json`) is refused before anything is written.
+The integrity tests damage real databases on purpose: an invalid b-tree page
+and a foreign-key violation fail the startup checks; an FTS5 table created in
+the test, stale against its content table or with damaged index blocks, is
+rebuilt, and one over a missing content table fails; a garbage file and an
+unparsable schema (`writable_schema`, then a schema cookie bump so open
+connections reload it) are `ErrFatal`. The `Verify` tests change rows and
+history behind the history (fields, bodies, sets, links, members, revisions,
+diffs, "before" values) and insert legacy membership-list history rows that
+must be skipped.
 
 `internal/service` tests run the service against real SQLite databases in
 temporary directories. All-or-nothing behaviour is tested with real late
@@ -49,7 +58,11 @@ open without a test hook: a second connection holds SQLite's write lock, so the
 admitted request waits inside its `BEGIN IMMEDIATE` (the test waits until a
 goroutine runs `storage.(*Writer).Begin`), `Stop` refuses new requests, and
 releasing the lock lets the admitted request commit. Lock contention outlasting
-the busy timeout answers `503 storage_busy`.
+the busy timeout answers `503 storage_busy`. `cmd/lit-server` tests start the service on
+damaged and healthy data directories (degraded mode, search index rebuild) and
+run `lit-server verify`; `integration/integrity_test.go` drives the binary in
+degraded mode, its exit on corruption met while serving, and `verify` on a
+tracker written through the CLI.
 
 `integration/tui_dispatch_test.go` covers how `lit` finds and starts `lit-tui`
 (sibling first, then PATH, process replacement, endpoint pass-through, the missing

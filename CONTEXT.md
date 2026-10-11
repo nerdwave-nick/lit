@@ -108,6 +108,11 @@ A set of compatible requested changes applied together, or rejected together
 when any required condition fails. Repeated targets can contribute compatible
 changes without making argument order significant.
 
+**Degraded mode**:
+lit-server running but answering every request with `503 recovery_required`
+because its database failed the startup checks. Only an operator leaves it, by
+restoring a backup or repairing the database.
+
 **Saved plan**:
 A prepared durable transaction retained for explicit later application, bound
 to its tracker and logical client and to the original changes and preconditions.
