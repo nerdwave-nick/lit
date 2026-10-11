@@ -122,7 +122,8 @@ CREATE TABLE clients (
 	output_format TEXT
 ) STRICT;
 
--- One live or expired claim per issue; release deletes the row.
+-- One live or expired claim per issue; release deletes the row. Listings
+-- order by time, then issue ID, so both indexes end with issue_id.
 CREATE TABLE claims (
 	issue_id TEXT PRIMARY KEY REFERENCES issues (id),
 	owner_client_id TEXT NOT NULL REFERENCES clients (client_id),
@@ -131,8 +132,8 @@ CREATE TABLE claims (
 	expires_at INTEGER NOT NULL,
 	CHECK (expires_at > acquired_at)
 ) STRICT;
-CREATE INDEX claims_owner ON claims (owner_client_id, acquired_at);
-CREATE INDEX claims_expiry ON claims (expires_at);
+CREATE INDEX claims_owner ON claims (owner_client_id, acquired_at, issue_id);
+CREATE INDEX claims_expiry ON claims (expires_at, issue_id);
 
 -- One row per committed durable request, in commit order (seq). The canonical
 -- intent and the results are stored once, as JSON.
