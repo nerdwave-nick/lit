@@ -46,7 +46,7 @@ func (db *DB) Backup(ctx context.Context, dir string) (path string, err error) {
 	if err != nil {
 		return "", err
 	}
-	defer c.Close()
+	defer func() { _ = c.Close() }()
 	c.SetMaxOpenConns(1)
 	if _, err = c.ExecContext(ctx, "VACUUM INTO ?", partial); err != nil {
 		return "", fmt.Errorf("backup: %w", classify(err))

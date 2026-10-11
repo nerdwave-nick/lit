@@ -57,10 +57,11 @@ type DB struct {
 // Open takes ownership of the data directory dir, creating it when missing,
 // and opens its database. An empty directory gets a fresh database with a new
 // service identity. An older schema is migrated after a pre-migration snapshot
-// in dir/backup (Options.BackupDir with OpenWith); a newer schema than this binary knows is refused. A second
-// owner fails with an error containing "already owned". A directory that
-// still holds a legacy file store (its LegacyMarker) is refused with
-// ErrLegacyStore before anything is written to it.
+// in dir/backup (Options.BackupDir with OpenWith); a newer schema than this
+// binary knows is refused. A second owner fails with an error containing
+// "already owned". A directory that still holds a legacy file store (its
+// LegacyMarker) is refused with ErrLegacyStore before anything is written to
+// it.
 func Open(dir string) (*DB, error) { return OpenWith(dir, Options{}) }
 
 // Options configure an opened database; the zero value uses the defaults.
