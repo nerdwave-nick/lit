@@ -123,7 +123,7 @@ func TestOpenOfAFileThatIsNotADatabaseIsFatal(t *testing.T) {
 		t.Fatalf("got %v", e)
 	}
 	// Ownership is released: opening again meets the damage, not an owner.
-	if db, e = Open(dir); !errors.Is(e, ErrFatal) || strings.Contains(e.Error(), "already owned") {
+	if _, e = Open(dir); !errors.Is(e, ErrFatal) || strings.Contains(e.Error(), "already owned") {
 		t.Fatalf("again: %v", e)
 	}
 }

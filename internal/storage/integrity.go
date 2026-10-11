@@ -77,7 +77,7 @@ func searchTables(ctx context.Context, w *Writer) ([]string, error) {
 	if e != nil {
 		return nil, e
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var names []string
 	e = tx.each(ctx, `SELECT name FROM sqlite_schema WHERE type = 'table' AND sql LIKE 'CREATE VIRTUAL TABLE%USING fts5%' ORDER BY name`, nil, func(s rowScanner) error {
 		var n string
@@ -117,7 +117,7 @@ func inTransaction(ctx context.Context, w *Writer, commit bool, statements ...st
 	if e != nil {
 		return nil, e
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	for _, s := range statements {
 		if _, failed = tx.tx.ExecContext(ctx, s); failed != nil {
 			return failed, ctx.Err()
@@ -136,7 +136,7 @@ func checkTables(ctx context.Context, w *Writer) ([]string, error) {
 	if e != nil {
 		return nil, e
 	}
-	defer tx.Rollback()
+	defer func() { _ = tx.Rollback() }()
 	var problems []string
 	add := func(format string, args ...any) {
 		if len(problems) < maxProblems {
@@ -146,7 +146,7 @@ func checkTables(ctx context.Context, w *Writer) ([]string, error) {
 	scan := func(pragma string, f func(*sql.Rows) error) error {
 		rows, e := tx.tx.QueryContext(ctx, "PRAGMA "+pragma)
 		if e == nil {
-			defer rows.Close()
+			defer func() { _ = rows.Close() }()
 			for rows.Next() && e == nil {
 				e = f(rows)
 			}

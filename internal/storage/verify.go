@@ -52,7 +52,7 @@ func (db *DB) Verify(ctx context.Context, logf func(format string, args ...any))
 	if e != nil {
 		return r, e
 	}
-	defer q.Close()
+	defer func() { _ = q.Close() }()
 	for _, typ := range []string{Projects, Issues, Comments, Milestones} {
 		var ids []string
 		e = q.each(ctx, "SELECT id FROM "+typ+" UNION SELECT owner_id FROM history WHERE owner_type = ? ORDER BY 1", []any{typ}, func(s rowScanner) error {
