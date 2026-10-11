@@ -50,6 +50,9 @@ CREATE TABLE issues (
 	FOREIGN KEY (parent_id, project_id) REFERENCES issues (id, project_id)
 ) STRICT;
 CREATE INDEX issues_project ON issues (project_id, id);
+-- Keyset pages of a project's issues in the default sort orders.
+CREATE INDEX issues_project_created ON issues (project_id, created_at, id);
+CREATE INDEX issues_project_updated ON issues (project_id, updated_at, id);
 CREATE INDEX issues_parent ON issues (parent_id, id) WHERE parent_id IS NOT NULL;
 
 CREATE TABLE issue_labels (
