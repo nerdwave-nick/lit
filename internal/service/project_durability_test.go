@@ -15,7 +15,7 @@ import (
 // openTestServer opens (or reopens) the service on the data directory root.
 func openTestServer(t *testing.T, root string, config Config) *Server {
 	t.Helper()
-	db, e := storage.Open(root)
+	db, e := storage.OpenWith(root, storage.Options{ReadConcurrency: config.ReadConcurrency})
 	if e != nil {
 		t.Fatal(e)
 	}

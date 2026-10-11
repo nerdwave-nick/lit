@@ -12,7 +12,7 @@ func TestConfigPrecedenceAndValidation(t *testing.T) {
 	t.Setenv("HOME", root)
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
 	t.Setenv("XDG_DATA_HOME", "relative-ignored")
-	for _, k := range []string{"LIT_CONFIG_FILE", "LIT_DATA_DIR", "LIT_LISTEN"} {
+	for _, k := range []string{"LIT_CONFIG_FILE", "LIT_DATA_DIR", "LIT_LISTEN", "LIT_READ_CONCURRENCY"} {
 		t.Setenv(k, "")
 	}
 	c, e := LoadConfig(nil)
@@ -43,13 +43,50 @@ func TestConfigPrecedenceAndValidation(t *testing.T) {
 	}
 }
 
+// The read cap defaults to 8 and follows the usual precedence: environment
+// over the JSON file over the default. It must be a positive integer.
+func TestConfigReadConcurrency(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("HOME", root)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "config"))
+	for _, k := range []string{"LIT_CONFIG_FILE", "LIT_DATA_DIR", "LIT_LISTEN", "LIT_READ_CONCURRENCY"} {
+		t.Setenv(k, "")
+	}
+	if c, e := LoadConfig(nil); e != nil || c.ReadConcurrency != 8 {
+		t.Fatal("default", c.ReadConcurrency, e)
+	}
+	p := filepath.Join(root, "config.json")
+	t.Setenv("LIT_CONFIG_FILE", p)
+	os.WriteFile(p, []byte(`{"schema_version":1,"read_concurrency":3}`), 0600)
+	if c, e := LoadConfig(nil); e != nil || c.ReadConcurrency != 3 {
+		t.Fatal("file", c.ReadConcurrency, e)
+	}
+	t.Setenv("LIT_READ_CONCURRENCY", "5")
+	if c, e := LoadConfig(nil); e != nil || c.ReadConcurrency != 5 {
+		t.Fatal("environment", c.ReadConcurrency, e)
+	}
+	for _, v := range []string{"0", "-1", "two", "1.5"} {
+		t.Setenv("LIT_READ_CONCURRENCY", v)
+		if _, e := LoadConfig(nil); e == nil {
+			t.Fatalf("accepted LIT_READ_CONCURRENCY=%s", v)
+		}
+	}
+	t.Setenv("LIT_READ_CONCURRENCY", "")
+	for _, body := range []string{`{"schema_version":1,"read_concurrency":0}`, `{"schema_version":1,"read_concurrency":-2}`} {
+		os.WriteFile(p, []byte(body), 0600)
+		if _, e := LoadConfig(nil); e == nil {
+			t.Fatalf("accepted %s", body)
+		}
+	}
+}
+
 func TestConfigDefaultDirectoryDiscovery(t *testing.T) {
 	for _, relative := range []bool{false, true} {
 		t.Run(fmt.Sprint(relative), func(t *testing.T) {
 			root := t.TempDir()
 			t.Setenv("HOME", root)
 			t.Setenv("USERPROFILE", root)
-			for _, key := range []string{"LIT_CONFIG_FILE", "LIT_DATA_DIR", "LIT_LISTEN"} {
+			for _, key := range []string{"LIT_CONFIG_FILE", "LIT_DATA_DIR", "LIT_LISTEN", "LIT_READ_CONCURRENCY"} {
 				t.Setenv(key, "")
 			}
 			configBase, dataBase := filepath.Join(root, "config"), filepath.Join(root, "data")

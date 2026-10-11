@@ -21,7 +21,7 @@ Ordinary record reads and mutations retain their connected-client requirements.
 
 Unknown and repeated parameters are rejected. Prefixes must be valid UTF-8, at
 most 300 Unicode characters, and contain no control characters. Only GET is
-accepted. Queries run through the normal serialized service read boundary.
+accepted. Queries run in one read snapshot, like every other read route.
 
 If supplied, a connected client's ID provides its saved project as a default.
 Unknown or disconnected clients supply no defaults and are never registered or

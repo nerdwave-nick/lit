@@ -51,6 +51,17 @@ goroutine runs `storage.(*Writer).Begin`), `Stop` refuses new requests, and
 releasing the lock lets the admitted request commit. Lock contention outlasting
 the busy timeout answers `503 storage_busy`.
 
+`internal/service/routes_test.go` checks the route table's classification of
+every route. `internal/service/concurrency_test.go` and `readcap_test.go` run
+reads concurrently with writes under the race detector. A request is held
+inside its transaction without a production hook: the tests' `claimClock`
+replacement is consulted once the request's snapshot or write transaction is
+open, so parking it parks the request (a slow read does not delay writes; a
+claim renewal racing a read stays correct for writers), and the second-
+connection lock holds a write inside `BEGIN IMMEDIATE` while reconciliation
+must wait for it. Holding read snapshots through `DB.Read` exhausts the read
+cap.
+
 `integration/tui_dispatch_test.go` covers how `lit` finds and starts `lit-tui`
 (sibling first, then PATH, process replacement, endpoint pass-through, the missing
 binary error, and bare `lit` on a pseudo-terminal via util-linux `script`).

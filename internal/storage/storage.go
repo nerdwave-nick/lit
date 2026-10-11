@@ -29,8 +29,8 @@ const (
 	// busyTimeout bounds how long a statement waits for a SQLite lock before
 	// failing with ErrBusy. The Go write lock normally makes waits rare.
 	busyTimeout = 5 * time.Second
-	// readConns caps concurrent read snapshots; further reads wait for one.
-	readConns = 8
+	// DefaultReadConcurrency is the default cap on concurrent read snapshots.
+	DefaultReadConcurrency = 8
 	// LegacyMarker is the identity file of the legacy file store. A data
 	// directory holding it is refused; nothing else of that store is read.
 	LegacyMarker = "service.json"
@@ -59,9 +59,28 @@ type DB struct {
 // owner fails with an error containing "already owned". A directory that
 // still holds a legacy file store (its LegacyMarker) is refused with
 // ErrLegacyStore before anything is written to it.
-func Open(dir string) (*DB, error) { return open(dir, migrations) }
+func Open(dir string) (*DB, error) { return OpenWith(dir, Options{}) }
 
-func open(dir string, ms []migration) (db *DB, err error) {
+// Options configure an opened database; the zero value uses the defaults.
+type Options struct {
+	// ReadConcurrency caps concurrent read snapshots; further reads wait for
+	// one. Zero means DefaultReadConcurrency.
+	ReadConcurrency int
+}
+
+// OpenWith opens the data directory dir like Open, configured by o.
+func OpenWith(dir string, o Options) (*DB, error) { return openWith(dir, migrations, o) }
+
+func open(dir string, ms []migration) (*DB, error) { return openWith(dir, ms, Options{}) }
+
+func openWith(dir string, ms []migration, o Options) (db *DB, err error) {
+	reads := o.ReadConcurrency
+	if reads == 0 {
+		reads = DefaultReadConcurrency
+	}
+	if reads < 0 {
+		return nil, fmt.Errorf("read concurrency must be positive, not %d", reads)
+	}
 	if err = refuseLegacyStore(dir); err != nil {
 		return nil, err
 	}
@@ -102,8 +121,8 @@ func open(dir string, ms []migration) (db *DB, err error) {
 	if db.readers, err = sql.Open("sqlite", dsn(path, true)); err != nil {
 		return nil, err
 	}
-	db.readers.SetMaxOpenConns(readConns)
-	db.readers.SetMaxIdleConns(readConns)
+	db.readers.SetMaxOpenConns(reads)
+	db.readers.SetMaxIdleConns(reads)
 	db.readers.SetConnMaxLifetime(0)
 	return db, nil
 }
