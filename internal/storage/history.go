@@ -75,17 +75,27 @@ func (t *WriteTx) writeHistory(ctx context.Context, hash string, c change) error
 	}
 	var bodyDiff any // NULL when the body is unchanged
 	if oldBody != newBody {
-		d := textdiff.Diff(oldBody, newBody)
-		if got, e := textdiff.Apply(d, oldBody); e != nil || got != newBody {
-			return invalidWrite("the body diff of %s %s does not reproduce its body: %v", c.typ, c.id, e)
+		d, e := diffBody(c.typ, c.id, oldBody, newBody)
+		if e != nil {
+			return e
 		}
-		bodyDiff = strings.Join(d, "\n")
+		bodyDiff = d
 	}
 	differences, _ := json.Marshal(diffs)
 	_, _, rev, _, _, _ := identity(c.after)
 	_, e := t.exec(ctx, "INSERT INTO history (owner_type, owner_id, revision, request_hash, differences, body_diff) VALUES (?, ?, ?, ?, ?, ?)",
 		c.typ, c.id, rev, hash, string(differences), bodyDiff)
 	return e
+}
+
+// diffBody is the stored body diff from old to new: the forward unified diff,
+// required to reproduce new when applied to old.
+func diffBody(typ, id, old, new string) (string, error) {
+	d := textdiff.Diff(old, new)
+	if got, e := textdiff.Apply(d, old); e != nil || got != new {
+		return "", invalidWrite("the body diff of %s %s does not reproduce its body: %v", typ, id, e)
+	}
+	return strings.Join(d, "\n"), nil
 }
 
 // HistoryEntry is one revision of a record as the history API returns it:

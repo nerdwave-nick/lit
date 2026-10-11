@@ -81,6 +81,20 @@ failed runs are logged while the service keeps serving without a database
 failure, and nothing is exported by default, with only a directory set, or in
 degraded mode.
 
+`cmd/lit-migrate` tests build legacy fixture stores with the frozen legacy
+writer (`cmd/lit-migrate/internal/legacy`: the legacy preparer and
+`recordTransaction`, claim operations with a controlled clock, client saves and
+disconnect): multi-owner transactions, entries that change only membership
+lists, links, a milestone, CRLF, Unicode and unterminated bodies, live, expired
+and released claims, and connected and disconnected clients. The importer tests
+run the full import with all nine checks, then compare claims, clients, records
+and history with the legacy reader; they cover dry runs (source and target
+untouched), a non-empty target, a store still owned by a legacy server,
+failures that must leave no database (an unlisted file, a record tampered
+behind its history, a claim time that is not canonical), a rerun after a
+failure, and determinism. `cmd/lit-server`'s `TestLitServerDoesNotLinkTheLegacyStore`
+keeps the frozen copy and `internal/store` out of lit-server.
+
 `internal/service` tests run the service against real SQLite databases in
 temporary directories. All-or-nothing behaviour is tested with real late
 failures: a request whose response exceeds the configured limit fails after all

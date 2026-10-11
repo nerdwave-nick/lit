@@ -334,8 +334,139 @@ scope/agent/path selection to update the installed skill bundle. Review any
 reported local edits before proceeding. Explicitly restart the service afterward
 (with socket activation, start `lit.socket` again).
 Service identity and records remain in the existing data directory. Unsupported
-persisted formats are refused without conversion; there is no automatic updater
-or tracker migration tool.
+persisted formats are refused without conversion; there is no automatic updater.
+The one conversion is the explicit, one-time setup import of a legacy file store
+below.
+
+## Setup import from a legacy file store
+
+lit-server keeps the tracker in one SQLite database, `lit.db`, in its data
+directory. Releases before it kept a file store (one directory per record, with
+a `service.json` identity file). lit-server never reads, detects or converts
+that store at runtime: on a data directory that still holds `service.json` it
+refuses to start and names this setup step. The conversion is a separate binary,
+`lit-migrate`, run once while the old lit-server is stopped and before the new
+lit-server first starts. It is Linux-only, like lit-server, is not part of the
+release archives, and is removed in a later release. Build it from the same
+checkout as the new lit-server:
+
+```sh
+go build -o ./bin/ ./cmd/lit-server ./cmd/lit-migrate
+```
+
+`lit-migrate --from COPY --to NEW [--config FILE] [--dry-run]`:
+
+- reads only a copy of the stopped store. It refuses a store that a running
+  lit-server still owns, never writes to `--from`, and runs the frozen legacy
+  reader on its own private copy of it, because that reader writes to the store
+  it opens (lock file, temporary files, journal replay, title index);
+- loads the legacy server's JSON config (`--config`, otherwise `LIT_CONFIG_FILE`
+  or the default config file), because legacy verification checks the
+  configured title prefixes. Its `data_dir` and `listen` are not used;
+- writes only into `NEW`, which must be missing or empty, and builds the
+  database as a temporary file in one transaction. It runs validation checks
+  1-9 (legacy verification of the copy, every legacy file imported or
+  allowlisted, counts, record, client and claim equality, body SHA-256
+  manifests, diff round trips and body chains, history read-back, the newest
+  stamp, and `lit-server verify`), and moves the database into `NEW` only after
+  all of them passed. A failure leaves no database, so the import can simply be
+  run again on the same copy; it is deterministic for a given copy;
+- keeps the service ID, every history entry (deduplicated by request hash into
+  transaction records, with whole-body hunks converted to verified diffs and
+  entries that changed only membership lists kept verbatim), every client, and
+  every non-null claim with its original times, expired ones included;
+- keeps the body SHA-256 manifest (type, ID, revision, body hash) as
+  `NEW/backup/lit-migrate-TIME-bodies.json` for audits: in the default backup
+  directory of a lit-server on `NEW`, whose retention removes only its own
+  scheduled snapshots, never this file. lit-migrate writes nothing outside
+  `NEW`, so it ignores a configured `backup_dir`; if you set one, move the
+  manifest there, or next to the frozen old directory;
+- with `--dry-run`, runs every step and check in a temporary directory
+  (`TMPDIR`), never touches `NEW`, and reports how long the import took.
+
+Exit status 0 means every check passed, 1 a failed import (nothing was
+written), 2 invalid arguments. Progress and the result of each check go to
+stderr; the summary with the duration goes to stdout. Ctrl-C stops an import
+and cleans up like any failure. Only a hard kill (`SIGKILL`, power loss) can
+leave a `.lit-migrate-*` staging directory and `lit.db.lock` in `NEW`, never a
+`lit.db`; delete `NEW` before running the import again.
+
+### Setup checklist
+
+The commands assume the default paths and the systemd user units; adapt them to
+your configuration.
+
+```sh
+OLD=${XDG_DATA_HOME:-$HOME/.local/share}/lit-server         # legacy store; stays untouched
+COPY=$HOME/lit-migrate/lit-server.copy                     # scratch copy for the import
+NEW=${XDG_DATA_HOME:-$HOME/.local/share}/lit-server-sqlite  # new, empty data directory
+CONFIG=${XDG_CONFIG_HOME:-$HOME/.config}/lit-server/config.json
+```
+
+1. **Freeze.** Announce a write freeze. Have agents finish or release their work
+   and claims. Resolve retained requests with `lit transactions status` in every
+   known client state directory (`LIT_STATE_DIR`), and keep its output. Capture
+   API baselines from the running old server for later comparison: full lists
+   (`lit projects list`, `lit issues list`, `lit milestones list` and
+   `lit comments list` with `--all`), the history of a few owners, and `lit grep`
+   on a fixed query set (at least `net/http`, `C++`, `Go`, `UI`, `strasse`,
+   `Straße`, `cafe`, `foo.bar`, `a_b`, `100%`, `APP-123`, plus multi-page and
+   `-C` context queries). Keep a copy of the old `lit-server` binary for
+   rollback.
+2. **Stop and disable the old server.** With systemd:
+   `systemctl --user disable --now lit.socket lit.service`, so socket activation
+   cannot start it again. Confirm the process exited:
+   `systemctl --user is-active lit.service` reports `inactive`, and
+   `pgrep -x lit-server` prints nothing. Stop a foreground server with Ctrl-C.
+3. **Copy.** `mkdir -p "$(dirname "$COPY")" && cp -a "$OLD" "$COPY"`. The original
+   `$OLD` is the frozen backup; never modify it. Optionally record its checksums:
+   `(cd "$OLD" && find . -type f -print0 | sort -z | xargs -0 sha256sum) > "$HOME/lit-migrate/old.sha256"`.
+4. **Dry run, then import.** First
+   `lit-migrate --from "$COPY" --to "$NEW" --config "$CONFIG" --dry-run`; it
+   reports `dry run passed all 9 checks in DURATION`. Then the real import:
+   `lit-migrate --from "$COPY" --to "$NEW" --config "$CONFIG"`.
+5. **Start the new lit-server on `$NEW`.** Install the new `lit-server`. Point it
+   at the new directory: set `data_dir` in `$CONFIG`, or `Environment=LIT_DATA_DIR=`
+   in the unit, or pass `--data-dir "$NEW"`. Then
+   `systemctl --user enable --now lit.socket` (or `lit.service`), or start it in
+   the foreground. Its startup check runs first. An old binary started on `$NEW`
+   refuses it, and the new binary refuses `$OLD`.
+6. **Smoke test.** `curl -s http://127.0.0.1:7411/v1/meta` shows the same
+   `service_id` as before; connect with an existing session (`lit connect`);
+   read an issue; run a `lit grep`; run `lit transactions status`; make one
+   write on a scratch issue in a test project. Then compare the API baselines
+   from step 1: the grep results byte for byte, the full lists and per-owner
+   history (excluding time-dependent claim projections), and the
+   `transactions status` output: requests that were `committed` stay
+   `committed` with equal results.
+7. **Lift the freeze.**
+
+### Accepted consequences
+
+- Retained requests that never committed before the import become a permanent
+  `uncertain` with `original_preconditions_no_longer_valid`, as
+  [recovery](recovery.md) allows. Resolve them in step 1 instead.
+- Saved plans prepared before the import must be prepared again.
+- Claims keep their original times. Leases keep running during the downtime and
+  may lapse; `claims renew` still tells `claim_expired` from a conflict.
+- Old history entries that changed only `issue_ids`, `child_ids` or
+  `comment_ids`, now computed lists, are kept verbatim; `lit-server verify`
+  skips those keys.
+- A claim time that the legacy server did not write itself (not canonical UTC
+  RFC3339Nano) cannot be copied exactly: the import stops and names the claim.
+  Release that claim on the old server before step 2, then repeat from step 3.
+- The estimated downtime is 15-30 minutes in total; the dry run measures the
+  import itself.
+
+### Rollback
+
+Record `lit transactions status` output in every client state directory first.
+Then stop and disable the new server (`systemctl --user disable --now lit.socket lit.service`),
+point the configuration back at `$OLD` and remove the fields the old binary
+does not know (`read_concurrency` and the `backup_*` settings; it refuses
+unknown fields), reinstall the old `lit-server` binary, and start it: it verifies the untouched old directory as before (about 30
+seconds). Writes, clients and claims created after the import are lost, which is
+accepted. Keep `$NEW` for inspection, or delete it once you are done.
 
 ## Local checks
 
