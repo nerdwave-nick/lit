@@ -221,8 +221,10 @@ Entries come oldest first, as `lit issues history` lists them. Each says:
   time in UTC, who made it (actor name and kind, for example
   `Claude (agent)`) and the client;
 - the operations of its transaction (for example `issue update`, or
-  `comment create 28dfb5ca` on the issue a comment was added to), the request
-  hash, and the other records the transaction changed;
+  `issue update 28dfb5ca` for the other issue of a link), the request hash, and
+  the other records the transaction changed. Adding a comment or a child does
+  not change an issue, so it has no entry in the issue's history (entries
+  recorded before lit moved to SQLite may still show them);
 - every changed field with its JSON value before and after
   (`title: "Old" → "New"`; at creation only the values that were set). The
   revision and timestamps are left out, since the heading gives them;
@@ -318,8 +320,10 @@ deletes and Ctrl-U clears.
 
 Choosing previews the change first, through lit-server, and nothing is written
 yet. The preview lists every record the transaction would write, at the
-revision it is fenced at, and those it only reads: for a parent or a link these
-include the other issues whose relationship fields change. Each issue's claim
+revision it is fenced at, and those it only reads. A link writes the other
+issue too, since its relationship fields change; a parent change writes only
+the issue itself and reads the old and the new parent (their children are
+computed, so their revisions stay). Each issue's claim
 is shown. A claim this session holds is passed on with the change
 (`claimed by you: your claim is passed on`). Enter applies exactly that
 preview, once; Escape cancels it. After an apply the footer says
@@ -542,15 +546,16 @@ Backspace deletes, Ctrl-U clears, and a paste joins its lines. Enter refuses,
 with a note, a title lit-server would refuse: an empty one, one longer than 128
 characters, or one an issue the tree has loaded uses (titles are unique in a
 project, ignoring case). Escape cancels; nothing is kept. When another client
-claims the parent, the prompt says so: a new child changes its parent, so its
-creation is refused while that claim lasts.
+claims the parent, the prompt says so: a new child changes its parent's
+children, so its creation is refused while that claim lasts.
 
 Enter then starts a **draft** of the new issue's body, empty
 (`<title-slug>--<id8>.md`), and suspends into the editor. A new issue takes no
 claim. When the editor exits, the panel previews the creation (`Create the new
-issue “Plan”?`): the new issue, a child's parent (its children change; it is
-fenced at its revision, and a claim this session holds on it is passed on) and
-the project, which is only read; then the body. A blank body is allowed.
+issue “Plan”?`): the new issue, a child's parent (read, not written: its
+computed children change but its revision stays; it is fenced at its
+revision, and a claim this session holds on it is passed on) and the project,
+which is only read; then the body. A blank body is allowed.
 `Apply this change` commits exactly that preview, once: the title, the body
 and the parent in one transaction. The draft is removed, the tree reloads
 with the new issue selected (its parent expanded), and the footer says

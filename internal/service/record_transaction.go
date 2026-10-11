@@ -151,7 +151,9 @@ func (s *Server) prepareRecordIntent(i protocol.Intent, c protocol.Client) (prot
 	if e != nil {
 		return out, invalid(e.Error())
 	}
-	protocol.Decode(b, &i)
+	if e = protocol.Decode(b, &i); e != nil {
+		return out, e
+	}
 	if _, _, e = s.recordTransaction(i, hash, c); e != nil {
 		return out, e
 	}

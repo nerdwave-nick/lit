@@ -275,3 +275,30 @@ func TestTransportErrorCodes(t *testing.T) {
 		}
 	}
 }
+
+// Lock contention from outside lit-server that outlasts the busy timeout is a
+// retryable storage_busy, never a storage_error, and commits nothing.
+func TestStorageContentionIsBusy(t *testing.T) {
+	if testing.Short() {
+		t.Skip("waits for the five-second busy timeout")
+	}
+	s, h := fixture(t)
+	held, e := outside(t, s).Conn(context.Background())
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer held.Close()
+	if _, e = held.ExecContext(context.Background(), "BEGIN IMMEDIATE"); e != nil {
+		t.Fatal(e)
+	}
+	status, v := request(t, h, "POST", "/v1/connect", `{"actor":{"name":"A","kind":"human"}}`, "", "")
+	if status != 503 || v["error"].(map[string]any)["code"] != "storage_busy" {
+		t.Fatal(status, v)
+	}
+	if _, e = held.ExecContext(context.Background(), "ROLLBACK"); e != nil {
+		t.Fatal(e)
+	}
+	if n := countClients(t, s); n != 0 {
+		t.Fatal("busy request committed", n)
+	}
+}
