@@ -124,5 +124,5 @@ func TestRecordBatchIsAllOrNothing(t *testing.T) {
 
 // readOne reads one record of any type in its own request.
 func readOne(s *Server, typ, id string) (any, error) {
-	return inRequest(s, func() (any, error) { return s.readRecord(typ, id) })
+	return inSnapshot(s, func(rs *Server) (any, error) { return rs.readRecord(typ, id) })
 }

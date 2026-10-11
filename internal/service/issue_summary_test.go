@@ -322,7 +322,9 @@ func TestDurableClaimRejectsProjectedOwnerActor(t *testing.T) {
 	f := newSummaryFixture(t)
 	claim := *mustLiveClaim(t, f.s, f.parent)
 	claim.OwnerActor = &protocol.Actor{Name: "Claude", Kind: "agent"}
-	_, e := inRequest(f.s, func() (struct{}, error) { return struct{}{}, f.s.commit(changes{claims: []protocol.Claim{claim}}) })
+	_, e := inRequest(f.s, func(rs *Server) (struct{}, error) {
+		return struct{}{}, rs.commit(changes{claims: []protocol.Claim{claim}})
+	})
 	if e == nil {
 		t.Fatal("stored a claim with a projected owner actor")
 	}

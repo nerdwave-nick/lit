@@ -1,6 +1,8 @@
-// Package service serves the lit protocol over the storage module. Each request
-// holds the process write lock and runs in one storage write transaction, which
-// handlers commit only after their response is complete and bounded.
+// Package service serves the lit protocol over the storage module. A static
+// route table (routes.go) classifies each request. Reads run in parallel, each
+// in one WAL read snapshot. Writes hold the process write lock and run in one
+// storage write transaction, which handlers commit only after their response is
+// complete and bounded.
 package service
 
 import (
@@ -18,13 +20,20 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 )
 
+// Server serves the lit protocol. Each request runs on its own request-scoped
+// Server, which shares everything but the request being served.
 type Server struct {
+	*shared
+	// cur is the request being served; it is nil outside a request.
+	cur *requestState
+}
+
+// shared is the state of a Server that every request sees.
+type shared struct {
 	DB         *storage.DB
 	Config     Config
 	stopping   atomic.Bool
 	claimClock func() time.Time
-	// cur is the request being served; it is set only while the write lock is held.
-	cur *requestState
 }
 
 // New serves the opened storage module db with configuration c.
@@ -32,7 +41,7 @@ func New(db *storage.DB, c Config) (*Server, error) {
 	if db == nil {
 		return nil, errors.New("service needs an open storage module")
 	}
-	return &Server{DB: db, Config: c}, nil
+	return &Server{shared: &shared{DB: db, Config: c}}, nil
 }
 func (s *Server) Stop() { s.stopping.Store(true) }
 
@@ -69,9 +78,14 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		}
 		r.Body = io.NopCloser(bytes.NewReader(body))
 	}
-	// The response is buffered, so a slow reader never holds the write lock.
+	// The response is buffered, so a slow reader never holds the write lock or
+	// a read snapshot.
 	b := &bufferedResponse{header: make(http.Header), status: 200}
-	if e := s.serialized(r.Context(), func() error { return s.handle(b, r) }); e != nil {
+	run := s.serialized
+	if routeAccess(r.Method, r.URL.Path) == readAccess {
+		run = s.snapshot
+	}
+	if e := run(r.Context(), func(rs *Server) error { return rs.handle(b, r) }); e != nil {
 		writeFailure(b, e)
 	}
 	if int64(b.body.Len()) > s.Config.Limits.SnapshotBytes {
