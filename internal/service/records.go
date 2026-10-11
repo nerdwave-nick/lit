@@ -5,8 +5,7 @@ import (
 	"fmt"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
-	"golang.org/x/text/cases"
-	"golang.org/x/text/unicode/norm"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/textfold"
 	"os"
 	"sort"
 	"strings"
@@ -15,7 +14,7 @@ import (
 )
 
 // IssueTitleKey is shared by lookup, uniqueness validation and derived indexes.
-func IssueTitleKey(s string) string { return norm.NFC.String(cases.Fold().String(norm.NFC.String(s))) }
+func IssueTitleKey(s string) string { return textfold.Fold(s) }
 func validateIssueTitle(s string) error {
 	if !utf8.ValidString(s) || s == "" || utf8.RuneCountInString(s) > 128 || strings.TrimSpace(s) != s {
 		return invalid("invalid issue title")
