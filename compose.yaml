@@ -1,0 +1,67 @@
+# lit-server as a single-service compose stack. Linux only, like lit-server.
+# Usage and settings: docs/installation.md, section "Docker Compose".
+#
+#   mkdir -p backup export
+#   printf 'LIT_UID=%s\nLIT_GID=%s\n' "$(id -u)" "$(id -g)" > .env   # optional
+#   docker compose up -d --build
+#
+# Local changes belong in compose.override.yaml, which compose merges in.
+name: lit
+
+services:
+  lit-server:
+    build:
+      context: .
+      args:
+        # The non-root user lit-server runs as. Defaults to distroless's
+        # nonroot (65532); set LIT_UID/LIT_GID (for example in .env) to your
+        # own IDs so that you own ./backup and ./export.
+        LIT_UID: ${LIT_UID:-65532}
+        LIT_GID: ${LIT_GID:-65532}
+    image: lit-server:local
+    # Host networking: lit-server binds the host's loopback address itself.
+    # The listener must stay a loopback IP; lit-server refuses anything else.
+    network_mode: host
+    restart: unless-stopped
+    environment:
+      LIT_LISTEN: 127.0.0.1:7411
+      LIT_DATA_DIR: /data
+      LIT_BACKUP_DIR: /backup
+      LIT_BACKUP_INTERVAL: 24h
+      LIT_BACKUP_KEEP: "14"
+      # The export directory cannot be a mount point, so it sits below one.
+      LIT_EXPORT_DIR: /export/tree
+      LIT_EXPORT_INTERVAL: 15m
+    volumes:
+      - type: volume
+        source: lit-data
+        target: /data
+      - type: bind
+        source: ./backup
+        target: /backup
+        bind:
+          create_host_path: false
+      - type: bind
+        source: ./export
+        target: /export
+        bind:
+          create_host_path: false
+    healthcheck:
+      test: ["CMD", "/lit-server", "healthcheck"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 1m
+      start_interval: 2s
+    # lit-server drains requests for up to 30 seconds after SIGTERM.
+    stop_grace_period: 35s
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  lit-data: {}
