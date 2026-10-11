@@ -50,8 +50,8 @@ func OpenReadOnly(dir string) (db *ReadOnlyDB, err error) {
 	if err != nil {
 		return nil, err
 	}
-	readers.SetMaxOpenConns(readConns)
-	readers.SetMaxIdleConns(readConns)
+	readers.SetMaxOpenConns(DefaultReadConcurrency)
+	readers.SetMaxIdleConns(DefaultReadConcurrency)
 	readers.SetConnMaxLifetime(0)
 	db = &ReadOnlyDB{readers: readers, clock: NewClock(time.Now)}
 	defer func() {
