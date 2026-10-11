@@ -1,15 +1,19 @@
-package drafts
+// Package textdiff is the line diff shared by lit-server and lit-tui: unified
+// diffs that keep body bytes exact. It must not depend on the TUI stack.
+package textdiff
 
 import (
 	"fmt"
 	"strings"
 )
 
-// DiffContext is how many unchanged lines surround each hunk.
-const DiffContext = 3
+// Context is how many unchanged lines surround each hunk.
+const Context = 3
 
-// maxDiffCells bounds the line comparison table; beyond it the differing
-// middle is shown as removed and added as a whole.
+// maxDiffCells bounds the line comparison table (16 MiB of int32); beyond
+// it the differing middle is shown as removed and added as a whole. A middle
+// of up to 2047 lines on each side fits, so a 64 KB body gets a minimal diff
+// whenever its lines average at least 33 bytes (see bound_test.go).
 const maxDiffCells = 1 << 22
 
 // NoNewline follows a last line that has no line break.
@@ -100,7 +104,7 @@ func middle(a, b []string) []edit {
 	return out
 }
 
-// hunks groups the changes of s with DiffContext lines around them.
+// hunks groups the changes of s with Context lines around them.
 func hunks(s []edit) []string {
 	var out []string
 	for start := 0; start < len(s); {
@@ -111,16 +115,16 @@ func hunks(s []edit) []string {
 		if first == len(s) {
 			break
 		}
-		from := max(first-DiffContext, 0)
+		from := max(first-Context, 0)
 		end := first // one past the hunk's last change
 		for k := first; k < len(s); k++ {
 			if s[k].op != ' ' {
 				end = k + 1
-			} else if k-end >= 2*DiffContext {
+			} else if k-end >= 2*Context {
 				break
 			}
 		}
-		to := min(end+DiffContext, len(s))
+		to := min(end+Context, len(s))
 		out = append(out, hunk(s, from, to)...)
 		start = to
 	}

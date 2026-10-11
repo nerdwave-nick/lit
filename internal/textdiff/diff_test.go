@@ -1,4 +1,4 @@
-package drafts
+package textdiff
 
 import (
 	"fmt"
@@ -78,40 +78,9 @@ func TestDiffReconstructsTheNewText(t *testing.T) {
 // apply rebuilds the new text from old and a unified diff.
 func apply(t *testing.T, old string, diff []string) string {
 	t.Helper()
-	lines := strings.SplitAfter(old, "\n")
-	if lines[len(lines)-1] == "" {
-		lines = lines[:len(lines)-1]
+	got, err := Apply(diff, old)
+	if err != nil {
+		t.Fatal(err)
 	}
-	var out []string
-	pos := 0
-	for i := 0; i < len(diff); i++ {
-		l := diff[i]
-		noEOL := i+1 < len(diff) && diff[i+1] == `\ No newline at end of file`
-		text := l[1:] + "\n"
-		if noEOL {
-			text = l[1:]
-		}
-		switch l[0] {
-		case '@':
-			var a, b, c, d int
-			if _, err := fmt.Sscanf(l, "@@ -%d,%d +%d,%d @@", &a, &b, &c, &d); err != nil {
-				t.Fatalf("header %q: %v", l, err)
-			}
-			start := a - 1
-			if b == 0 {
-				start = a
-			}
-			out = append(out, lines[pos:start]...)
-			pos = start
-		case ' ':
-			out = append(out, lines[pos])
-			pos++
-		case '-':
-			pos++
-		case '+':
-			out = append(out, text)
-		case '\\':
-		}
-	}
-	return strings.Join(append(out, lines[pos:]...), "")
+	return got
 }

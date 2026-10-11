@@ -150,6 +150,13 @@ on the wire. The claims tests use leases of about a second;
 one renews a claim across several leases while the program's event loop is
 blocked inside Update.
 
+`internal/textdiff` tests the line diff shared by lit-tui and lit-server:
+byte-exact diffs and strict `Apply` for CRLF, lone CR, a missing final newline,
+empty bodies, Unicode and invalid UTF-8; refusals of another base and of
+malformed diffs; the property `Apply(Diff(a, b), a) == b` (`testing/quick` and a
+fuzz target whose seeds `go test` runs); and the LCS cell bound against 64 KB
+bodies. `go test -run '^$' -bench Diff64KB ./internal/textdiff` measures it.
+
 `cmd/lit/deps_test.go` uses `go list -deps` to prove that only `lit-tui` links the
 Charm, Glamour and chroma packages.
 
