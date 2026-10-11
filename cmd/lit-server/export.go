@@ -71,7 +71,7 @@ func runExport(args []string, out, errOut io.Writer) int {
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	to := p.Flags["to"][0]
-	m, err := exportDatabase(ctx, config.DataDir, to)
+	m, _, err := exportDatabase(ctx, config.DataDir, to, false)
 	if err != nil {
 		fmt.Fprintln(errOut, "lit-server export:", err)
 		return 1
@@ -81,16 +81,46 @@ func runExport(args []string, out, errOut io.Writer) int {
 	return 0
 }
 
-func exportDatabase(ctx context.Context, dataDir, to string) (export.Manifest, error) {
+// exportDatabase exports the database in dataDir into the directory to from
+// one read-only snapshot (storage.OpenReadOnly), so it takes neither the owner
+// lock nor a read slot of a running lit-server, and its errors never count as
+// that lit-server's database failures. With skipUnchanged it leaves an export
+// of this tracker in to as it is when that export's last_transaction is the
+// snapshot's newest committed transaction; exported is then false and m is
+// the manifest already there.
+func exportDatabase(ctx context.Context, dataDir, to string, skipUnchanged bool) (m export.Manifest, exported bool, err error) {
 	db, err := storage.OpenReadOnly(dataDir)
 	if err != nil {
-		return export.Manifest{}, err
+		return export.Manifest{}, false, err
 	}
 	defer db.Close()
 	snap, err := db.Read(ctx)
 	if err != nil {
-		return export.Manifest{}, err
+		return export.Manifest{}, false, err
 	}
 	defer snap.Close()
-	return export.Export(ctx, snap, to, export.Options{ServiceID: db.ServiceID(), Time: snap.Now()})
+	if skipUnchanged {
+		newest, found, e := snap.NewestTransaction(ctx)
+		if e != nil {
+			return export.Manifest{}, false, e
+		}
+		if prev, e := export.ReadManifest(to); e == nil && upToDate(prev, db.ServiceID(), newest, found) {
+			return prev, false, nil
+		}
+	}
+	m, err = export.Export(ctx, snap, to, export.Options{ServiceID: db.ServiceID(), Time: snap.Now()})
+	return m, err == nil, err
+}
+
+// upToDate reports whether the export described by m shows the tracker
+// serviceID up to its newest committed transaction (found is false when
+// none has committed).
+func upToDate(m export.Manifest, serviceID string, newest storage.TransactionStamp, found bool) bool {
+	if m.ServiceID != serviceID {
+		return false
+	}
+	if !found {
+		return m.LastTransaction == nil
+	}
+	return m.LastTransaction != nil && *m.LastTransaction == newest
 }

@@ -22,6 +22,30 @@ creates, migrates or writes the database; it refuses a data directory without
 a database, a legacy file store, and a schema version other than its own (start
 the matching lit-server once to migrate first).
 
+## Interval exports
+
+lit-server can also keep an export up to date by itself. Set `export_dir`
+(`LIT_EXPORT_DIR`) and `export_interval` (`LIT_EXPORT_INTERVAL`, a Go duration
+such as `"10m"`); the interval defaults to `0`, which turns interval exports
+off, and a positive interval needs a directory. lit-server then exports once
+right after it starts listening and again every interval after the previous
+run ended. A run is skipped, leaving the tree as it is, when the newest
+committed transaction equals the `last_transaction` in the existing export's
+`manifest.json` (and that export is of the same tracker); otherwise it writes
+and switches in a new tree as described below.
+
+Each run works exactly like `lit-server export --to`: it opens the database
+read-only and reads one WAL snapshot of its own. It does not use one of the
+server's read slots (`read_concurrency`), so a long export never makes requests
+wait, and it never takes the write lock. A failed run, such as a target that is
+not an export or a file system error, is logged
+(`lit-server: interval export failed: ...; serving continues`) and retried at
+the next interval; it never affects request serving and never counts as a
+database failure. Degraded mode runs no exports. Stopping lit-server cancels a
+run in progress, which leaves the previous tree. An on-demand export into the
+same directory while a run is in progress fails with a busy error, and the
+other way round.
+
 ## Replacing the tree
 
 The tree is written to a staging directory next to `DIRECTORY` and switched

@@ -15,7 +15,14 @@ The data directory holds:
 - `lit.db.lock`, the owner lock. lit-server takes an exclusive `flock` on it,
   so only one lit-server serves a database. A second one fails with
   `storage is already owned`;
-- `backup/`, the snapshots taken with `VACUUM INTO` before a schema migration.
+- `backup/`, the default backup directory (`backup_dir`, `LIT_BACKUP_DIR`):
+  the scheduled `VACUUM INTO` snapshots `lit-<UTC time>-scheduled.db`, of which
+  the newest `backup_keep` are kept, and the snapshots
+  `lit-<UTC time>-pre-migration-v<version>.db` taken before a schema migration.
+  After a setup import it also holds lit-migrate's body SHA-256 manifest
+  `lit-migrate-<UTC time>-bodies.json`, which retention never removes.
+  A scheduled snapshot runs on a connection of its own, beside requests,
+  without the write lock or a read slot. See [backups](recovery.md#backups).
 
 An empty or missing directory gets a fresh database with a new service
 identity. A directory that still holds a legacy file store (it contains
@@ -23,11 +30,12 @@ identity. A directory that still holds a legacy file store (it contains
 written: nothing of that store is read or converted. Convert it once with the
 setup import (`lit-migrate`) into a new, empty data directory instead. A
 database whose schema is newer than the binary is refused; an older one is
-snapshotted into `backup/` and migrated.
+snapshotted into the backup directory and migrated.
 
-Offline readers such as `lit-server export` open the database read-only
-(`storage.OpenReadOnly`: `mode=ro`, `query_only`) without taking the owner
-lock, so they work whether or not lit-server runs. Each reads one WAL snapshot,
+Offline readers such as `lit-server export`, and lit-server's own interval
+export, open the database read-only (`storage.OpenReadOnly`: `mode=ro`,
+`query_only`) without taking the owner lock, so they work whether or not
+lit-server runs. Each reads one WAL snapshot,
 which SQLite isolates from the owner's later commits. A reader never creates,
 migrates or writes the database; it refuses a missing database, a legacy file
 store and a schema version other than its own.
@@ -165,6 +173,15 @@ History pages follow revisions; their cursors name the previous page's last
 entry by timestamp and request hash, as before. `transactions status` proves a
 commit by looking up the request hash in `transactions`, with the proof
 `immutable_history` and the results exactly as they were returned.
+
+A database created by the setup import (`lit-migrate`, see
+[installation](installation.md#setup-import-from-a-legacy-file-store)) holds the
+legacy history as it was accepted: one `transactions` row per legacy request
+hash with its stored intent, timestamp and results, and one `history` row per
+legacy history entry with its field differences verbatim. Legacy entries may
+therefore change `issue_ids`, `child_ids` or `comment_ids`, even only those;
+`lit-server verify` skips those keys. Legacy whole-body hunks are stored as
+diffs like any other, each checked to reproduce its body.
 
 ## Invariants
 

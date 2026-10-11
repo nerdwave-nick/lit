@@ -30,7 +30,7 @@ type started struct {
 // lit-server.
 func startup(c service.Config, errOut io.Writer) (started, error) {
 	logf := func(format string, args ...any) { fmt.Fprintf(errOut, format+"\n", args...) }
-	db, e := storage.OpenWith(c.DataDir, storage.Options{ReadConcurrency: c.ReadConcurrency})
+	db, e := storage.OpenWith(c.DataDir, storage.Options{ReadConcurrency: c.ReadConcurrency, BackupDir: c.BackupDir})
 	if errors.Is(e, storage.ErrFatal) {
 		return degraded(nil, e, errOut), nil
 	}

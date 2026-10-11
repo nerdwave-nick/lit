@@ -174,3 +174,50 @@ func TestVersion1DatabaseIsMigratedWithItsGrepIndex(t *testing.T) {
 	}
 	checkGrepIndex(t, o)
 }
+
+// The setup import (Create, then ImportRecords through the row writer) gives
+// a schema version 2 database whose folded text and trigram index are
+// complete: grep finds the imported records through the index, and the
+// startup checks and Verify pass without rewriting anything.
+func TestImportedRecordsAreFoundThroughTheTrigramIndex(t *testing.T) {
+	dir := t.TempDir()
+	db, e := Create(dir, testService)
+	if e != nil {
+		t.Fatal(e)
+	}
+	t.Cleanup(func() { db.Close() })
+	if db.SchemaVersion() != 2 {
+		t.Fatalf("created schema version %d, want 2", db.SchemaVersion())
+	}
+	w := newLegacyWorld(t)
+	w.db.Close()
+	w.db = db
+	if e := write(t, db, func(ctx context.Context, tx *WriteTx) error { return w.importAll(ctx, tx) }); e != nil {
+		t.Fatal(e)
+	}
+	o := outside(t, db)
+	var rows int
+	if e := o.QueryRow("SELECT count(*) FROM grep_text").Scan(&rows); e != nil || rows != 3 {
+		t.Fatalf("grep_text holds %d rows (%v), want 3", rows, e)
+	}
+	checkGrepIndex(t, o)
+	for _, c := range []struct{ needle, want string }{
+		{"final newline", w.a.ID},
+		{"a2\r\nno", w.a.ID},
+		{"comment", w.c.ID},
+		{"hello\n", w.p.ID},
+	} {
+		if query, args := searchQuery("", c.needle); !strings.Contains(query, "grep_index") || len(args) != 3 {
+			t.Fatalf("needle %q does not use the trigram index", c.needle)
+		}
+		if got := scanFor(t, db, "", c.needle); len(got) != 1 || got[0].ID != c.want {
+			t.Errorf("needle %q found %v, want %s", c.needle, got, c.want)
+		}
+	}
+	if log, e := check(t, db); e != nil || len(log) != 0 {
+		t.Fatal("startup checks:", log, e)
+	}
+	if r := verify(t, db); len(r.Problems) != 0 || r.Records != 3 {
+		t.Fatalf("verify %+v", r)
+	}
+}

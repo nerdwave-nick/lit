@@ -61,17 +61,25 @@ func (t *WriteTx) WriteRequest(ctx context.Context, r Request, records []any) (e
 	if e != nil {
 		return e
 	}
-	actor := r.Intent.Actor
-	results, _ := json.Marshal(r.Results)
-	if _, e = t.exec(ctx, "INSERT INTO transactions (request_hash, client_id, actor_name, actor_kind, timestamp, intent, results) VALUES (?, ?, ?, ?, ?, ?, ?)",
-		r.Hash, actor.ClientID, actor.Name, actor.Kind, r.Timestamp, string(intent), string(results)); e != nil {
+	if e = t.insertTransaction(ctx, r, intent); e != nil {
 		return e
 	}
 	return t.writeRecords(ctx, r, records)
 }
 
-// checkRequest validates the request itself and returns its canonical intent.
-func (t *WriteTx) checkRequest(ctx context.Context, r Request, records []any) ([]byte, error) {
+// insertTransaction stores the transaction record of r, whose canonical
+// intent is intent.
+func (t *WriteTx) insertTransaction(ctx context.Context, r Request, intent []byte) error {
+	actor := r.Intent.Actor
+	results, _ := json.Marshal(r.Results)
+	_, e := t.exec(ctx, "INSERT INTO transactions (request_hash, client_id, actor_name, actor_kind, timestamp, intent, results) VALUES (?, ?, ?, ?, ?, ?, ?)",
+		r.Hash, actor.ClientID, actor.Name, actor.Kind, r.Timestamp, string(intent), string(results))
+	return e
+}
+
+// checkIntent requires the intent's canonical hash and a timestamp in
+// TimeFormat later than every stored one, and returns the canonical intent.
+func (t *WriteTx) checkIntent(ctx context.Context, r Request) ([]byte, error) {
 	intent, hash, e := protocol.Canonical(r.Intent)
 	if e != nil {
 		return nil, invalidWrite("intent: %v", e)
@@ -88,6 +96,15 @@ func (t *WriteTx) checkRequest(ctx context.Context, r Request, records []any) ([
 	}
 	if r.Timestamp <= newest {
 		return nil, invalidWrite("timestamp %s is not after the newest transaction %s", r.Timestamp, newest)
+	}
+	return intent, nil
+}
+
+// checkRequest validates the request itself and returns its canonical intent.
+func (t *WriteTx) checkRequest(ctx context.Context, r Request, records []any) ([]byte, error) {
+	intent, e := t.checkIntent(ctx, r)
+	if e != nil {
+		return nil, e
 	}
 	if len(records) == 0 || len(records) != len(r.Results) {
 		return nil, invalidWrite("%d records for %d results", len(records), len(r.Results))

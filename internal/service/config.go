@@ -18,6 +18,19 @@ type Config struct {
 	TitlePrefixes []string        `json:"title_prefixes"`
 	// ReadConcurrency caps concurrent read snapshots (LIT_READ_CONCURRENCY).
 	ReadConcurrency int `json:"read_concurrency,omitempty"`
+	// BackupDir receives the scheduled and pre-migration snapshots
+	// (LIT_BACKUP_DIR; default <data dir>/backup).
+	BackupDir string `json:"backup_dir,omitempty"`
+	// BackupInterval separates scheduled snapshots; zero turns them off
+	// (LIT_BACKUP_INTERVAL; default 24h).
+	BackupInterval Duration `json:"backup_interval,omitempty"`
+	// BackupKeep is how many scheduled snapshots are kept (LIT_BACKUP_KEEP).
+	BackupKeep int `json:"backup_keep,omitempty"`
+	// ExportDir receives the interval Markdown export (LIT_EXPORT_DIR).
+	ExportDir string `json:"export_dir,omitempty"`
+	// ExportInterval separates interval exports; zero, the default, turns
+	// them off (LIT_EXPORT_INTERVAL).
+	ExportInterval Duration `json:"export_interval,omitempty"`
 }
 
 func xdg(key, fallback string) string {
@@ -29,7 +42,7 @@ func xdg(key, fallback string) string {
 	return filepath.Join(h, fallback)
 }
 func LoadConfig(args []string) (Config, error) {
-	c := Config{SchemaVersion: 1, DataDir: filepath.Join(xdg("XDG_DATA_HOME", ".local/share"), "lit-server"), Listen: "127.0.0.1:7411", Limits: protocol.DefaultLimits(), TitlePrefixes: []string{"feat", "fix", "refactor", "docs", "test", "chore", "decision", "research", "spec"}, ReadConcurrency: storage.DefaultReadConcurrency}
+	c := Config{SchemaVersion: 1, DataDir: filepath.Join(xdg("XDG_DATA_HOME", ".local/share"), "lit-server"), Listen: "127.0.0.1:7411", Limits: protocol.DefaultLimits(), TitlePrefixes: []string{"feat", "fix", "refactor", "docs", "test", "chore", "decision", "research", "spec"}, ReadConcurrency: storage.DefaultReadConcurrency, BackupInterval: Duration(DefaultBackupInterval), BackupKeep: DefaultBackupKeep}
 	f := map[string]string{}
 	for i := 0; i < len(args); i++ {
 		k := args[i]
@@ -79,6 +92,12 @@ func LoadConfig(args []string) (Config, error) {
 		}
 		c.ReadConcurrency = n
 	}
+	if e := c.backupEnvironment(); e != nil {
+		return c, e
+	}
+	if e := c.exportEnvironment(); e != nil {
+		return c, e
+	}
 	if v, ok := f["--data-dir"]; ok {
 		c.DataDir = v
 	}
@@ -93,6 +112,12 @@ func LoadConfig(args []string) (Config, error) {
 	}
 	if c.ReadConcurrency < 1 {
 		return c, fmt.Errorf("read_concurrency must be a positive integer")
+	}
+	if e := c.validateBackups(); e != nil {
+		return c, e
+	}
+	if e := c.validateExports(); e != nil {
+		return c, e
 	}
 	host, port, e := net.SplitHostPort(c.Listen)
 	if e != nil {

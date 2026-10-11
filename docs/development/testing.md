@@ -64,6 +64,19 @@ text and queries over an alphabet of those hazards. `internal/textfold` checks
 `Scalar` against `cases.Fold` for every scalar and that `Grep` keeps
 substrings.
 
+The backup tests snapshot a tracker with history (`Backup`), restore the
+snapshot into a new data directory and require `OpenExisting` plus `Verify`
+and the startup checks to pass; a snapshot taken while a write transaction is
+open holds only committed data; a cancelled backup, or one into a read-only
+directory, leaves no file. Retention tests surround scheduled snapshots with
+pre-migration snapshots, near-miss names, a directory and a symlink, which
+must all survive. `cmd/lit-server` tests run the periodic job (failures and
+panics are logged and the job carries on; stop cancels a run and waits), the
+scheduled backups of a started service with retention and a restore through
+`lit-server verify`, and their absence with interval 0 and in degraded mode.
+`integration/backup_test.go` drives the binary with `LIT_BACKUP_*`, restores
+the newest snapshot as `docs/recovery.md` describes and reads the tracker back.
+
 `internal/export` tests write a small fixture tracker through the storage
 module with fixed IDs and times, then export it. `TestExportMatchesTheGoldenTree`
 compares the whole tree with `internal/export/testdata/golden` (regenerate with
@@ -77,6 +90,27 @@ a write committed during an export is not exported (one snapshot), that a
 target that is not a previous export is refused, that a failed export leaves
 the previous tree, and that a second export into the same directory is refused.
 `storage.OpenReadOnly` is tested beside a running owner and without one.
+`cmd/lit-server` tests run the interval export: a run exports after a change
+and leaves the tree (manifest and directory inode) untouched when the newest
+transaction is the manifest's `last_transaction`, an export of another tracker
+is replaced, a started service exports at once and follows a later write,
+failed runs are logged while the service keeps serving without a database
+failure, and nothing is exported by default, with only a directory set, or in
+degraded mode.
+
+`cmd/lit-migrate` tests build legacy fixture stores with the frozen legacy
+writer (`cmd/lit-migrate/internal/legacy`: the legacy preparer and
+`recordTransaction`, claim operations with a controlled clock, client saves and
+disconnect): multi-owner transactions, entries that change only membership
+lists, links, a milestone, CRLF, Unicode and unterminated bodies, live, expired
+and released claims, and connected and disconnected clients. The importer tests
+run the full import with all nine checks, then compare claims, clients, records
+and history with the legacy reader; they cover dry runs (source and target
+untouched), a non-empty target, a store still owned by a legacy server,
+failures that must leave no database (an unlisted file, a record tampered
+behind its history, a claim time that is not canonical), a rerun after a
+failure, and determinism. `cmd/lit-server`'s `TestLitServerDoesNotLinkTheLegacyStore`
+keeps the frozen copy and `internal/store` out of lit-server.
 
 `internal/service` tests run the service against real SQLite databases in
 temporary directories. All-or-nothing behaviour is tested with real late

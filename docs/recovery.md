@@ -49,7 +49,8 @@ repair these cases.
 
 lit-server's database fails closed. Three mechanisms cover damage; the
 reference is the storage module (`internal/storage`: `CheckIntegrity`,
-`Verify`, `ErrFatal`).
+`Verify`, `ErrFatal`). Backup snapshots, which lit-server takes itself, bring
+a tracker back.
 
 ## Startup checks
 
@@ -133,6 +134,74 @@ may rebuild a search index, so lit-server must be stopped (unlike
 or migrates a database; a database with an older schema is migrated by
 starting lit-server on it first.
 
-To bring a tracker back from degraded mode with a backup snapshot: stop
-lit-server, replace the database with the snapshot, run `lit-server verify`,
-and start lit-server once it passes. Run `verify` after any repair, too.
+To bring a tracker back from degraded mode, restore a backup snapshot (see
+[restore a snapshot](#restore-a-snapshot)). Run `verify` after any repair, too.
+
+## Backups
+
+lit-server takes its own backups: consistent `VACUUM INTO` snapshots of the
+database, written while it serves.
+
+| Setting | Environment | JSON field | Default |
+| --- | --- | --- | --- |
+| backup directory | `LIT_BACKUP_DIR` | `backup_dir` | `<data dir>/backup` |
+| interval | `LIT_BACKUP_INTERVAL` | `backup_interval` | `24h` |
+| retention | `LIT_BACKUP_KEEP` | `backup_keep` | `14` |
+
+- **Scheduled snapshots** are named `lit-<UTC time>-scheduled.db`, for example
+  `lit-20261011T031500.123456Z-scheduled.db`. The interval is a Go duration
+  (`24h`, `90m`); `0` turns scheduled snapshots off. The first snapshot after a
+  start follows the newest scheduled one in the directory, so restarts do not
+  postpone it; without one, it is taken right after the start. A snapshot
+  holds the committed state when it starts, and only lit-server's user can
+  read it (mode 0600). It runs beside requests: it takes neither the write
+  lock nor a read slot.
+- **Retention** keeps the newest `backup_keep` scheduled snapshots and removes
+  older ones after each successful snapshot. It removes only regular files with
+  exactly that name; anything else in the directory is left alone, including
+  pre-migration snapshots, which are never removed. Give each lit-server its own
+  backup directory: retention cannot tell two trackers' snapshots apart.
+- **Pre-migration snapshots** (`lit-<UTC time>-pre-migration-v<old version>.db`)
+  are taken in the same directory before a schema upgrade.
+- **Failures** are logged (`lit-server: scheduled backup failed: ...; serving
+  continues`) and retried at the next interval; they never affect requests and
+  never stop lit-server. A failed snapshot leaves no file (it is written under
+  a temporary `.lit-...partial` name and renamed when complete), and retention
+  only runs after a snapshot succeeded. Each success logs
+  `lit-server: backup written to PATH`.
+- **Degraded mode takes no snapshots**, so a damaged database never pushes the
+  good snapshots out of retention.
+
+Snapshots in the default directory share the data directory's disk. Copy them
+elsewhere, or point `backup_dir` at another disk, to survive losing it.
+
+## Restore a snapshot
+
+A snapshot is a complete database file without WAL files. To restore one:
+
+1. Stop lit-server (for example `systemctl --user stop lit.service`, and
+   `lit.socket` too under socket activation, so a connection cannot start it
+   again). `verify` and the restore need the data directory's owner lock.
+2. Move the current `lit.db`, and `lit.db-wal` and `lit.db-shm` if present, out
+   of the data directory. Keep them for analysis rather than deleting them.
+3. Copy the snapshot into the data directory as `lit.db`, readable and writable
+   by lit-server's user.
+4. Run `lit-server verify` with the same data directory (`--data-dir`,
+   `LIT_DATA_DIR` or the config file). It runs the startup checks and replays
+   all history; continue only when it exits 0. If it reports problems, try the
+   next older snapshot.
+5. Start lit-server. Its startup checks run again before it serves.
+
+This order verifies the snapshot before anything is served from it.
+
+Everything committed after the snapshot was taken is lost. Clients reconcile
+as after any interruption: `lit transactions status` reports a request
+committed after the snapshot as not committed, so its change can be applied
+again. A client that connected after the snapshot is unknown to the restored
+tracker and connects again. Claims return to their state in the snapshot; most
+will have expired.
+
+A pre-migration snapshot has the older schema, which `verify` refuses. Verify
+it with the older lit-server, or start the current lit-server on it once (it
+migrates the restored database after another pre-migration snapshot), stop
+it, and run `verify` before serving clients again.
