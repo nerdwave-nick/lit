@@ -16,6 +16,25 @@ embedded skills offline, and exercises sessions,
 claims, checkpoints, cross-checkout resume, and closure against a temporary service.
 It does not invoke paid models or start a persistent service.
 
+The end-to-end benchmark in `integration/bench` is gated and never runs in CI;
+plain `go test ./...` runs only its unit tests (percentiles, the pass/fail
+checks, the report and the corpus generator). Before a milestone merges, run it
+by hand on an otherwise idle machine and record the report on the milestone's
+final ticket:
+
+```sh
+LIT_BENCH=1 LIT_BENCH_DIR=~/.cache/lit-bench go test -run TestBenchmark -timeout 3h -v ./integration/bench/
+```
+
+It builds `lit-server` without the race detector, starts it on a temporary data
+directory and free port, seeds 100 projects of about 15 issues through the HTTP
+API in transactions of 1-5 operations, then measures p50/p95/p99 per operation,
+the database size and the startup time; it doubles the history with updates,
+runs 8 writing agents and 2 grepping readers, grows to 1,000 projects, and fails
+on any missed target. `LIT_BENCH_DIR` should be on the filesystem lit-server
+really uses (tmpfs makes fsync free). The package documentation lists the other
+variables, and the report lists how each operation is measured.
+
 Installer and workflow-session regression tests live in
 `internal/workflow-skills` and `internal/workflowsession`. Protocol fixtures in
 `internal/protocol/testdata` pin canonical request bytes and hashes.
