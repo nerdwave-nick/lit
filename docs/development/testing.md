@@ -140,6 +140,14 @@ connection lock holds a write inside `BEGIN IMMEDIATE` while reconciliation
 must wait for it. Holding read snapshots through `DB.Read` exhausts the read
 cap.
 
+`internal/service/search_limits_test.go` covers the search limits. A search
+parked through `claimClock` until its deadline has passed answers `504
+search_timeout` and frees its snapshot; a search waiting over the read cap past
+its deadline still succeeds, because the deadline starts when its snapshot
+opens; queries of 1,000 bytes pass and 1,001 bytes (also counted in multi-byte
+characters) are `validation_failed`. `integration/search_test.go` runs the same
+limits through the binaries with `LIT_SEARCH_TIMEOUT=1ns`.
+
 `integration/tui_dispatch_test.go` covers how `lit` finds and starts `lit-tui`
 (sibling first, then PATH, process replacement, endpoint pass-through, the missing
 binary error, and bare `lit` on a pseudo-terminal via util-linux `script`).

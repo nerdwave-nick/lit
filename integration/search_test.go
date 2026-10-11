@@ -91,3 +91,37 @@ func TestGrepCLI(t *testing.T) {
 		t.Fatal(r)
 	}
 }
+
+// Search limits end to end: with LIT_SEARCH_TIMEOUT set below any search's
+// duration, lit grep fails with search_timeout (exit 1) and the advice to
+// narrow it. A server restarted with the default deadline answers the same
+// search, and refuses a pattern over 1,000 bytes with validation_failed
+// (exit 2).
+func TestGrepLimitsCLI(t *testing.T) {
+	data, state, cwd := t.TempDir(), t.TempDir(), t.TempDir()
+	s := start(t, data, "LIT_SEARCH_TIMEOUT=1ns")
+	run(t, cwd, state, 0, "connect", "--endpoint", s.endpoint, "--format", "json")
+	run(t, cwd, state, 0, "projects", "create", "--project-title", "feat/limits", "--content", "Project needle")
+	failure := func(r map[string]any) (string, string) {
+		e, _ := r["error"].(map[string]any)
+		code, _ := e["code"].(string)
+		msg, _ := e["message"].(string)
+		return code, msg
+	}
+	for _, scope := range [][]string{{"--all-projects"}, {"--project", "feat/limits"}} {
+		code, msg := failure(run(t, cwd, state, 1, append([]string{"grep", "needle"}, scope...)...))
+		if code != "search_timeout" || !strings.Contains(msg, "narrow the query or its scope") {
+			t.Fatal(scope, code, msg)
+		}
+	}
+	s.stop(t)
+	s = start(t, data)
+	r := run(t, cwd, state, 0, "grep", "needle", "--all-projects", "--endpoint", s.endpoint)
+	if len(r["items"].([]any)) != 1 {
+		t.Fatal(r)
+	}
+	run(t, cwd, state, 0, "grep", strings.Repeat("x", 1000), "--all-projects", "--endpoint", s.endpoint)
+	if code, msg := failure(run(t, cwd, state, 2, "grep", strings.Repeat("x", 1001), "--all-projects", "--endpoint", s.endpoint)); code != "validation_failed" || !strings.Contains(msg, "1000 bytes") {
+		t.Fatal(code, msg)
+	}
+}

@@ -15,6 +15,9 @@ const (
 	writeAccess access = iota
 	// readAccess runs in one WAL read snapshot, without the write lock.
 	readAccess
+	// searchAccess is a readAccess whose work is bounded by the search
+	// deadline.
+	searchAccess
 )
 
 // routes is the static route table. The HTTP method alone cannot classify a
@@ -38,7 +41,7 @@ var routes = []struct {
 	{"GET", "/v1/clients/{seg}", readAccess},
 	{"GET", "/v1/claims", readAccess},
 	{"POST", "/v1/claim-snapshots", readAccess},
-	{"POST", "/v1/search", readAccess},
+	{"POST", "/v1/search", searchAccess},
 	{"POST", "/v1/issue-summaries", readAccess},
 	{"POST", "/v1/snapshots", readAccess},
 	{"POST", "/v1/transaction-previews", readAccess},
