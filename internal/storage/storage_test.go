@@ -27,7 +27,7 @@ func TestOpenEmptyDirectoryCreatesFreshDatabase(t *testing.T) {
 		t.Fatal(e)
 	}
 	id := db.ServiceID()
-	if !protocol.ValidUUID(id) || db.SchemaVersion() != 1 {
+	if !protocol.ValidUUID(id) || db.SchemaVersion() != current {
 		t.Fatalf("service %q version %d", id, db.SchemaVersion())
 	}
 	if _, e = os.Stat(filepath.Join(dir, DatabaseFile)); e != nil {

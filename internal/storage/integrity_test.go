@@ -126,12 +126,18 @@ func TestStartupCheckFailsOnForeignKeyViolations(t *testing.T) {
 }
 
 // A search index that disagrees with its content is rebuilt, with a log line,
-// and the check passes; so is one whose own pages are damaged.
+// and the check passes; so is one whose own pages are damaged. A body changed
+// behind the storage module also leaves its folded columns stale, which the
+// check rewrites with a second log line.
 func TestStartupCheckRebuildsADamagedSearchIndex(t *testing.T) {
-	for name, damage := range map[string][]string{
-		"stale":   {"UPDATE comments SET body = 'changed behind the index'"},
-		"damaged": {"UPDATE comment_search_data SET block = x'00' WHERE id > 10"},
+	for name, c := range map[string]struct {
+		damage []string
+		lines  int
+	}{
+		"stale":   {[]string{"UPDATE comments SET body = 'changed behind the index'"}, 2},
+		"damaged": {[]string{"UPDATE comment_search_data SET block = x'00' WHERE id > 10"}, 1},
 	} {
+		damage := c.damage
 		t.Run(name, func(t *testing.T) {
 			w := graphWorld(t)
 			dir := closed(t, w.db, func(o *sql.DB) {
@@ -144,7 +150,7 @@ func TestStartupCheckRebuildsADamagedSearchIndex(t *testing.T) {
 			}
 			log, e := check(t, db)
 			t.Log(log)
-			if e != nil || len(log) != 1 || !strings.Contains(log[0], "comment_search") || !strings.Contains(log[0], "rebuilt") {
+			if e != nil || len(log) != c.lines || !strings.Contains(log[0], "comment_search") || !strings.Contains(log[0], "rebuilt") || c.lines == 2 && !strings.Contains(log[1], "folded text of 1 comments rows") {
 				t.Fatal(log, e)
 			}
 			if e = ftsCheck(t, db, "comment_search"); e != nil {
@@ -167,5 +173,70 @@ func TestStartupCheckFailsWhenARebuildFails(t *testing.T) {
 	t.Log(e)
 	if !errors.Is(e, ErrIntegrity) || !strings.Contains(e.Error(), "orphan_search") || len(log) != 0 {
 		t.Fatal(log, e)
+	}
+}
+
+// The trigram tables of lit grep are among the checked search tables: one
+// that no longer matches its content table is rebuilt at startup, with a log
+// line, and finds its records again.
+func TestStartupCheckRebuildsAStaleGrepIndex(t *testing.T) {
+	w := newWorld(t)
+	dir := closed(t, w.db, func(o *sql.DB) {
+		execAll(t, o, "INSERT INTO issues_grep (issues_grep, rowid, grep_title, grep_body) SELECT 'delete', rowid, grep_title, grep_body FROM issues WHERE id = '"+w.a.ID+"'")
+	})
+	db := reopen(t, dir)
+	if got := scanFor(t, db, w.p.ID, "strasse"); len(got) != 0 {
+		t.Fatalf("damage left %d records found", len(got))
+	}
+	log, e := check(t, db)
+	if e != nil || len(log) != 1 || !strings.Contains(log[0], "search index issues_grep failed its integrity check") || !strings.Contains(log[0], "rebuilt it") {
+		t.Fatal(log, e)
+	}
+	if got := scanFor(t, db, w.p.ID, "strasse"); len(got) != 1 || got[0].ID != w.a.ID {
+		t.Fatalf("after the rebuild: %v", got)
+	}
+	if e := ftsCheck(t, db, "issues_grep"); e != nil {
+		t.Fatal(e)
+	}
+}
+
+// Folded columns are derived data too: stale ones (written by an older fold,
+// or by a writer that skipped them) are recomputed at startup, with a log line
+// per table, and the trigram tables follow.
+func TestStartupCheckRewritesStaleFoldedText(t *testing.T) {
+	w := newWorld(t)
+	dir := closed(t, w.db, func(o *sql.DB) {
+		execAll(t, o,
+			"UPDATE issues SET grep_title = '', grep_body = ''",
+			"UPDATE comments SET folded_body = 'stale'",
+			"UPDATE projects SET grep_description = 'stale' WHERE id = '"+w.p.ID+"'")
+	})
+	db := reopen(t, dir)
+	if got := scanFor(t, db, "", "strasse"); len(got) != 0 {
+		t.Fatalf("stale columns still found %d records", len(got))
+	}
+	log, e := check(t, db)
+	if e != nil {
+		t.Fatal(e)
+	}
+	want := []string{
+		"lit-server: folded text of 1 projects rows was stale; rewrote it",
+		"lit-server: folded text of 4 issues rows was stale; rewrote it",
+		"lit-server: folded text of 1 comments rows was stale; rewrote it",
+	}
+	if strings.Join(log, "\n") != strings.Join(want, "\n") {
+		t.Fatalf("log %q, want %q", log, want)
+	}
+	if got := scanFor(t, db, "", "strasse"); len(got) != 2 || got[0].ID != w.a.ID || got[1].ID != w.x.ID {
+		t.Fatalf("after the rewrite: %v", got)
+	}
+	o := outside(t, db)
+	var folded string
+	if e := o.QueryRow("SELECT folded_body FROM comments WHERE id = ?", w.comment.ID).Scan(&folded); e != nil || folded != "a comment" {
+		t.Fatalf("comment folded body %q %v", folded, e)
+	}
+	checkGrepTables(t, o)
+	if log, e := check(t, db); e != nil || len(log) != 0 {
+		t.Fatal("second check:", log, e)
 	}
 }

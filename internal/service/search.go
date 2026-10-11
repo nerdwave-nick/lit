@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"sort"
 	"strings"
@@ -12,28 +13,29 @@ import (
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/textfold"
 	"golang.org/x/text/cases"
 )
 
 // Fold each scalar with its source position: expanding folds (ß -> ss) must
-// never shift excerpt positions or change the original displayed content.
+// never shift excerpt positions or change the original displayed content. The
+// folded text is textfold.Grep(body), which the search index stores.
 func searchExcerpt(field, body, query string, sensitive bool, context int) (protocol.SearchExcerpt, bool) {
 	source := []rune(body)
 	hay := body
 	needle := query
 	positions := []int{}
 	if !sensitive {
-		fold := cases.Fold()
 		var b strings.Builder
 		for i, r := range source {
-			f := fold.String(string(r))
+			f := textfold.Scalar(r)
 			b.WriteString(f)
 			for range []rune(f) {
 				positions = append(positions, i)
 			}
 		}
 		hay = b.String()
-		needle = fold.String(query)
+		needle = grepNeedle(query, false)
 	}
 	index := strings.Index(hay, needle)
 	if index < 0 {
@@ -82,6 +84,22 @@ func searchExcerpt(field, body, query string, sensitive bool, context int) (prot
 	}
 	return protocol.SearchExcerpt{Field: field, Text: string(source[left:right]), StartLine: 1 + strings.Count(string(source[:left]), "\n"), MatchLine: 1 + strings.Count(string(source[:first]), "\n"), ExcerptTruncated: left > wantLeft || right < wantRight}, true
 }
+
+// grepNeedle is the folded text that the textfold.Grep fold of a field
+// contains whenever searchExcerpt matches query in that field: the query's
+// whole-string fold, which searchExcerpt looks for in the folded field, or,
+// case-sensitively, the query's own Grep fold, since a substring of a field
+// folds to a substring of its fold.
+func grepNeedle(query string, sensitive bool) string {
+	if sensitive {
+		return textfold.Grep(query)
+	}
+	return cases.Fold().String(query)
+}
+
+// errEnoughMatches stops the search scan once a page and its successor's
+// first match are found: the scan reads records in result order.
+var errEnoughMatches = errors.New("search page is full")
 
 type searchCursor struct {
 	QueryHash string `json:"query_hash"`
@@ -137,13 +155,15 @@ func (s *Server) searchPage(q protocol.SearchRequest, c protocol.Client) (Projec
 		}
 		after = cursor.After
 	}
-	// Search scans the stored text of its scope; the search index comes later.
+	// The storage module reads only the records whose folded text may contain
+	// the query (through its trigram index); searchExcerpt decides on the
+	// original text, so results are those of a scan of every record.
 	matches := []protocol.SearchResult{}
 	scope := ""
 	if !q.Scope.AllProjects {
 		scope = q.Scope.ProjectID
 	}
-	e := s.q().SearchScan(s.ctx(), scope, func(record storage.SearchRecord) error {
+	e := s.q().SearchScan(s.ctx(), scope, grepNeedle(q.Query, q.CaseSensitive), func(record storage.SearchRecord) error {
 		result := protocol.SearchResult{Type: record.Type, ID: record.ID, ProjectID: record.ProjectID, IssueID: record.IssueID, IssueTitle: record.IssueTitle, Revision: record.Revision, Excerpts: []protocol.SearchExcerpt{}}
 		if searchKey(result) <= after {
 			return nil
@@ -156,9 +176,12 @@ func (s *Server) searchPage(q protocol.SearchRequest, c protocol.Client) (Projec
 		if len(result.Excerpts) > 0 {
 			matches = append(matches, result)
 		}
+		if len(matches) > q.Limit {
+			return errEnoughMatches
+		}
 		return nil
 	})
-	if e != nil {
+	if e != nil && !errors.Is(e, errEnoughMatches) {
 		return out, e
 	}
 	sort.Slice(matches, func(i, j int) bool { return searchKey(matches[i]) < searchKey(matches[j]) })

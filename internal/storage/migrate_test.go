@@ -3,15 +3,20 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"fmt"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
 )
 
-// withV2 is the shipped migrations plus a later one, to exercise upgrades.
-func withV2() []migration {
-	return append(append([]migration{}, migrations...), migration{2, func(ctx context.Context, tx *sql.Tx) error {
+// current is the newest shipped schema version.
+var current = len(migrations)
+
+// withLater is the shipped migrations plus a later one (version current+1),
+// to exercise upgrades.
+func withLater() []migration {
+	return append(append([]migration{}, migrations...), migration{current + 1, func(ctx context.Context, tx *sql.Tx) error {
 		_, e := tx.ExecContext(ctx, "CREATE TABLE later (x INTEGER) STRICT")
 		return e
 	}})
@@ -43,12 +48,12 @@ func TestOlderSchemaIsMigratedAfterASnapshot(t *testing.T) {
 	id := db.ServiceID()
 	commitProject(t, ctx, db, "feat/kept")
 	db.Close()
-	if db, e = open(dir, withV2(), false); e != nil {
+	if db, e = open(dir, withLater(), false); e != nil {
 		t.Fatal(e)
 	}
 	defer db.Close()
-	if db.SchemaVersion() != 2 || db.ServiceID() != id {
-		t.Fatalf("migrated to version %d service %q, want 2 %q", db.SchemaVersion(), db.ServiceID(), id)
+	if db.SchemaVersion() != current+1 || db.ServiceID() != id {
+		t.Fatalf("migrated to version %d service %q, want %d %q", db.SchemaVersion(), db.ServiceID(), current+1, id)
 	}
 	r, e := db.Read(ctx)
 	if e != nil {
@@ -63,7 +68,7 @@ func TestOlderSchemaIsMigratedAfterASnapshot(t *testing.T) {
 		t.Fatalf("migration kept %d projects", n)
 	}
 	snaps := backups(t, dir)
-	if len(snaps) != 1 || !strings.Contains(filepath.Base(snaps[0]), "pre-migration-v1") {
+	if len(snaps) != 1 || !strings.Contains(filepath.Base(snaps[0]), fmt.Sprintf("pre-migration-v%d", current)) {
 		t.Fatalf("snapshots %v", snaps)
 	}
 	snap, e := sql.Open("sqlite", "file:"+snaps[0]+"?mode=ro")
@@ -76,14 +81,14 @@ func TestOlderSchemaIsMigratedAfterASnapshot(t *testing.T) {
 	if e = snap.QueryRow("SELECT service_id, schema_version, (SELECT count(*) FROM projects) FROM service").Scan(&snapID, &version, &projects); e != nil {
 		t.Fatal(e)
 	}
-	if version != 1 || snapID != id || projects != 1 {
+	if version != current || snapID != id || projects != 1 {
 		t.Fatalf("snapshot holds version %d service %q with %d projects", version, snapID, projects)
 	}
 }
 
 func TestNewerSchemaIsRefused(t *testing.T) {
 	dir := t.TempDir()
-	db, e := open(dir, withV2(), false)
+	db, e := open(dir, withLater(), false)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -98,7 +103,7 @@ func TestNewerSchemaIsRefused(t *testing.T) {
 		db.Close()
 		t.Fatal("opened a newer schema")
 	}
-	for _, want := range []string{"schema version 2", "newer", "version 1"} {
+	for _, want := range []string{fmt.Sprintf("schema version %d", current+1), "newer", fmt.Sprintf("version %d", current)} {
 		if !strings.Contains(e.Error(), want) {
 			t.Fatalf("error %q lacks %q", e, want)
 		}
@@ -110,7 +115,7 @@ func TestNewerSchemaIsRefused(t *testing.T) {
 	if string(after) != string(before) || len(backups(t, dir)) != 0 {
 		t.Fatal("refusal changed the database or took a snapshot")
 	}
-	if db, e = open(dir, withV2(), false); e != nil {
+	if db, e = open(dir, withLater(), false); e != nil {
 		t.Fatalf("refusal left the database unusable: %v", e)
 	}
 	db.Close()
@@ -123,18 +128,18 @@ func TestFailedMigrationChangesNothing(t *testing.T) {
 		t.Fatal(e)
 	}
 	db.Close()
-	broken := append(withV2(), migration{3, func(ctx context.Context, tx *sql.Tx) error {
+	broken := append(withLater(), migration{current + 2, func(ctx context.Context, tx *sql.Tx) error {
 		_, e := tx.ExecContext(ctx, "CREATE TABLE later (x INTEGER)")
 		return e
 	}})
-	if db, e = open(dir, broken, false); e == nil || !strings.Contains(e.Error(), "version 3") {
+	if db, e = open(dir, broken, false); e == nil || !strings.Contains(e.Error(), fmt.Sprintf("version %d", current+2)) {
 		if db != nil {
 			db.Close()
 		}
 		t.Fatalf("broken migration: %v", e)
 	}
 	if db, e = Open(dir); e != nil {
-		t.Fatalf("version 1 after a failed migration: %v", e)
+		t.Fatalf("version %d after a failed migration: %v", current, e)
 	}
 	db.Close()
 }
