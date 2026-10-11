@@ -1,4 +1,4 @@
-package drafts
+package textdiff
 
 import (
 	"fmt"

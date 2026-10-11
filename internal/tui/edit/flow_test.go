@@ -11,6 +11,7 @@ import (
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/textdiff"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/claims"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/lifecycle"
@@ -168,7 +169,7 @@ func TestApplyCommitsTheExactPreviewAndReleasesTheEditClaim(t *testing.T) {
 	if !p.Ready() || p.Lost() || p.Current == nil || p.Current.Revision != d.Revision {
 		t.Fatalf("preview: %+v", p)
 	}
-	if !slices.Equal(p.Diff(), []string{"@@ -1,1 +1,2 @@", "-body of Edited issue", drafts.NoNewline, "+body of Edited issue", "+with a new line"}) {
+	if !slices.Equal(p.Diff(), []string{"@@ -1,1 +1,2 @@", "-body of Edited issue", textdiff.NoNewline, "+body of Edited issue", "+with a new line"}) {
 		t.Fatalf("diff %q", p.Diff())
 	}
 	if len(p.Affected) != 2 || p.Affected[0].ID != f.issue || p.Affected[0].ExpectedRevision == nil || *p.Affected[0].ExpectedRevision != d.Revision ||
