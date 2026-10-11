@@ -122,8 +122,10 @@ Each problem is one line on stdout, naming the record type and ID. Exit status
 0 means the database verified, 1 that a check or the replay found a problem or
 the database could not be opened, 2 that the arguments were invalid.
 
-`verify` takes the data directory's owner lock, so lit-server must be stopped:
-while it runs, `verify` fails with `storage is already owned`. It never creates
+`verify` takes the data directory's owner lock, because its startup checks
+may rebuild a search index, so lit-server must be stopped (unlike
+`lit-server export`, which only reads): while it runs, `verify` fails with
+`storage is already owned`. It never creates
 or migrates a database; a database with an older schema is migrated by
 starting lit-server on it first.
 

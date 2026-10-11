@@ -18,8 +18,14 @@ type queries struct {
 	db *DB
 }
 
-// classify types a driver error and reports a fatal one (see OnFatal).
-func (q queries) classify(e error) error { return q.db.report(e) }
+// classify types a driver error and reports a fatal one to the owning DB
+// (see OnFatal); snapshots of a ReadOnlyDB have no owner to report to.
+func (q queries) classify(e error) error {
+	if q.db == nil {
+		return classify(e)
+	}
+	return q.db.report(e)
+}
 
 func (q queries) exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
 	r, e := q.tx.ExecContext(ctx, query, args...)

@@ -47,6 +47,20 @@ history behind the history (fields, bodies, sets, links, members, revisions,
 diffs, "before" values) and insert legacy membership-list history rows that
 must be skipped.
 
+`internal/export` tests write a small fixture tracker through the storage
+module with fixed IDs and times, then export it. `TestExportMatchesTheGoldenTree`
+compares the whole tree with `internal/export/testdata/golden` (regenerate with
+`go test ./internal/export -run TestExportMatchesTheGoldenTree -update` and
+review the diff). The other tests check that two exports give identical bytes
+apart from the export time, that every link and front-matter path resolves
+(goldmark parses each file; only the fixture's own author-written relative link
+may point outside the tree), that the front-matter writer round-trips through a
+YAML parser (a table of awkward strings plus a `testing/quick` property), that
+a write committed during an export is not exported (one snapshot), that a
+target that is not a previous export is refused, that a failed export leaves
+the previous tree, and that a second export into the same directory is refused.
+`storage.OpenReadOnly` is tested beside a running owner and without one.
+
 `internal/service` tests run the service against real SQLite databases in
 temporary directories. All-or-nothing behaviour is tested with real late
 failures: a request whose response exceeds the configured limit fails after all

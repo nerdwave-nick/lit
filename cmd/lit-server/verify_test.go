@@ -13,6 +13,12 @@ import (
 
 func verifyCLI(t *testing.T, args ...string) (int, string, string) {
 	t.Helper()
+	return serverCLI(t, append([]string{"verify"}, args...)...)
+}
+
+// serverCLI runs lit-server's command line with an isolated environment.
+func serverCLI(t *testing.T, args ...string) (int, string, string) {
+	t.Helper()
 	root := t.TempDir()
 	t.Setenv("HOME", root)
 	t.Setenv("XDG_CONFIG_HOME", root)
@@ -20,7 +26,7 @@ func verifyCLI(t *testing.T, args ...string) (int, string, string) {
 	t.Setenv("LIT_LISTEN", "")
 	t.Setenv("LIT_DATA_DIR", "")
 	var out, errOut bytes.Buffer
-	code := runCLI(append([]string{"verify"}, args...), &out, &errOut)
+	code := runCLI(args, &out, &errOut)
 	return code, out.String(), errOut.String()
 }
 
@@ -37,8 +43,18 @@ func TestVerifyHelpIsOffline(t *testing.T) {
 			}
 		}
 	}
+	if code, out, errOut := serverCLI(t, "help", "verify"); code != 0 || errOut != "" || !strings.Contains(out, "lit-server verify [flags]") {
+		t.Fatalf("help verify: %d %s %s", code, out, errOut)
+	}
 	if _, e := os.Stat(missing); !os.IsNotExist(e) {
 		t.Fatal("help touched the data directory", e)
+	}
+}
+
+// The root help names the verify subcommand, as it names export.
+func TestRootHelpNamesVerify(t *testing.T) {
+	if code, out, _ := serverCLI(t, "--help"); code != 0 || !strings.Contains(out, "lit-server verify checks") || !strings.Contains(out, "see lit-server verify --help") {
+		t.Fatal(code, out)
 	}
 }
 
