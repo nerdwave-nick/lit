@@ -23,7 +23,7 @@ func disconnectClaimTest(t *testing.T, s *Server, c protocol.Client) int {
 // storedClaim reads the stored claim on an issue, live or expired.
 func storedClaim(t *testing.T, s *Server, id string) *protocol.Claim {
 	t.Helper()
-	c, e := inRequest(s, func() (*protocol.Claim, error) { return s.q().Claim(s.ctx(), id) })
+	c, e := inSnapshot(s, func(rs *Server) (*protocol.Claim, error) { return rs.q().Claim(rs.ctx(), id) })
 	if e != nil {
 		t.Fatal(e)
 	}

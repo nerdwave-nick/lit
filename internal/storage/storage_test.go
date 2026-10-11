@@ -129,7 +129,7 @@ func TestEveryConnectionUsesWALForeignKeysAndBusyTimeout(t *testing.T) {
 				r.Close()
 			}
 		}()
-		for range readConns {
+		for range DefaultReadConcurrency {
 			r, e := db.Read(ctx)
 			if e != nil {
 				t.Fatal(e)
