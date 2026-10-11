@@ -47,6 +47,19 @@ history behind the history (fields, bodies, sets, links, members, revisions,
 diffs, "before" values) and insert legacy membership-list history rows that
 must be skipped.
 
+The backup tests snapshot a tracker with history (`Backup`), restore the
+snapshot into a new data directory and require `OpenExisting` plus `Verify`
+and the startup checks to pass; a snapshot taken while a write transaction is
+open holds only committed data; a cancelled backup, or one into a read-only
+directory, leaves no file. Retention tests surround scheduled snapshots with
+pre-migration snapshots, near-miss names, a directory and a symlink, which
+must all survive. `cmd/lit-server` tests run the periodic job (failures and
+panics are logged and the job carries on; stop cancels a run and waits), the
+scheduled backups of a started service with retention and a restore through
+`lit-server verify`, and their absence with interval 0 and in degraded mode.
+`integration/backup_test.go` drives the binary with `LIT_BACKUP_*`, restores
+the newest snapshot as `docs/recovery.md` describes and reads the tracker back.
+
 `internal/export` tests write a small fixture tracker through the storage
 module with fixed IDs and times, then export it. `TestExportMatchesTheGoldenTree`
 compares the whole tree with `internal/export/testdata/golden` (regenerate with

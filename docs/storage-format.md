@@ -15,7 +15,12 @@ The data directory holds:
 - `lit.db.lock`, the owner lock. lit-server takes an exclusive `flock` on it,
   so only one lit-server serves a database. A second one fails with
   `storage is already owned`;
-- `backup/`, the snapshots taken with `VACUUM INTO` before a schema migration.
+- `backup/`, the default backup directory (`backup_dir`, `LIT_BACKUP_DIR`):
+  the scheduled `VACUUM INTO` snapshots `lit-<UTC time>-scheduled.db`, of which
+  the newest `backup_keep` are kept, and the snapshots
+  `lit-<UTC time>-pre-migration-v<version>.db` taken before a schema migration.
+  A scheduled snapshot runs on a connection of its own, beside requests,
+  without the write lock or a read slot. See [backups](recovery.md#backups).
 
 An empty or missing directory gets a fresh database with a new service
 identity. A directory that still holds a legacy file store (it contains
@@ -23,7 +28,7 @@ identity. A directory that still holds a legacy file store (it contains
 written: nothing of that store is read or converted. Convert it once with the
 setup import (`lit-migrate`) into a new, empty data directory instead. A
 database whose schema is newer than the binary is refused; an older one is
-snapshotted into `backup/` and migrated.
+snapshotted into the backup directory and migrated.
 
 Offline readers such as `lit-server export` open the database read-only
 (`storage.OpenReadOnly`: `mode=ro`, `query_only`) without taking the owner
