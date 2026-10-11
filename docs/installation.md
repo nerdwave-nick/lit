@@ -463,10 +463,15 @@ CONFIG=${XDG_CONFIG_HOME:-$HOME/.config}/lit-server/config.json
 Record `lit transactions status` output in every client state directory first.
 Then stop and disable the new server (`systemctl --user disable --now lit.socket lit.service`),
 point the configuration back at `$OLD` and remove the fields the old binary
-does not know (`read_concurrency` and the `backup_*` settings; it refuses
-unknown fields), reinstall the old `lit-server` binary, and start it: it verifies the untouched old directory as before (about 30
-seconds). Writes, clients and claims created after the import are lost, which is
-accepted. Keep `$NEW` for inspection, or delete it once you are done.
+does not know: `read_concurrency`, `backup_dir`, `backup_interval`,
+`backup_keep`, `export_dir` and `export_interval` (it refuses unknown fields;
+it ignores their `LIT_*` environment variables). Reinstall the old `lit-server`
+binary and start it: it verifies the untouched old directory as before (about
+30 seconds). Writes, clients and claims created after the import are lost,
+which is accepted. The old server writes no exports: an interval export tree
+keeps showing the new server's last state until you remove it or it is
+exported again after a later import. Keep `$NEW` for inspection, or delete it
+once you are done.
 
 ## Local checks
 
