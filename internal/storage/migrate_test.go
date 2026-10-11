@@ -43,7 +43,7 @@ func TestOlderSchemaIsMigratedAfterASnapshot(t *testing.T) {
 	id := db.ServiceID()
 	commitProject(t, ctx, db, "feat/kept")
 	db.Close()
-	if db, e = open(dir, withV2()); e != nil {
+	if db, e = open(dir, withV2(), false); e != nil {
 		t.Fatal(e)
 	}
 	defer db.Close()
@@ -83,7 +83,7 @@ func TestOlderSchemaIsMigratedAfterASnapshot(t *testing.T) {
 
 func TestNewerSchemaIsRefused(t *testing.T) {
 	dir := t.TempDir()
-	db, e := open(dir, withV2())
+	db, e := open(dir, withV2(), false)
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -110,7 +110,7 @@ func TestNewerSchemaIsRefused(t *testing.T) {
 	if string(after) != string(before) || len(backups(t, dir)) != 0 {
 		t.Fatal("refusal changed the database or took a snapshot")
 	}
-	if db, e = open(dir, withV2()); e != nil {
+	if db, e = open(dir, withV2(), false); e != nil {
 		t.Fatalf("refusal left the database unusable: %v", e)
 	}
 	db.Close()
@@ -127,7 +127,7 @@ func TestFailedMigrationChangesNothing(t *testing.T) {
 		_, e := tx.ExecContext(ctx, "CREATE TABLE later (x INTEGER)")
 		return e
 	}})
-	if db, e = open(dir, broken); e == nil || !strings.Contains(e.Error(), "version 3") {
+	if db, e = open(dir, broken, false); e == nil || !strings.Contains(e.Error(), "version 3") {
 		if db != nil {
 			db.Close()
 		}

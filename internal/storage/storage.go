@@ -61,11 +61,22 @@ type DB struct {
 // owner fails with an error containing "already owned". A directory that
 // still holds a legacy file store (its LegacyMarker) is refused with
 // ErrLegacyStore before anything is written to it.
-func Open(dir string) (*DB, error) { return open(dir, migrations) }
+func Open(dir string) (*DB, error) { return open(dir, migrations, false) }
 
-func open(dir string, ms []migration) (db *DB, err error) {
+// OpenExisting takes ownership of the data directory dir and opens its
+// existing database for checks such as Verify. Unlike Open, it never creates a
+// database and never migrates one: a missing database, or a schema version
+// other than this binary's, is refused.
+func OpenExisting(dir string) (*DB, error) { return open(dir, migrations, true) }
+
+func open(dir string, ms []migration, existing bool) (db *DB, err error) {
 	if err = refuseLegacyStore(dir); err != nil {
 		return nil, err
+	}
+	if existing {
+		if _, err = os.Stat(filepath.Join(dir, DatabaseFile)); err != nil {
+			return nil, fmt.Errorf("no lit database in %s: %w", dir, err)
+		}
 	}
 	if err = os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
@@ -95,7 +106,12 @@ func open(dir string, ms []migration) (db *DB, err error) {
 	db.writer.SetMaxOpenConns(1)
 	db.writer.SetMaxIdleConns(1)
 	db.writer.SetConnMaxLifetime(0)
-	if err = migrate(context.Background(), db.writer, ms, filepath.Join(dir, BackupDir), db.clock.Now()); err != nil {
+	if existing {
+		err = requireCurrent(context.Background(), db.writer, ms)
+	} else {
+		err = migrate(context.Background(), db.writer, ms, filepath.Join(dir, BackupDir), db.clock.Now())
+	}
+	if err != nil {
 		return nil, err
 	}
 	if err = db.report(db.writer.QueryRow("SELECT service_id, schema_version FROM service").Scan(&db.serviceID, &db.version)); err != nil {
