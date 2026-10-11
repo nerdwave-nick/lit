@@ -167,6 +167,8 @@ JSON, defaults:
 | none | `LIT_BACKUP_DIR` | `backup_dir` |
 | none | `LIT_BACKUP_INTERVAL` | `backup_interval` |
 | none | `LIT_BACKUP_KEEP` | `backup_keep` |
+| none | `LIT_EXPORT_DIR` | `export_dir` |
+| none | `LIT_EXPORT_INTERVAL` | `export_interval` |
 
 `read_concurrency` caps how many read requests run at once (default 8, a
 positive integer); further reads wait until one finishes or their request ends.
@@ -177,6 +179,12 @@ lit-server takes `VACUUM INTO` backup snapshots of its database into
 duration such as `"24h"`, the default; `"0"` turns scheduled snapshots off),
 keeping the newest `backup_keep` (default 14, a positive integer). See
 [backups](recovery.md#backups) and [restoring a snapshot](recovery.md#restore-a-snapshot).
+
+With `export_interval` set (a Go duration such as `"10m"`; the default `0`
+turns it off), lit-server writes the [Markdown export](export.md) into
+`export_dir` at that interval, skipping runs when nothing has committed since
+the last export. `export_dir` must then be set; it cannot be a mount point
+(mount its parent instead). See [interval exports](export.md#interval-exports).
 
 Changes require an explicit restart. Invalid/unknown configuration fields and
 unsupported format versions fail clearly. First explicit startup initializes an
