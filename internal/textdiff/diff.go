@@ -10,8 +10,10 @@ import (
 // Context is how many unchanged lines surround each hunk.
 const Context = 3
 
-// maxDiffCells bounds the line comparison table; beyond it the differing
-// middle is shown as removed and added as a whole.
+// maxDiffCells bounds the line comparison table (16 MiB of int32); beyond
+// it the differing middle is shown as removed and added as a whole. A middle
+// of up to 2047 lines on each side fits, so a 64 KB body gets a minimal diff
+// whenever its lines average at least 33 bytes (see bound_test.go).
 const maxDiffCells = 1 << 22
 
 // NoNewline follows a last line that has no line break.
