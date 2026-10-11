@@ -22,16 +22,16 @@ func established(status, proof, outcome string, response any) protocol.Transacti
 	return v
 }
 
-// Reconcile must run under Server.Mu. It cannot execute, refresh, or reserve a
-// request. Negative conclusions describe this serialized snapshot, not a promise
-// that a delayed original request will never arrive.
-func (s *Server) Reconcile(q protocol.ReconcileRequest, c protocol.Client) (result protocol.TransactionStatus, err error) {
+// reconcile runs in a serialized transaction that it never commits. It cannot
+// execute, refresh, or reserve a request. Negative conclusions describe this
+// serialized snapshot, not a promise that a delayed original request will never arrive.
+func (s *Server) reconcile(q protocol.ReconcileRequest, c protocol.Client) (result protocol.TransactionStatus, err error) {
 	defer func() {
-		result.ServiceID = s.Store.Identity.ServiceID
+		result.ServiceID = s.DB.ServiceID()
 		result.ClientID = c.ClientID
 		result.RequestDigest = protocol.ReconcileDigest(q)
 	}()
-	if q.ServiceID != s.Store.Identity.ServiceID {
+	if q.ServiceID != s.DB.ServiceID() {
 		return protocol.TransactionStatus{}, protocol.E(409, "wrong_service", "pending request belongs to a different service")
 	}
 	if q.ClientID != c.ClientID {
@@ -66,26 +66,22 @@ func (s *Server) reconcileDurable(q protocol.ReconcileRequest, c protocol.Client
 	if len(d.Intent.Targets)+len(d.Intent.Guards) > s.Config.Limits.ExpandedRecords {
 		return protocol.TransactionStatus{}, protocol.E(413, "limit_exceeded", "too many reconciliation owners")
 	}
-	// Every proposed changed owner participates; a guard/unchanged owner's miss
-	// is never accepted as the sole negative evidence for a compound mutation.
-	for _, ref := range d.Intent.Targets {
-		hs, e := s.RecordHistory(ref.Type, ref.ID)
-		if e != nil {
-			return protocol.TransactionStatus{}, e
-		}
-		for _, h := range hs {
-			if h.RequestHash == hash {
-				v := established("committed", "immutable_history", "applied", protocol.MutationResult{Outcome: "applied", RequestHash: hash, Items: h.Results})
-				v.RequestHash = hash
-				v.Results = h.Results
-				return v, nil
-			}
-		}
+	// A committed request has one transaction record, keyed by its hash, that
+	// keeps its results exactly as they were returned.
+	committed, found, e := s.q().Transaction(s.ctx(), hash)
+	if e != nil {
+		return protocol.TransactionStatus{}, e
+	}
+	if found {
+		v := established("committed", "immutable_history", "applied", protocol.MutationResult{Outcome: "applied", RequestHash: hash, Items: committed.Results})
+		v.RequestHash = hash
+		v.Results = committed.Results
+		return v, nil
 	}
 	if c.Status != "connected" {
 		return uncertain("client_disconnected_without_history"), nil
 	}
-	writes, res, e := s.recordTransaction(d.Intent, hash, c, d.Claims...)
+	cs, res, e := s.recordTransaction(d.Intent, hash, c, d.Claims...)
 	if e != nil {
 		if _, ok := e.(*protocol.Error); ok {
 			return uncertain("original_preconditions_no_longer_valid"), nil
@@ -99,7 +95,7 @@ func (s *Server) reconcileDurable(q protocol.ReconcileRequest, c protocol.Client
 	}
 	// Force/close may release operational claims even without durable changes.
 	// Their absent history alone says nothing about the lost operational effect.
-	if len(writes) > 0 {
+	if !cs.empty() {
 		return uncertain("operational_effect_without_durable_history"), nil
 	}
 	v := established("already_satisfied", "current_validated_state", "already_satisfied", res)
@@ -140,7 +136,7 @@ func (s *Server) reconcileClaims(q protocol.ReconcileRequest, c protocol.Client)
 				return protocol.TransactionStatus{}, invalid("invalid absolute renewal target")
 			}
 		}
-		live, e := s.LiveClaim(item.IssueID)
+		live, e := s.liveClaim(item.IssueID)
 		if e != nil {
 			return protocol.TransactionStatus{}, e
 		}
@@ -178,14 +174,14 @@ func (s *Server) reconcileClaims(q protocol.ReconcileRequest, c protocol.Client)
 	}
 	// Validate complete selection and original token/expiry rules. This engine
 	// returns proposed writes only; reconciliation never commits them.
-	writes, validated, e := s.claimTransaction(op, c)
+	cs, validated, e := s.claimTransaction(op, c)
 	if e != nil {
 		if _, ok := e.(*protocol.Error); ok {
 			return uncertain("original_claim_preconditions_no_longer_valid"), nil
 		}
 		return protocol.TransactionStatus{}, e
 	}
-	if len(writes) > 0 {
+	if !cs.empty() {
 		return uncertain("claim_effect_not_established"), nil
 	}
 	return established("already_satisfied", "current_validated_state", validated.Outcome, validated), nil
@@ -250,7 +246,7 @@ func (s *Server) reconcileClient(q protocol.ReconcileRequest, c protocol.Client)
 	var response any = c
 	outcome := "already_satisfied"
 	if q.Path == "/v1/disconnect" {
-		claims, e := s.Claims(c.ClientID)
+		claims, e := s.liveClaims(c.ClientID)
 		if e != nil {
 			return protocol.TransactionStatus{}, e
 		}
@@ -274,7 +270,7 @@ func (s *Server) reconcileHTTP(w http.ResponseWriter, r *http.Request, c protoco
 	if e := s.Body(r, &q); e != nil {
 		return e
 	}
-	v, e := s.Reconcile(q, c)
+	v, e := s.reconcile(q, c)
 	if e != nil {
 		return e
 	}

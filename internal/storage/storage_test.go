@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"errors"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"os"
 	"path/filepath"
@@ -149,5 +150,29 @@ func TestReadSnapshotsAreQueryOnly(t *testing.T) {
 	defer r.Close()
 	if _, e = r.exec(ctx, "UPDATE service SET schema_version = 2"); e == nil {
 		t.Fatal("a read snapshot wrote")
+	}
+}
+
+func TestOpenRefusesALegacyFileStore(t *testing.T) {
+	dir := t.TempDir()
+	// Only the marker counts: nothing of the legacy store is read.
+	marker := []byte("not even JSON")
+	if e := os.WriteFile(filepath.Join(dir, LegacyMarker), marker, 0o600); e != nil {
+		t.Fatal(e)
+	}
+	db, e := Open(dir)
+	if e == nil {
+		db.Close()
+		t.Fatal("opened a legacy file store")
+	}
+	if !errors.Is(e, ErrLegacyStore) || !strings.Contains(e.Error(), "lit-migrate") || !strings.Contains(e.Error(), "setup import") {
+		t.Fatalf("legacy store refusal: %v", e)
+	}
+	entries, e := os.ReadDir(dir)
+	if e != nil || len(entries) != 1 || entries[0].Name() != LegacyMarker {
+		t.Fatalf("refusal changed the directory: %v %v", entries, e)
+	}
+	if b, _ := os.ReadFile(filepath.Join(dir, LegacyMarker)); string(b) != string(marker) {
+		t.Fatal("refusal changed the marker")
 	}
 }

@@ -34,8 +34,22 @@ guard set and cycle queries), each rejected write and the late failure of a
 multi-record request, and history rebuilt from stored diffs.
 `TestHistoryMatchesTheLegacyHistoryAPI` replays requests recorded from the
 legacy file store in `internal/storage/testdata/history_compat.json` and
-compares the history output; `go run ./internal/storage/testdata/historycompat`
-rewrote that recording while the file store existed.
+compares the history output. The recording is fixed: the file store and the
+generator that wrote it are gone. Opening a directory that holds a legacy file
+store (its `service.json`) is refused before anything is written.
+
+`internal/service` tests run the service against real SQLite databases in
+temporary directories. All-or-nothing behaviour is tested with real late
+failures: a request whose response exceeds the configured limit fails after all
+its writes, and the database, also after reopening, must be unchanged (multi-
+record batches, links, disconnect with live and expired claims, closing an
+issue that releases its claim, and every other mutation family); the same
+request then succeeds. `TestShutdownDrainsAdmittedTransaction` holds a commit
+open without a test hook: a second connection holds SQLite's write lock, so the
+admitted request waits inside its `BEGIN IMMEDIATE` (the test waits until a
+goroutine runs `storage.(*Writer).Begin`), `Stop` refuses new requests, and
+releasing the lock lets the admitted request commit. Lock contention outlasting
+the busy timeout answers `503 storage_busy`.
 
 `integration/tui_dispatch_test.go` covers how `lit` finds and starts `lit-tui`
 (sibling first, then PATH, process replacement, endpoint pass-through, the missing

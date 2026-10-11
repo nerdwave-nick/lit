@@ -10,7 +10,7 @@ import (
 
 func TestDiscoveryFiltersAndCursors(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	p := protocol.UUID()
 	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: p, Title: textPointer("feat/filter"), RepositoryRefs: []string{"r"}}))
 	a, b := protocol.UUID(), protocol.UUID()
@@ -25,30 +25,30 @@ func TestDiscoveryFiltersAndCursors(t *testing.T) {
 		if e := protocol.Decode([]byte(test.query), &q); e != nil {
 			t.Fatal(e)
 		}
-		page, e := s.recordPage(q)
+		page, e := recordPageOf(s, q)
 		if e != nil || len(page.Items) != test.want {
 			t.Fatal(test.query, page, e)
 		}
 	}
 	q := ProjectQuery{Type: "issues", AllProjects: true, Sort: "title", Limit: 1}
-	first, e := s.recordPage(q)
+	first, e := recordPageOf(s, q)
 	if e != nil || first.NextCursor == nil {
 		t.Fatal(first, e)
 	}
 	q.Cursor = *first.NextCursor
-	second, e := s.recordPage(q)
+	second, e := recordPageOf(s, q)
 	if e != nil || len(second.Items) != 1 || second.Items[0].(protocol.Issue).ID == first.Items[0].(protocol.Issue).ID {
 		t.Fatal(second, e)
 	}
 	q.Q = "Alpha"
-	if _, e = s.recordPage(q); e == nil {
+	if _, e = recordPageOf(s, q); e == nil {
 		t.Fatal("cursor accepted changed filters")
 	}
 	for _, raw := range []string{`{"type":"comments","issue_id":"` + a + `","title":""}`, `{"type":"projects","parent_id":null}`, `{"type":"issues","all_projects":true,"blocked":null}`, `{"type":"issues","all_projects":true,"created_after":"not-time"}`} {
 		var q ProjectQuery
 		e := protocol.Decode([]byte(raw), &q)
 		if e == nil {
-			_, e = s.recordPage(q)
+			_, e = recordPageOf(s, q)
 		}
 		if e == nil {
 			t.Fatal("invalid filter accepted", raw)
@@ -58,7 +58,7 @@ func TestDiscoveryFiltersAndCursors(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	page, e := s.recordPage(q2)
+	page, e := recordPageOf(s, q2)
 	if e != nil || len(page.Items) != 1 {
 		t.Fatal(page, e)
 	}
@@ -66,7 +66,7 @@ func TestDiscoveryFiltersAndCursors(t *testing.T) {
 
 func TestBoundedConsistentSnapshotsAndHistory(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	p, a, b := protocol.UUID(), protocol.UUID(), protocol.UUID()
 	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: p, Title: textPointer("feat/snapshots")}))
 	executeRecordTest(t, s, c, prepareRecordTest(t, s, c, p, "issue.create", protocol.ProjectInput{ID: a, Title: textPointer("A")}, protocol.ProjectInput{ID: b, Title: textPointer("B")}))
@@ -87,9 +87,7 @@ func TestBoundedConsistentSnapshotsAndHistory(t *testing.T) {
 			if n%2 == 1 {
 				state = "open"
 			}
-			s.Mu.Lock()
 			plan, e := s.PrepareRecords(protocol.PrepareRequest{Operation: "issue.update", Items: []protocol.ProjectInput{{Target: a, Set: protocol.ProjectSet{State: &state}}, {Target: b, Set: protocol.ProjectSet{State: &state}}}}, c)
-			s.Mu.Unlock()
 			if e != nil {
 				done <- e
 				return
@@ -139,18 +137,18 @@ func TestBoundedConsistentSnapshotsAndHistory(t *testing.T) {
 
 func TestCursorSetOrderingIsSemantic(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	p := protocol.UUID()
 	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: p, Title: textPointer("feat/cursor")}))
 	executeRecordTest(t, s, c, prepareRecordTest(t, s, c, p, "issue.create", protocol.ProjectInput{ID: protocol.UUID(), Title: textPointer("A"), Labels: []string{"a", "b"}}, protocol.ProjectInput{ID: protocol.UUID(), Title: textPointer("B"), Labels: []string{"a", "b"}}))
 	q := ProjectQuery{Type: "issues", ProjectID: p, LabelsAll: []string{"a", "b"}, Limit: 1}
-	page, e := s.recordPage(q)
+	page, e := recordPageOf(s, q)
 	if e != nil || page.NextCursor == nil {
 		t.Fatal(page, e)
 	}
 	q.Cursor = *page.NextCursor
 	q.LabelsAll = []string{"b", "a", "a"}
-	page, e = s.recordPage(q)
+	page, e = recordPageOf(s, q)
 	if e != nil || len(page.Items) != 1 {
 		t.Fatal("equivalent set rejected", page, e)
 	}
@@ -158,7 +156,7 @@ func TestCursorSetOrderingIsSemantic(t *testing.T) {
 
 func TestSnapshotStrictPresenceAndLimits(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	for _, raw := range []string{`{"query":null}`, `{"targets":null}`, `{"query":{"type":"projects"},"targets":[]}`, `{"query":{"type":"projects","all":true,"limit":0}}`, `{"query":{"type":"projects","limit":0}}`} {
 		var body any
 		if e := json.Unmarshal([]byte(raw), &body); e != nil {

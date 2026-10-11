@@ -27,7 +27,7 @@ func directRequest(t *testing.T, s *Server, c protocol.Client, method, path stri
 }
 func TestRecordHTTPResourceAndScope(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	project := protocol.UUID()
 	plan := prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: project, Title: textPointer("feat/http")})
 	req := protocol.DurableRequest{SchemaVersion: 1, Intent: plan.Intent, RequestHash: plan.RequestHash}
@@ -74,17 +74,17 @@ func TestRecordHTTPResourceAndScope(t *testing.T) {
 }
 func TestRecordResponseLimitBeforeCommit(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	project := protocol.UUID()
 	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: project, Title: textPointer("feat/limit")}))
 	plan := prepareRecordTest(t, s, c, project, "issue.create", protocol.ProjectInput{ID: protocol.UUID(), Title: textPointer("Limit")})
-	before, _ := s.ReadRecordState()
+	before, _ := allRecords(s)
 	s.Config.Limits.SnapshotBytes = 250
 	code, body := executeProjectTest(t, s, c, plan)
 	if code != 413 || !strings.Contains(string(body), "limit_exceeded") {
 		t.Fatal(code, string(body))
 	}
-	after, _ := s.ReadRecordState()
+	after, _ := allRecords(s)
 	if !same(before, after) {
 		t.Fatal("limit rejection committed")
 	}
@@ -94,14 +94,14 @@ func TestRecordResponseLimitBeforeCommit(t *testing.T) {
 	if code != 413 {
 		t.Fatal("execute skipped expansion limit", code)
 	}
-	after, _ = s.ReadRecordState()
+	after, _ = allRecords(s)
 	if !same(before, after) {
 		t.Fatal("expansion limit committed")
 	}
 }
 func TestIssueSelectorsAndFinalState(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	p1, p2 := protocol.UUID(), protocol.UUID()
 	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: p1, Title: textPointer("feat/one")}, protocol.ProjectInput{ID: p2, Title: textPointer("feat/two")}))
 	id1, id2 := "abcdef01-0000-4000-8000-000000000001", "abcdef02-0000-4000-8000-000000000002"
@@ -129,7 +129,7 @@ func TestIssueSelectorsAndFinalState(t *testing.T) {
 
 func TestIssueStrictQueryNullAndPresence(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	project := protocol.UUID()
 	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: project, Title: textPointer("feat/query")}))
 	c.ProjectID = &project

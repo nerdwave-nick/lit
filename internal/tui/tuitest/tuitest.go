@@ -17,7 +17,7 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/registry"
 )
 
@@ -37,12 +37,12 @@ func Service(t *testing.T) *Server { return ServiceWithLimits(t, protocol.Defaul
 // ServiceWithLimits starts a temporary lit service with the given limits.
 func ServiceWithLimits(t *testing.T, limits protocol.Limits) *Server {
 	t.Helper()
-	storage, err := store.Open(t.TempDir())
+	db, err := storage.Open(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = storage.Close() })
-	backend, err := service.New(storage, service.Config{Limits: limits, TitlePrefixes: []string{"test"}})
+	t.Cleanup(func() { _ = db.Close() })
+	backend, err := service.New(db, service.Config{Limits: limits, TitlePrefixes: []string{"test"}})
 	if err != nil {
 		t.Fatal(err)
 	}

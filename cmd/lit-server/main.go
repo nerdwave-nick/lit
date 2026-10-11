@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 	"io"
 	"net/http"
 	"os"
@@ -16,13 +16,13 @@ import (
 func main()    { os.Exit(run()) }
 func run() int { return runCLI(os.Args[1:], os.Stdout, os.Stderr) }
 func runService(c service.Config, errOut io.Writer) int {
-	st, e := store.Open(c.DataDir)
+	db, e := storage.Open(c.DataDir)
 	if e != nil {
 		fmt.Fprintln(errOut, e)
 		return 1
 	}
-	defer st.Close()
-	handler, e := service.New(st, c)
+	defer db.Close()
+	handler, e := service.New(db, c)
 	if e != nil {
 		fmt.Fprintln(errOut, e)
 		return 1

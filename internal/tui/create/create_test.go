@@ -148,9 +148,10 @@ func TestATopLevelIssueIsCreatedFromItsDraft(t *testing.T) {
 	}
 }
 
-// A child's creation changes its parent (the children mirror): the preview
-// lists the parent, fenced at its revision, and applying creates the child
-// under it. A blank body is applied: an issue may have none.
+// A child's creation reads its parent: the preview lists the parent, fenced
+// at its revision, and applying creates the child under it. The parent's
+// revision stays (its children are computed). A blank body is applied: an
+// issue may have none.
 func TestAChildIsCreatedUnderItsParentWhichThePreviewLists(t *testing.T) {
 	f := start(t)
 	before := f.issue(f.parent)
@@ -173,7 +174,7 @@ func TestAChildIsCreatedUnderItsParentWhichThePreviewLists(t *testing.T) {
 	if child.ParentID == nil || *child.ParentID != f.parent || child.Body != "" {
 		t.Fatalf("child %+v", child)
 	}
-	if after := f.issue(f.parent); !slices.Contains(after.ChildIDs, d.RecordID) || after.Revision != before.Revision+1 {
+	if after := f.issue(f.parent); !slices.Contains(after.ChildIDs, d.RecordID) || after.Revision != before.Revision {
 		t.Fatalf("parent %+v", after)
 	}
 }

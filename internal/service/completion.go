@@ -55,7 +55,7 @@ func (s *Server) completionRoute(w http.ResponseWriter, r *http.Request) error {
 	// A session is only a source of defaults. Missing, expired or disconnected
 	// clients never cause an implicit connect and do not prevent discovery.
 	if project == "" && kind != "projects" && r.Header.Get("X-Lit-Client-ID") != "" {
-		c, e := s.Client(r.Header.Get("X-Lit-Client-ID"))
+		c, e := s.client(r.Header.Get("X-Lit-Client-ID"))
 		if e != nil {
 			if pe, ok := e.(*protocol.Error); !ok || pe.Code != "unknown_client" {
 				return e
@@ -73,55 +73,21 @@ func (s *Server) completionRoute(w http.ResponseWriter, r *http.Request) error {
 		}
 	}
 	if project != "" {
-		p, e := s.ResolveProject(project)
+		p, e := s.resolveProject(project)
 		if e != nil {
 			return e
 		}
 		project = p.ID
 	}
-	projects, err := s.Projects()
+	candidates, err := s.q().CompletionCandidates(s.ctx(), kind, project)
 	if err != nil {
 		return err
 	}
-	titles := make(map[string]string, len(projects))
-	for _, p := range projects {
-		titles[p.ID] = p.Title
-	}
-	records, err := s.Records(kind)
-	if err != nil {
-		return err
-	}
-	// Comments have no title; only the owning issue's ID is exposed.
-	issueProjects := map[string]string{}
-	if kind == "comments" {
-		issues, e := s.Issues()
-		if e != nil {
-			return e
-		}
-		for _, issue := range issues {
-			issueProjects[issue.ID] = issue.ProjectID
-		}
-	}
-	result := protocol.Completions{ServiceID: s.Store.Identity.ServiceID, APIMajor: 1, Items: []protocol.Completion{}}
-	for _, record := range records {
+	result := protocol.Completions{ServiceID: s.DB.ServiceID(), APIMajor: 1, Items: []protocol.Completion{}}
+	for _, item := range candidates {
 		if err := r.Context().Err(); err != nil {
 			return err
 		}
-		var item protocol.Completion
-		switch p := record.(type) {
-		case protocol.Project:
-			item.ID, item.Title = p.ID, p.Title
-		case protocol.Issue:
-			item.ID, item.Title, item.ProjectID, item.State = p.ID, p.Title, p.ProjectID, p.State
-		case protocol.Milestone:
-			item.ID, item.Title, item.ProjectID = p.ID, p.Title, p.ProjectID
-		case protocol.Comment:
-			item.ID, item.IssueID, item.ProjectID = p.ID, p.IssueID, issueProjects[p.IssueID]
-		}
-		if project != "" && item.ProjectID != project {
-			continue
-		}
-		item.ProjectTitle = titles[item.ProjectID]
 		item.Value = completionValue(item, kind, prefix, project != "" || kind == "projects")
 		if item.Value == "" {
 			continue

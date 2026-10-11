@@ -64,7 +64,7 @@ func (s *Server) claimPage(values url.Values) (ProjectPage, error) {
 	if all && (values.Has("limit") || values.Has("cursor")) {
 		return out, invalid("all conflicts with pagination")
 	}
-	claims, e := s.Claims(owner)
+	claims, e := s.liveClaims(owner)
 	if e != nil {
 		return out, e
 	}

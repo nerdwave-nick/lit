@@ -2,33 +2,13 @@ package service
 
 import (
 	"encoding/json"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
 	"net/http"
-	"sort"
 	"strings"
 	"time"
+
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 )
 
-func (s *Server) commitOperationalResponse(w http.ResponseWriter, status int, data any, writes []store.Write) error {
-	b, e := json.Marshal(protocol.Response{Data: data, ServerTime: s.claimNow().Format(time.RFC3339Nano)})
-	if e != nil {
-		return e
-	}
-	b = append(b, '\n')
-	if int64(len(b)) > s.Config.Limits.SnapshotBytes {
-		return protocol.E(413, "limit_exceeded", "response exceeds snapshot limit")
-	}
-	if len(writes) > 0 {
-		if e = s.Store.Commit(writes); e != nil {
-			return e
-		}
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_, e = w.Write(b)
-	return e
-}
 func (s *Server) claimRoute(w http.ResponseWriter, r *http.Request, c protocol.Client) (bool, error) {
 	switch r.URL.Path {
 	case "/v1/operations":
@@ -39,11 +19,11 @@ func (s *Server) claimRoute(w http.ResponseWriter, r *http.Request, c protocol.C
 		if e := s.Body(r, &op); e != nil {
 			return true, e
 		}
-		writes, result, e := s.claimTransaction(op, c)
+		cs, result, e := s.claimTransaction(op, c)
 		if e != nil {
 			return true, e
 		}
-		return true, s.commitOperationalResponse(w, 200, result, writes)
+		return true, s.commitResponse(w, 200, result, cs)
 	case "/v1/claim-snapshots":
 		if r.Method != "POST" {
 			return false, nil
@@ -80,7 +60,7 @@ func (s *Server) claimRoute(w http.ResponseWriter, r *http.Request, c protocol.C
 			if !protocol.ValidUUID(req.Owner) {
 				return true, invalid("invalid owner client ID")
 			}
-			claims, e := s.Claims(req.Owner)
+			claims, e := s.liveClaims(req.Owner)
 			if e != nil {
 				return true, e
 			}
@@ -103,7 +83,7 @@ func (s *Server) claimRoute(w http.ResponseWriter, r *http.Request, c protocol.C
 			}
 			seen := map[string]bool{}
 			for _, target := range req.Targets {
-				issue, e := s.ResolveIssue(target, req.Project)
+				issue, e := s.resolveIssue(target, req.Project)
 				if e != nil {
 					return true, e
 				}
@@ -121,7 +101,7 @@ func (s *Server) claimRoute(w http.ResponseWriter, r *http.Request, c protocol.C
 		if len(out) > s.Config.Limits.ExpandedRecords {
 			return true, protocol.E(413, "limit_exceeded", "claim snapshot too large")
 		}
-		return true, s.commitOperationalResponse(w, 200, map[string]any{"items": out, "server_time": s.claimNow().Format(time.RFC3339Nano)}, nil)
+		return true, s.commitResponse(w, 200, map[string]any{"items": out, "server_time": s.claimNow().Format(time.RFC3339Nano)}, changes{})
 	case "/v1/claims":
 		if r.Method != "GET" {
 			return false, nil
@@ -151,7 +131,7 @@ func (s *Server) claimRoute(w http.ResponseWriter, r *http.Request, c protocol.C
 	if !protocol.ValidUUID(parts[0]) {
 		return true, invalid("claim route requires issue UUID")
 	}
-	if _, e := s.Issue(parts[0]); e != nil {
+	if _, e := s.issue(parts[0]); e != nil {
 		return true, e
 	}
 	if len(parts) == 2 && r.Method == "GET" {
@@ -196,7 +176,7 @@ func (s *Server) claimRoute(w http.ResponseWriter, r *http.Request, c protocol.C
 		return true, invalid(e.Error())
 	}
 	item.IssueID = parts[0]
-	writes, result, e := s.claimTransaction(protocol.ClaimOperation{Operation: "claims." + verb, OwnerClientID: c.ClientID, Selection: "explicit", Items: []protocol.ClaimItem{item}}, c)
+	cs, result, e := s.claimTransaction(protocol.ClaimOperation{Operation: "claims." + verb, OwnerClientID: c.ClientID, Selection: "explicit", Items: []protocol.ClaimItem{item}}, c)
 	if e != nil {
 		return true, e
 	}
@@ -208,71 +188,13 @@ func (s *Server) claimRoute(w http.ResponseWriter, r *http.Request, c protocol.C
 	if verb == "acquire" {
 		status = 201
 	}
-	return true, s.commitOperationalResponse(w, status, data, writes)
+	return true, s.commitResponse(w, status, data, cs)
 }
 
 // Live projection is deliberately outside durable Issue and history codecs.
 func (s *Server) readProjection(r any) (any, error) {
 	if m, ok := r.(protocol.Milestone); ok {
-		state, e := s.ReadRecordState()
-		if e != nil {
-			return nil, e
-		}
-		memberSet := map[string]bool{}
-		for _, id := range m.IssueIDs {
-			memberSet[id] = true
-		}
-		progress := struct {
-			Total            int      `json:"total"`
-			Open             int      `json:"open"`
-			Closed           int      `json:"closed"`
-			BlockedOpen      int      `json:"blocked_open"`
-			ClaimedOpen      int      `json:"claimed_open"`
-			ExternalBlockers []string `json:"external_blockers"`
-		}{Total: len(m.IssueIDs), ExternalBlockers: []string{}}
-		external := map[string]bool{}
-		for _, id := range m.IssueIDs {
-			issue, ok := state[recordKey("issues", id)].(protocol.Issue)
-			if !ok {
-				return nil, invalid("missing milestone member")
-			}
-			if issue.State == "closed" {
-				progress.Closed++
-				continue
-			}
-			progress.Open++
-			blocked := false
-			for _, blockerID := range issue.BlockedBy {
-				blocker, ok := state[recordKey("issues", blockerID)].(protocol.Issue)
-				if !ok {
-					return nil, invalid("missing blocker")
-				}
-				if blocker.State == "open" {
-					blocked = true
-					if !memberSet[blockerID] {
-						external[blockerID] = true
-					}
-				}
-			}
-			if blocked {
-				progress.BlockedOpen++
-			}
-			claim, e := s.LiveClaim(id)
-			if e != nil {
-				return nil, e
-			}
-			if claim != nil {
-				progress.ClaimedOpen++
-			}
-		}
-		for id := range external {
-			progress.ExternalBlockers = append(progress.ExternalBlockers, id)
-		}
-		sort.Strings(progress.ExternalBlockers)
-		return struct {
-			protocol.Milestone
-			Progress any `json:"progress"`
-		}{m, progress}, nil
+		return s.milestoneProjection(m)
 	}
 	p, ok := r.(protocol.Issue)
 	if !ok {
@@ -300,8 +222,47 @@ func (s *Server) writeReadPage(w http.ResponseWriter, page ProjectPage) error {
 	return nil
 }
 
-func (s *Server) write(w http.ResponseWriter, status int, data any) {
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_ = json.NewEncoder(w).Encode(protocol.Response{Data: data, ServerTime: s.responseTime()})
+// milestoneProjection adds a milestone's progress: its members' states,
+// open blockers and live claims at the request time.
+func (s *Server) milestoneProjection(m protocol.Milestone) (any, error) {
+	members, e := s.q().MilestoneProgress(s.ctx(), m.ID, s.claimNow())
+	if e != nil {
+		return nil, e
+	}
+	progress := struct {
+		Total            int      `json:"total"`
+		Open             int      `json:"open"`
+		Closed           int      `json:"closed"`
+		BlockedOpen      int      `json:"blocked_open"`
+		ClaimedOpen      int      `json:"claimed_open"`
+		ExternalBlockers []string `json:"external_blockers"`
+	}{Total: len(m.IssueIDs), ExternalBlockers: []string{}}
+	memberSet := map[string]bool{}
+	for _, id := range m.IssueIDs {
+		memberSet[id] = true
+	}
+	external := map[string]bool{}
+	for _, member := range members {
+		if member.State == "closed" {
+			progress.Closed++
+			continue
+		}
+		progress.Open++
+		if len(member.OpenBlockers) > 0 {
+			progress.BlockedOpen++
+		}
+		for _, id := range member.OpenBlockers {
+			if !memberSet[id] {
+				external[id] = true
+			}
+		}
+		if member.Claimed {
+			progress.ClaimedOpen++
+		}
+	}
+	progress.ExternalBlockers = sortedKeys(external)
+	return struct {
+		protocol.Milestone
+		Progress any `json:"progress"`
+	}{m, progress}, nil
 }

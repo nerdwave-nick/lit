@@ -48,13 +48,17 @@ func TestTUIHistoryInTmux(t *testing.T) {
 	crumb := v.crumb()
 	v.keys("H")
 	screen := v.await("the issue's history", func(s string) bool {
-		return strings.Contains(s, `History · issue "Final plan" · read-only · 5 entries`) && strings.Contains(s, "#1 · created · rev 1")
+		return strings.Contains(s, `History · issue "Final plan" · read-only · 4 entries`) && strings.Contains(s, "#1 · created · rev 1")
 	})
 	for _, want := range []string{"Claude (agent)", `title: "Draft plan" → "Final plan"`, `labels: [] → ["ready"]`, `state: "open" → "closed"`,
-		"- step two", "+ step 2, revised", "+ clear␛[2J", "comment create " + comment.Items[0].ID[:8], "person (human)"} {
+		"- step two", "+ step 2, revised", "+ clear␛[2J"} {
 		if !strings.Contains(screen, want) {
 			t.Errorf("history lacks %q:\n%s", want, screen)
 		}
+	}
+	// The comment did not change the issue, so its history does not show it.
+	if strings.Contains(screen, "comment create") {
+		t.Errorf("issue history shows the comment's creation:\n%s", screen)
 	}
 	v.keys("Escape")
 	v.await("the same tree and selection", func(s string) bool {

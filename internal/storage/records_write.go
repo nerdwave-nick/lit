@@ -61,6 +61,9 @@ func (t *WriteTx) writeRecords(ctx context.Context, r Request, records []any) er
 		changes = append(changes, change{typ, id, before, rec})
 	}
 	sort.SliceStable(changes, func(i, j int) bool { return typeOrder[changes[i].typ] < typeOrder[changes[j].typ] })
+	if e := t.vacateTitles(ctx, changes); e != nil {
+		return e
+	}
 	for _, c := range changes {
 		if e := t.writeRow(ctx, c); e != nil {
 			return e

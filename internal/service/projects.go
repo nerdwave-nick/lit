@@ -4,100 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"os"
 	"regexp"
-	"sort"
 	"strings"
-	"time"
 	"unicode/utf8"
+
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 )
 
-type projectMetadata struct {
-	SchemaVersion  int      `json:"schema_version"`
-	ID             string   `json:"id"`
-	Revision       int64    `json:"revision"`
-	CreatedAt      string   `json:"created_at"`
-	UpdatedAt      string   `json:"updated_at"`
-	Title          string   `json:"title"`
-	RepositoryRefs []string `json:"repository_refs"`
-}
-type projectRelationships struct {
-	SchemaVersion int      `json:"schema_version"`
-	IssueIDs      []string `json:"issue_ids"`
-}
-type TitleIndex struct {
-	SchemaVersion int                          `json:"schema_version"`
-	Projects      map[string]string            `json:"projects"`
-	Issues        map[string]map[string]string `json:"issues"`
-}
-type BodyHunk struct {
-	Before string `json:"before"`
-	After  string `json:"after"`
-}
-type FieldDifference struct {
-	Before json.RawMessage `json:"before"`
-	After  json.RawMessage `json:"after"`
-}
-type ProjectHistory struct {
-	SchemaVersion  int                        `json:"schema_version"`
-	OwnerID        string                     `json:"owner_id"`
-	BeforeRevision int64                      `json:"before_revision"`
-	Revision       int64                      `json:"revision"`
-	Timestamp      string                     `json:"timestamp"`
-	RequestHash    string                     `json:"request_hash"`
-	Intent         protocol.Intent            `json:"intent"`
-	Results        []protocol.ChangedObject   `json:"results"`
-	Differences    map[string]FieldDifference `json:"differences"`
-	BodyHunks      []BodyHunk                 `json:"body_hunks"`
-}
-
-const historyTimeFormat = "2006-01-02T15:04:05.000000Z"
-
-func projectDir(id string) string { return "projects/" + id }
-func projectBytes(p protocol.Project) []byte {
-	m := projectMetadata{p.SchemaVersion, p.ID, p.Revision, p.CreatedAt, p.UpdatedAt, p.Title, p.RepositoryRefs}
-	return encodeFrontmatter(m, p.Description)
-}
-func (s *Server) Project(id string) (protocol.Project, error) {
-	var p protocol.Project
-	if !protocol.ValidUUID(id) {
-		return p, protocol.E(404, "not_found", "project does not exist")
-	}
-	b, e := s.Store.Read(projectDir(id) + "/content.md")
-	if os.IsNotExist(e) {
-		return p, protocol.E(404, "not_found", "project does not exist")
-	}
-	if e != nil {
-		return p, e
-	}
-	var fields map[string]json.RawMessage
-	body, e := decodeFrontmatter(b, &fields)
-	if e != nil {
-		return p, e
-	}
-	if e = validateMetadataFields(fields, []string{"schema_version", "id", "revision", "created_at", "updated_at", "title", "repository_refs"}); e != nil {
-		return p, e
-	}
-	var m projectMetadata
-	metadata, _ := json.Marshal(fields)
-	if e = protocol.Decode(metadata, &m); e != nil {
-		return p, e
-	}
-	var r projectRelationships
-	b, e = s.Store.Read(projectDir(id) + "/relationships.json")
-	if e != nil {
-		return p, e
-	}
-	if e = protocol.Decode(b, &r); e != nil {
-		return p, e
-	}
-	p = protocol.Project{SchemaVersion: m.SchemaVersion, ID: m.ID, Revision: m.Revision, CreatedAt: m.CreatedAt, UpdatedAt: m.UpdatedAt, Title: m.Title, Description: string(body), RepositoryRefs: m.RepositoryRefs, IssueIDs: r.IssueIDs}
-	if p.SchemaVersion != 1 || r.SchemaVersion != 1 || p.ID != id || p.Revision < 1 || s.validateProject(p) != nil {
-		return p, fmt.Errorf("invalid project record")
-	}
-	return p, nil
-}
+// ProjectHistory is one revision of any record as the history API returns it.
+type ProjectHistory = storage.HistoryEntry
 
 var segmentRE = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]*$`)
 
@@ -136,65 +52,6 @@ func validateProjectPrefixes(p protocol.Project, prefixes []string) error {
 	}
 	return nil
 }
-func (s *Server) Projects() ([]protocol.Project, error) {
-	entries, e := s.Store.List("projects")
-	if e != nil {
-		return nil, e
-	}
-	out := []protocol.Project{}
-	for _, entry := range entries {
-		if !entry.IsDir() || !protocol.ValidUUID(entry.Name()) {
-			return nil, fmt.Errorf("invalid project directory")
-		}
-		p, e := s.Project(entry.Name())
-		if e != nil {
-			return nil, e
-		}
-		out = append(out, p)
-	}
-	return out, nil
-}
-func titleIndex(ps []protocol.Project) (TitleIndex, error) {
-	v := TitleIndex{1, map[string]string{}, map[string]map[string]string{}}
-	for _, p := range ps {
-		k := strings.ToLower(p.Title)
-		if _, ok := v.Projects[k]; ok {
-			return v, protocol.E(422, "validation_failed", "duplicate project title")
-		}
-		v.Projects[k] = p.ID
-	}
-	return v, nil
-}
-func (s *Server) ResolveProject(selector string) (protocol.Project, error) {
-	ps, e := s.Projects()
-	if e != nil {
-		return protocol.Project{}, e
-	}
-	mode := ""
-	for _, prefix := range []string{"id:", "title:"} {
-		if strings.HasPrefix(selector, prefix) {
-			mode = prefix
-			selector = strings.TrimPrefix(selector, prefix)
-			break
-		}
-	}
-	idPrefix, valid := uuidPrefix(selector)
-	found := []protocol.Project{}
-	for _, p := range ps {
-		byTitle := mode != "id:" && strings.EqualFold(selector, p.Title)
-		byID := mode != "title:" && valid && strings.HasPrefix(strings.ReplaceAll(p.ID, "-", ""), idPrefix)
-		if byTitle || byID {
-			found = append(found, p)
-		}
-	}
-	if len(found) == 0 {
-		return protocol.Project{}, protocol.E(404, "not_found", "project does not exist")
-	}
-	if len(found) > 1 {
-		return protocol.Project{}, protocol.E(409, "ambiguous_reference", "project selector is ambiguous")
-	}
-	return found[0], nil
-}
 func uuidPrefix(s string) (string, bool) {
 	if s == "" {
 		return "", false
@@ -211,44 +68,4 @@ func uuidPrefix(s string) (string, bool) {
 	v := strings.ToLower(strings.ReplaceAll(s, "-", ""))
 	return v, len(v) > 0 && len(v) <= 32
 }
-func (s *Server) ProjectHistory(id string) ([]ProjectHistory, error) {
-	entries, e := s.Store.List(projectDir(id) + "/history")
-	if e != nil {
-		return nil, e
-	}
-	out := []ProjectHistory{}
-	for _, f := range entries {
-		b, e := s.Store.Read(projectDir(id) + "/history/" + f.Name())
-		if e != nil {
-			return nil, e
-		}
-		var h ProjectHistory
-		if e = protocol.Decode(b, &h); e != nil {
-			return nil, e
-		}
-		if h.SchemaVersion != 1 || f.Name() != h.Timestamp+"-"+h.RequestHash+".json" || h.OwnerID != id {
-			return nil, fmt.Errorf("invalid project history")
-		}
-		_, hash, e := protocol.Canonical(h.Intent)
-		if e != nil || hash != h.RequestHash {
-			return nil, fmt.Errorf("invalid history intent")
-		}
-		out = append(out, h)
-	}
-	sort.Slice(out, func(i, j int) bool { return out[i].Timestamp < out[j].Timestamp })
-	return out, nil
-}
 func same(a, b any) bool { x, _ := json.Marshal(a); y, _ := json.Marshal(b); return bytes.Equal(x, y) }
-
-// Validate all authoritative sources before rebuilding the disposable name index.
-func (s *Server) InitProjects() error { return s.InitRecords() }
-func (s *Server) nextProjectTime(ps []protocol.Project) string {
-	now := time.Now().UTC().Truncate(time.Microsecond)
-	for _, p := range ps {
-		t, e := time.Parse(historyTimeFormat, p.UpdatedAt)
-		if e == nil && !now.After(t) {
-			now = t.Add(time.Microsecond)
-		}
-	}
-	return now.Format(historyTimeFormat)
-}

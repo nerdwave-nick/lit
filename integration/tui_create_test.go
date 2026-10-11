@@ -88,7 +88,7 @@ func createIssues(t *testing.T, editor string) {
 	inNewIssueEditor(p, "first-step")
 	p.replaceAndSave("Do this first.")
 	p.await("the preview lists the parent", func(s string) bool {
-		return strings.Contains(s, "Create the new issue “First step”?") && strings.Contains(s, "issue “Quarterly plan” at revision 1 (changed)") &&
+		return strings.Contains(s, "Create the new issue “First step”?") && strings.Contains(s, "issue “Quarterly plan” at revision 1 (read)") &&
 			strings.Contains(s, "Creating it changes the children of “Quarterly plan”")
 	})
 	p.keys("Enter")

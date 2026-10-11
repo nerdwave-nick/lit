@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"bytes"
 	"context"
 	"errors"
 	"fmt"
@@ -279,4 +280,33 @@ func dumpQueries(t *testing.T, ctx context.Context, q queries) string {
 		fmt.Fprintf(&b, "%s:\n%s\n", table, strings.Join(lines, "\n"))
 	}
 	return b.String()
+}
+
+// Unique titles hold for the request's final state: records may swap titles
+// within one request.
+func TestWriteRequestSwapsTitles(t *testing.T) {
+	w := newWorld(t)
+	m2 := newMilestone(id(32), w.p.ID, "M2", "", at(2))
+	mustApply(t, w.db, at(2), m2)
+	w.lastTimestamp = 2
+	s := w.stamp()
+	p, q := next(w.p, s), next(w.q, s)
+	p.Title, q.Title = w.q.Title, w.p.Title
+	a, b := next(w.a, s), next(w.b, s)
+	a.Title, b.Title = w.b.Title, w.a.Title
+	m1, m := next(w.milestone, s), next(m2, s)
+	m1.Title, m.Title = m2.Title, w.milestone.Title
+	mustApply(t, w.db, s, p, q, a, b, m1, m)
+	read(t, w.db, func(ctx context.Context, r *ReadTx) {
+		for _, rec := range []any{p, q, a, b, m1, m} {
+			typ, id, _, _, _, _ := identity(rec)
+			got, e := r.Record(ctx, typ, id)
+			if e != nil {
+				t.Fatal(e)
+			}
+			if !bytes.Equal(ownJSON(got), ownJSON(rec)) {
+				t.Fatalf("%s %s: %s", typ, id, ownJSON(got))
+			}
+		}
+	})
 }

@@ -2,9 +2,14 @@ package service
 
 import "github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 
-func validateLinks(state RecordState) error {
-	for _, r := range state {
-		p, ok := r.(protocol.Issue)
+// validateLinks checks the links of the records in state: a changed issue's
+// counterparts must exist and mirror each link, and an unchanged issue's links
+// to a changed issue must still be mirrored. Unchanged issues outside state
+// keep their stored, mirrored links. No changed issue may lie on a blocking
+// cycle; state holds every issue those issues transitively block.
+func validateLinks(state RecordState, changed map[string]bool) error {
+	for _, k := range sortedKeys(state) {
+		p, ok := state[k].(protocol.Issue)
 		if !ok {
 			continue
 		}
@@ -14,8 +19,11 @@ func validateLinks(state RecordState) error {
 		}{{p.Blocks, "blocked_by"}, {p.BlockedBy, "blocks"}, {p.Related, "related"}} {
 			for _, id := range pair.ids {
 				v, ok := state[recordKey("issues", id)]
-				if !ok || id == p.ID {
+				if id == p.ID || !ok && changed[k] {
 					return invalid("missing or self-linked issue")
+				}
+				if !ok {
+					continue
 				}
 				other := v.(protocol.Issue)
 				back := other.Related
@@ -37,11 +45,12 @@ func validateLinks(state RecordState) error {
 		if visiting[id] {
 			return invalid("blocking cycle")
 		}
-		if done[id] {
+		p, ok := state[recordKey("issues", id)].(protocol.Issue)
+		if done[id] || !ok {
 			return nil
 		}
 		visiting[id] = true
-		for _, next := range state[recordKey("issues", id)].(protocol.Issue).Blocks {
+		for _, next := range p.Blocks {
 			if e := visit(next); e != nil {
 				return e
 			}
@@ -50,8 +59,8 @@ func validateLinks(state RecordState) error {
 		done[id] = true
 		return nil
 	}
-	for _, r := range state {
-		if p, ok := r.(protocol.Issue); ok {
+	for _, k := range sortedKeys(changed) {
+		if p, ok := state[k].(protocol.Issue); ok {
 			if e := visit(p.ID); e != nil {
 				return e
 			}
@@ -114,13 +123,13 @@ func (s *Server) prepareLinks(req protocol.PrepareRequest, c protocol.Client) (p
 		if item.Relation != "blocks" && item.Relation != "blocked-by" && item.Relation != "related" {
 			return out, invalid("invalid relation")
 		}
-		from, e := s.ResolveIssue(item.From, project)
+		from, e := s.resolveIssue(item.From, project)
 		if e != nil {
 			return out, e
 		}
 		seen := map[string]bool{}
 		for _, target := range item.To {
-			to, e := s.ResolveIssue(target, project)
+			to, e := s.resolveIssue(target, project)
 			if e != nil {
 				return out, e
 			}
@@ -141,7 +150,7 @@ func (s *Server) prepareLinks(req protocol.PrepareRequest, c protocol.Client) (p
 			add(to, from.ID, reverse)
 		}
 	}
-	i := protocol.Intent{Force: req.Force, SchemaVersion: 1, Operation: "transaction", ServiceID: s.Store.Identity.ServiceID, Actor: protocol.DurableActor{ClientID: c.ClientID, Name: c.Actor.Name, Kind: c.Actor.Kind}}
+	i := protocol.Intent{Force: req.Force, SchemaVersion: 1, Operation: "transaction", ServiceID: s.DB.ServiceID(), Actor: protocol.DurableActor{ClientID: c.ClientID, Name: c.Actor.Name, Kind: c.Actor.Kind}}
 	for _, id := range sortedKeys(ops) {
 		v := revs[id]
 		i.Operations = append(i.Operations, ops[id])

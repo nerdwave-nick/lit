@@ -31,7 +31,14 @@ const (
 	busyTimeout = 5 * time.Second
 	// readConns caps concurrent read snapshots; further reads wait for one.
 	readConns = 8
+	// LegacyMarker is the identity file of the legacy file store. A data
+	// directory holding it is refused; nothing else of that store is read.
+	LegacyMarker = "service.json"
 )
+
+// ErrLegacyStore matches (with errors.Is) the refusal to open a data
+// directory that still holds a legacy file store.
+var ErrLegacyStore = errors.New("data directory holds a legacy lit file store")
 
 // DB is an open, exclusively owned lit database.
 type DB struct {
@@ -49,10 +56,15 @@ type DB struct {
 // and opens its database. An empty directory gets a fresh database with a new
 // service identity. An older schema is migrated after a pre-migration snapshot
 // in dir/backup; a newer schema than this binary knows is refused. A second
-// owner fails with an error containing "already owned".
+// owner fails with an error containing "already owned". A directory that
+// still holds a legacy file store (its LegacyMarker) is refused with
+// ErrLegacyStore before anything is written to it.
 func Open(dir string) (*DB, error) { return open(dir, migrations) }
 
 func open(dir string, ms []migration) (db *DB, err error) {
+	if err = refuseLegacyStore(dir); err != nil {
+		return nil, err
+	}
 	if err = os.MkdirAll(dir, 0o700); err != nil {
 		return nil, err
 	}
@@ -96,6 +108,18 @@ func open(dir string, ms []migration) (db *DB, err error) {
 	return db, nil
 }
 
+// refuseLegacyStore detects a legacy file store by its marker file only.
+func refuseLegacyStore(dir string) error {
+	_, e := os.Lstat(filepath.Join(dir, LegacyMarker))
+	if errors.Is(e, os.ErrNotExist) {
+		return nil
+	}
+	if e != nil {
+		return e
+	}
+	return fmt.Errorf("%w in %s (it contains %s); lit-server no longer reads it. Convert it once with the setup import, lit-migrate, into a new, empty data directory, and start lit-server on that directory", ErrLegacyStore, dir, LegacyMarker)
+}
+
 // dsn configures every connection: WAL, enforced foreign keys and the busy
 // timeout. Writer connections begin transactions with BEGIN IMMEDIATE through
 // the driver's _txlock option; reader connections are query-only, and their
@@ -112,6 +136,9 @@ func dsn(path string, readOnly bool) string {
 	}
 	return (&url.URL{Scheme: "file", Path: path, RawQuery: q.Encode()}).String()
 }
+
+// Dir is the data directory the database lives in.
+func (db *DB) Dir() string { return db.dir }
 
 // ServiceID is the tracker's persistent identity.
 func (db *DB) ServiceID() string { return db.serviceID }

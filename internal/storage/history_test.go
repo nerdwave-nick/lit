@@ -199,3 +199,26 @@ func TestHistoryReplayRoundTripsRandomEdits(t *testing.T) {
 		t.Fatalf("%d body changes, want %d", k, len(bodies)-1)
 	}
 }
+
+func TestHistoryRevisionFindsARequestsRevision(t *testing.T) {
+	db := openTemp(t)
+	p := newProject(id(1), "feat/one", "", at(1))
+	mustApply(t, db, at(1), p)
+	q := next(p, at(2))
+	q.Description = "changed"
+	r := request(t, at(2), q)
+	mustApply(t, db, at(2), q)
+	other := newProject(id(2), "feat/two", "", at(3))
+	o := request(t, at(3), other)
+	mustApply(t, db, at(3), other)
+	read(t, db, func(ctx context.Context, tx *ReadTx) {
+		rev, stamp, found, e := tx.HistoryRevision(ctx, Projects, p.ID, r.Hash)
+		if e != nil || !found || rev != 2 || stamp != at(2) {
+			t.Fatalf("revision %d at %s, found %v: %v", rev, stamp, found, e)
+		}
+		// A request that changed another record did not change this one.
+		if _, _, found, e = tx.HistoryRevision(ctx, Projects, p.ID, o.Hash); e != nil || found {
+			t.Fatalf("found another record's request: %v", e)
+		}
+	})
+}
