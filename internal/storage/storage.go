@@ -57,7 +57,7 @@ type DB struct {
 // Open takes ownership of the data directory dir, creating it when missing,
 // and opens its database. An empty directory gets a fresh database with a new
 // service identity. An older schema is migrated after a pre-migration snapshot
-// in dir/backup; a newer schema than this binary knows is refused. A second
+// in dir/backup (Options.BackupDir with OpenWith); a newer schema than this binary knows is refused. A second
 // owner fails with an error containing "already owned". A directory that
 // still holds a legacy file store (its LegacyMarker) is refused with
 // ErrLegacyStore before anything is written to it.
@@ -68,6 +68,9 @@ type Options struct {
 	// ReadConcurrency caps concurrent read snapshots; further reads wait for
 	// one. Zero means DefaultReadConcurrency.
 	ReadConcurrency int
+	// BackupDir receives the snapshot taken before a schema migration.
+	// Empty means BackupDir inside the data directory.
+	BackupDir string
 }
 
 // OpenWith opens the data directory dir like Open, configured by o.
@@ -130,7 +133,11 @@ func openWith(dir string, ms []migration, o Options, existing bool) (db *DB, err
 	if existing {
 		err = requireCurrent(context.Background(), db.writer, ms)
 	} else {
-		err = migrate(context.Background(), db.writer, ms, filepath.Join(dir, BackupDir), db.clock.Now())
+		backupDir := o.BackupDir
+		if backupDir == "" {
+			backupDir = filepath.Join(dir, BackupDir)
+		}
+		err = migrate(context.Background(), db.writer, ms, backupDir, db.clock.Now())
 	}
 	if err != nil {
 		return nil, err
