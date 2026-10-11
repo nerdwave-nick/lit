@@ -3,6 +3,8 @@ package export
 import (
 	"strings"
 	"testing"
+
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 )
 
 func TestSlugIsShortLowercaseASCII(t *testing.T) {
@@ -60,6 +62,34 @@ func TestRelativeLinks(t *testing.T) {
 	} {
 		if got := rel(c.from, c.to); got != c.want {
 			t.Errorf("rel(%q, %q) = %q, want %q", c.from, c.to, got, c.want)
+		}
+	}
+}
+
+func TestLayoutKeepsTheOlderRecordsName(t *testing.T) {
+	p := protocol.Project{ID: "11111111-0000-4000-8000-000000000001", Title: "feat/x"}
+	nested := protocol.Project{ID: "22222222-0000-4000-8000-000000000002", Title: "feat/x/issues"}
+	tr := &tracker{
+		projects: []protocol.Project{p, nested},
+		issues: []protocol.Issue{
+			{ID: "aaaaaaaa-0000-4000-8000-000000000002", ProjectID: p.ID, Title: "Same title!", CreatedAt: "2026-01-01T00:00:01.000000Z"},
+			{ID: "aaaaaaaa-0000-4000-8000-000000000001", ProjectID: p.ID, Title: "Same title?", CreatedAt: "2026-01-01T00:00:02.000000Z"},
+		},
+		milestones: []protocol.Milestone{
+			{ID: "ffffffff-0000-4000-8000-000000000001", ProjectID: p.ID, Title: "M1: Export", CreatedAt: "2026-01-01T00:00:02.000000Z"},
+			{ID: "eeeeeeee-0000-4000-8000-000000000002", ProjectID: p.ID, Title: "M1 export", CreatedAt: "2026-01-01T00:00:01.000000Z"},
+		},
+	}
+	tr.layout()
+	for got, want := range map[string]string{
+		tr.dir[nested.ID]: "feat/x/_issues",
+		tr.issueFile["aaaaaaaa-0000-4000-8000-000000000002"]:     "feat/x/issues/aaaaaaaa-same-title.md",
+		tr.issueFile["aaaaaaaa-0000-4000-8000-000000000001"]:     "feat/x/issues/aaaaaaaa-0000-4000-8000-000000000001-same-title.md",
+		tr.milestoneFile["eeeeeeee-0000-4000-8000-000000000002"]: "feat/x/milestones/m1-export.md",
+		tr.milestoneFile["ffffffff-0000-4000-8000-000000000001"]: "feat/x/milestones/m1-export-ffffffff.md",
+	} {
+		if got != want {
+			t.Errorf("path %q, want %q", got, want)
 		}
 	}
 }

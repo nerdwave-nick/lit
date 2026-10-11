@@ -56,7 +56,7 @@ func OpenReadOnly(dir string) (db *ReadOnlyDB, err error) {
 	db = &ReadOnlyDB{readers: readers, clock: NewClock(time.Now)}
 	defer func() {
 		if err != nil {
-			readers.Close()
+			_ = readers.Close()
 		}
 	}()
 	var version int

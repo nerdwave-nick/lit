@@ -34,7 +34,7 @@ func prepare(dir string) (_ *target, err error) {
 		return nil, err
 	}
 	if err = lock(f); err != nil {
-		f.Close()
+		_ = f.Close()
 		return nil, err
 	}
 	t := &target{dir: dir, lock: f}

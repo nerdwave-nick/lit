@@ -61,7 +61,7 @@ func (f *fences) step(text string) bool {
 		}
 		return true
 	}
-	if run >= 3 && !(t[0] == '`' && strings.Contains(t[run:], "`")) {
+	if run >= 3 && (t[0] != '`' || !strings.Contains(t[run:], "`")) {
 		f.char, f.size = t[0], run
 		return true
 	}
