@@ -54,6 +54,10 @@ func TestBackupSnapshotRestoresAndVerifies(t *testing.T) {
 	if got := names(t, backupDir); !slices.Equal(got, []string{filepath.Base(path)}) {
 		t.Fatalf("backup directory holds %v, want only the snapshot", got)
 	}
+	// Snapshots hold the whole tracker: only lit-server's user may read them.
+	if fi, e := os.Stat(path); e != nil || fi.Mode().Perm() != 0o600 {
+		t.Fatalf("snapshot mode %v (%v), want 0600", fi.Mode(), e)
+	}
 	want := verify(t, w.db)
 
 	dir := restore(t, path)

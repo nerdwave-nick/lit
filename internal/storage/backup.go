@@ -51,6 +51,10 @@ func (db *DB) Backup(ctx context.Context, dir string) (path string, err error) {
 	if _, err = c.ExecContext(ctx, "VACUUM INTO ?", partial); err != nil {
 		return "", fmt.Errorf("backup: %w", classify(err))
 	}
+	// A snapshot holds the whole tracker, like the database itself.
+	if err = os.Chmod(partial, 0o600); err != nil {
+		return "", err
+	}
 	if err = syncPath(partial); err != nil {
 		return "", err
 	}
