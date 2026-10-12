@@ -66,6 +66,14 @@ The owner chose this to shorten the time each write holds the write lock.
 Restoring `synchronous=FULL` in `internal/storage/storage.go` makes every
 acknowledged commit durable again at the cost of one fsync per commit.
 
+Checkpoints run on a connection of their own, outside the write lock
+(`internal/storage/checkpoint.go`): the writer connection never checkpoints
+(`wal_autocheckpoint=0`), and after the commits that wrote SQLite's default
+of 1,000 pages to the WAL, a background PASSIVE checkpoint copies the WAL into
+the database file with its two fsyncs, while later writes go on. The threshold
+is SQLite's, so the commits a power loss can lose are the same as above: those
+since the last checkpoint. Closing the database checkpoints what is left.
+
 ## Requests and transactions
 
 One static route table (`internal/service/routes.go`) classifies every route
@@ -227,6 +235,17 @@ plain-text snippets of at most 160 characters around the first match.
 
 The storage module writes a record's `rank_text` row in the same transaction
 as the record, and triggers keep `rank_index` in step with it.
+
+Each commit adds its new index entries to `grep_index` and `rank_index` as a
+new FTS5 segment. FTS5 would merge segments inside the commits that cross its
+work units (`automerge`), so that a few commits pay for merges of hundreds of
+pages while they hold the write lock. Opening the database sets `automerge` to
+0 in both indexes instead (`internal/storage/merge.go`), and after every 4
+commits a background merger takes the write lock when no write holds it and
+merges at most 64 pages per index per step, like automerge a level of 4 segments at a
+time, until nothing is left to merge. A write arriving meanwhile waits for one
+step. FTS5 still merges a level of 16 segments inside a commit (`crisismerge`)
+should the merger fall behind. Merging changes no indexed content.
 
 ## Computed membership lists
 

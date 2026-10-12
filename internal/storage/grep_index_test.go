@@ -3,10 +3,12 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 )
 
 // indexHits lists the IDs of the records of type typ whose folded column
@@ -38,8 +40,20 @@ func indexHits(t *testing.T, q interface {
 // grep_text.
 func checkGrepIndex(t *testing.T, db *sql.DB) {
 	t.Helper()
-	if _, e := db.Exec("INSERT INTO grep_index (grep_index, rank) VALUES ('integrity-check', 1)"); e != nil {
+	if e := execWhenFree(db, "INSERT INTO grep_index (grep_index, rank) VALUES ('integrity-check', 1)"); e != nil {
 		t.Fatal(e)
+	}
+}
+
+// execWhenFree runs a write from outside, such as an index integrity check,
+// retrying while a write of the owner holds SQLite's write lock: the merger
+// merges the search indexes in the background after commits.
+func execWhenFree(db *sql.DB, query string) error {
+	for deadline := time.Now().Add(5 * time.Second); ; time.Sleep(5 * time.Millisecond) {
+		_, e := db.Exec(query)
+		if !errors.Is(classify(e), ErrBusy) || time.Now().After(deadline) {
+			return e
+		}
 	}
 }
 
