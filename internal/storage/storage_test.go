@@ -126,6 +126,12 @@ func TestEveryConnectionUsesWALForeignKeysAndBusyTimeout(t *testing.T) {
 		if e := tx.queryRow(ctx, []any{&sync}, "PRAGMA synchronous"); e != nil || sync != 1 {
 			t.Fatalf("synchronous %d: %v", sync, e)
 		}
+		// The writer checkpoints the WAL itself, at SQLite's default of 1,000
+		// pages: a background checkpointer made writes slower (ticket 2aaa11f1).
+		var pages int
+		if e := tx.queryRow(ctx, []any{&pages}, "PRAGMA wal_autocheckpoint"); e != nil || pages != 1000 {
+			t.Fatalf("wal_autocheckpoint %d: %v", pages, e)
+		}
 	})
 	t.Run("read", func(t *testing.T) {
 		// Hold several snapshots at once so more than one reader connection is checked.

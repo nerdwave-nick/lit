@@ -53,11 +53,6 @@ type Writer struct {
 	now  time.Time
 	held bool
 	open *WriteTx
-	// commits counts the commits, whose pages Unlock counts for the
-	// checkpointer and whose search index segments it has the merger merge.
-	commits int
-	// background marks the merger's own Writer, whose commits wake nothing.
-	background bool
 }
 
 // LockWrites waits for the process write lock, or until ctx ends. The
@@ -70,16 +65,6 @@ func (db *DB) LockWrites(ctx context.Context) (*Writer, error) {
 		return nil, ctx.Err()
 	}
 	return &Writer{db: db, now: db.clock.Now(), held: true}, nil
-}
-
-// tryLockWrites takes the process write lock if no write holds it.
-func (db *DB) tryLockWrites() (*Writer, bool) {
-	select {
-	case db.writeLock <- struct{}{}:
-		return &Writer{db: db, now: db.clock.Now(), held: true}, true
-	default:
-		return nil, false
-	}
 }
 
 // Now is the request time of this write.
@@ -111,17 +96,9 @@ func (w *Writer) Unlock() {
 	if w.open != nil {
 		_ = w.open.Rollback()
 	}
-	merge := false
-	if w.commits > 0 {
-		w.db.noteWrites()
-		merge = !w.background && w.db.merge != nil && w.db.merge.committed(w.commits)
-	}
 	w.db.stmts.prepareSeen()
 	w.held = false
 	<-w.db.writeLock
-	if merge {
-		w.db.merge.woken()
-	}
 }
 
 // WriteTx is one BEGIN IMMEDIATE transaction: it reads, validates and writes.
@@ -135,13 +112,7 @@ type WriteTx struct {
 func (t *WriteTx) Now() time.Time { return t.w.now }
 
 // Commit makes the transaction durable.
-func (t *WriteTx) Commit() error {
-	e := t.finish(t.tx.Commit)
-	if e == nil {
-		t.w.commits++
-	}
-	return e
-}
+func (t *WriteTx) Commit() error { return t.finish(t.tx.Commit) }
 
 // Rollback discards the transaction.
 func (t *WriteTx) Rollback() error { return t.finish(t.tx.Rollback) }

@@ -49,8 +49,6 @@ type DB struct {
 	stmts     *stmtCache // the writer's prepared statements
 	readStmts *stmtCache // the readers' prepared statements
 	readers   *sql.DB    // query-only connections for read snapshots
-	ckpt      *checkpointer
-	merge     *merger
 	writeLock chan struct{}
 	clock     *Clock
 	serviceID string
@@ -164,14 +162,9 @@ func openWith(dir string, ms []migration, o Options, existing bool) (db *DB, err
 	db.readers.SetMaxIdleConns(reads)
 	db.readers.SetConnMaxLifetime(0)
 	db.readStmts = newStmtCache(db.readers)
-	if err = db.report(configureMerges(context.Background(), db.writer)); err != nil {
+	if err = db.report(restoreMerges(context.Background(), db.writer)); err != nil {
 		return nil, err
 	}
-	if err = db.startCheckpointer(path); err != nil {
-		return nil, err
-	}
-	db.noteWrites() // a migration's pages
-	db.startMerger()
 	return db, nil
 }
 
@@ -191,8 +184,7 @@ func refuseLegacyStore(dir string) error {
 // timeout. Writer connections begin transactions with BEGIN IMMEDIATE through
 // the driver's _txlock option and commit with synchronous=NORMAL: in WAL mode a
 // commit is not fsynced, only checkpoints are, so power loss can lose the last
-// commits but never corrupts the database (docs/storage-format.md). They never
-// checkpoint; the checkpointer does, outside the write lock. Reader
+// commits but never corrupts the database (docs/storage-format.md). Reader
 // connections are query-only, and their read-only transactions begin deferred,
 // which in WAL mode takes no write lock.
 func dsn(path string, readOnly bool) string {
@@ -204,7 +196,6 @@ func dsn(path string, readOnly bool) string {
 		q.Add("_pragma", "query_only(1)")
 	} else {
 		q.Add("_pragma", "synchronous(NORMAL)")
-		q.Add("_pragma", "wal_autocheckpoint(0)")
 		q.Set("_txlock", "immediate")
 	}
 	return (&url.URL{Scheme: "file", Path: path, RawQuery: q.Encode()}).String()
@@ -224,19 +215,10 @@ func (db *DB) SchemaVersion() int { return db.version }
 // CleanMarker; see CloseClean.
 func (db *DB) Close() error { return errors.Join(db.closeConnections(), db.release()) }
 
-// closeConnections stops the merger and the checkpointer and closes the
-// prepared statements and connection pools; the writer closes last,
-// checkpointing the WAL into the database file.
+// closeConnections closes the prepared statements and connection pools; the
+// writer closes last, checkpointing the WAL into the database file.
 func (db *DB) closeConnections() error {
 	var errs []error
-	if db.merge != nil {
-		db.merge.stop()
-		db.merge = nil
-	}
-	if db.ckpt != nil {
-		errs = append(errs, db.ckpt.stop())
-		db.ckpt = nil
-	}
 	db.stmts.close()
 	db.readStmts.close()
 	for _, p := range []*sql.DB{db.readers, db.writer} {
