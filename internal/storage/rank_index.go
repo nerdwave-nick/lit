@@ -42,11 +42,8 @@ func (t *WriteTx) writeRank(ctx context.Context, typ, id string, project any, is
 // (the triggers keep rank_index in step). It returns the number of rows
 // changed.
 func resyncRank(ctx context.Context, tx sqlTx, src rankSource) (int, error) {
-	r, e := tx.ExecContext(ctx, `WITH s (owner_type, owner_id, project_id, issue_id, title, body, comment) AS (`+src.rows+`)
-		INSERT INTO rank_text (owner_type, owner_id, project_id, issue_id, title, body, comment)
-		SELECT s.* FROM s LEFT JOIN rank_text g ON g.owner_type = s.owner_type AND g.owner_id = s.owner_id
-		WHERE g.seq IS NULL OR g.project_id <> s.project_id OR g.issue_id <> s.issue_id OR g.title <> s.title
-		OR g.body <> s.body OR g.comment <> s.comment`+rankUpsert)
+	r, e := tx.ExecContext(ctx, staleRankRows(src, `INSERT INTO rank_text (owner_type, owner_id, project_id, issue_id, title, body, comment)
+		SELECT s.*`)+rankUpsert)
 	if e != nil {
 		return 0, e
 	}
@@ -54,11 +51,21 @@ func resyncRank(ctx context.Context, tx sqlTx, src rankSource) (int, error) {
 	if e != nil {
 		return 0, e
 	}
-	if r, e = tx.ExecContext(ctx, "DELETE FROM rank_text WHERE owner_type = ? AND NOT EXISTS (SELECT 1 FROM "+src.table+" r WHERE r.id = rank_text.owner_id)", src.table); e != nil {
+	if r, e = tx.ExecContext(ctx, "DELETE FROM rank_text WHERE "+orphanedText(src.table, "rank_text"), src.table); e != nil {
 		return int(written), e
 	}
 	deleted, e := r.RowsAffected()
 	return int(written + deleted), e
+}
+
+// staleRankRows is the query of the rank_text rows of the records of src
+// that are missing or differ from their records, after head: an INSERT and
+// SELECT, or a SELECT of a count.
+func staleRankRows(src rankSource, head string) string {
+	return `WITH s (owner_type, owner_id, project_id, issue_id, title, body, comment) AS (` + src.rows + `)
+		` + head + ` FROM s LEFT JOIN rank_text g ON g.owner_type = s.owner_type AND g.owner_id = s.owner_id
+		WHERE g.seq IS NULL OR g.project_id <> s.project_id OR g.issue_id <> s.issue_id OR g.title <> s.title
+		OR g.body <> s.body OR g.comment <> s.comment`
 }
 
 // migrateRankIndex is schema version 3: rank_text and its word index, filled

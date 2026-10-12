@@ -125,6 +125,24 @@ func TestStartupCheckFailsOnForeignKeyViolations(t *testing.T) {
 	}
 }
 
+// The checks that only read run concurrently on read snapshots; with a single
+// read snapshot allowed they take turns, and still report what they find.
+func TestStartupCheckRunsWithASingleReadSnapshot(t *testing.T) {
+	w := graphWorld(t)
+	dir := closed(t, w.db, func(o *sql.DB) {
+		execAll(t, o, "UPDATE comments SET issue_id = '"+id(99)+"'")
+	})
+	db, e := OpenWith(dir, Options{ReadConcurrency: 1})
+	if e != nil {
+		t.Fatal(e)
+	}
+	t.Cleanup(func() { db.Close() })
+	_, e = check(t, db)
+	if !errors.Is(e, ErrIntegrity) || !strings.Contains(e.Error(), "foreign_key_check") {
+		t.Fatalf("got %v", e)
+	}
+}
+
 // A search index that disagrees with its content is rebuilt, with a log line,
 // and the check passes; so is one whose own pages are damaged. A body changed
 // behind the storage module also leaves its folded and ranked text stale,

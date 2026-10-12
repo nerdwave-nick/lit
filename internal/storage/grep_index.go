@@ -55,7 +55,7 @@ const refoldBatch = 500
 // stale rows are written and rows without a record deleted (the triggers keep
 // grep_index in step). It returns the number of rows changed.
 func refold(ctx context.Context, tx sqlTx, src grepSource) (int, error) {
-	read := "SELECT r.id, " + src.title + ", " + src.body + ", g.title, g.body FROM " + src.table + " r LEFT JOIN grep_text g ON g.owner_type = '" + src.table + "' AND g.owner_id = r.id WHERE r.id > ? ORDER BY r.id LIMIT ?"
+	read := refoldRead(src)
 	changed := 0
 	for after := ""; ; {
 		stale, last, e := staleText(ctx, tx, read, after)
@@ -73,12 +73,18 @@ func refold(ctx context.Context, tx sqlTx, src grepSource) (int, error) {
 		}
 		after = last
 	}
-	r, e := tx.ExecContext(ctx, "DELETE FROM grep_text WHERE owner_type = ? AND NOT EXISTS (SELECT 1 FROM "+src.table+" r WHERE r.id = grep_text.owner_id)", src.table)
+	r, e := tx.ExecContext(ctx, "DELETE FROM grep_text WHERE "+orphanedText(src.table, "grep_text"), src.table)
 	if e != nil {
 		return changed, e
 	}
 	n, e := r.RowsAffected()
 	return changed + int(n), e
+}
+
+// refoldRead is the query of staleText for src: a batch of records after an
+// ID with their stored grep_text row, if any.
+func refoldRead(src grepSource) string {
+	return "SELECT r.id, " + src.title + ", " + src.body + ", g.title, g.body FROM " + src.table + " r LEFT JOIN grep_text g ON g.owner_type = '" + src.table + "' AND g.owner_id = r.id WHERE r.id > ? ORDER BY r.id LIMIT ?"
 }
 
 // staleText reads one batch of records after the ID after and returns the
