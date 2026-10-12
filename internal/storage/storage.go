@@ -45,8 +45,9 @@ var ErrLegacyStore = errors.New("data directory holds a legacy lit file store")
 type DB struct {
 	dir       string
 	lockFile  *os.File
-	writer    *sql.DB // exactly one connection, used under the write lock
-	readers   *sql.DB // query-only connections for read snapshots
+	writer    *sql.DB    // exactly one connection, used under the write lock
+	stmts     *stmtCache // the writer's prepared statements
+	readers   *sql.DB    // query-only connections for read snapshots
 	writeLock chan struct{}
 	clock     *Clock
 	serviceID string
@@ -131,6 +132,7 @@ func openWith(dir string, ms []migration, o Options, existing bool) (db *DB, err
 	db.writer.SetMaxOpenConns(1)
 	db.writer.SetMaxIdleConns(1)
 	db.writer.SetConnMaxLifetime(0)
+	db.stmts = newStmtCache(db.writer)
 	if existing {
 		err = requireCurrent(context.Background(), db.writer, ms)
 	} else {
@@ -201,6 +203,7 @@ func (db *DB) SchemaVersion() int { return db.version }
 // requests first; open transactions must be finished.
 func (db *DB) Close() error {
 	var errs []error
+	db.stmts.close()
 	for _, p := range []*sql.DB{db.readers, db.writer} {
 		if p != nil {
 			errs = append(errs, p.Close())

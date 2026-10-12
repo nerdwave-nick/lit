@@ -16,6 +16,8 @@ var errNotHeld = errors.New("storage write lock is not held")
 type queries struct {
 	tx *sql.Tx
 	db *DB
+	// stmts are the writer's prepared statements; read snapshots have none.
+	stmts *stmtCache
 }
 
 // classify types a driver error and reports a fatal one to the owning DB
@@ -28,13 +30,19 @@ func (q queries) classify(e error) error {
 }
 
 func (q queries) exec(ctx context.Context, query string, args ...any) (sql.Result, error) {
-	r, e := q.tx.ExecContext(ctx, query, args...)
+	var r sql.Result
+	var e error
+	if s := q.stmt(ctx, query); s != nil {
+		r, e = s.ExecContext(ctx, args...)
+	} else {
+		r, e = q.tx.ExecContext(ctx, query, args...)
+	}
 	return r, q.classify(e)
 }
 
 // queryRow scans the single result row into dest; sql.ErrNoRows is kept.
 func (q queries) queryRow(ctx context.Context, dest []any, query string, args ...any) error {
-	return q.classify(q.tx.QueryRowContext(ctx, query, args...).Scan(dest...))
+	return q.classify(q.row(ctx, query, args...).Scan(dest...))
 }
 
 // Writer proves that its holder owns the process write lock. Only a Writer
@@ -75,7 +83,7 @@ func (w *Writer) Begin(ctx context.Context) (*WriteTx, error) {
 	if e != nil {
 		return nil, w.db.report(e)
 	}
-	w.open = &WriteTx{queries: queries{tx, w.db}, w: w}
+	w.open = &WriteTx{queries: queries{tx, w.db, w.db.stmts}, w: w}
 	return w.open, nil
 }
 
@@ -88,6 +96,7 @@ func (w *Writer) Unlock() {
 	if w.open != nil {
 		_ = w.open.Rollback()
 	}
+	w.db.stmts.prepareSeen()
 	w.held = false
 	<-w.db.writeLock
 }
@@ -131,7 +140,7 @@ func (db *DB) Read(ctx context.Context) (*ReadTx, error) {
 	if e != nil {
 		return nil, db.report(e)
 	}
-	r := &ReadTx{queries{tx, db}, now}
+	r := &ReadTx{queries{tx, db, nil}, now}
 	// A deferred transaction takes its snapshot at the first read; take it now.
 	var v int
 	if e = r.queryRow(ctx, []any{&v}, "SELECT schema_version FROM service"); e != nil {
