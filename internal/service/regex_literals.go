@@ -46,6 +46,8 @@ func regexNeedles(re *syntax.Regexp) []string {
 	return best(analyze(re).sets())
 }
 
+// analyze is what re tells about the fold of its matches; a node it cannot
+// describe tells nothing (literals{}), which is always correct.
 func analyze(re *syntax.Regexp) literals {
 	fold := re.Flags&syntax.FoldCase != 0
 	switch re.Op {
