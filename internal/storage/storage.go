@@ -47,6 +47,7 @@ type DB struct {
 	lockFile  *os.File
 	writer    *sql.DB    // exactly one connection, used under the write lock
 	stmts     *stmtCache // the writer's prepared statements
+	readStmts *stmtCache // the readers' prepared statements
 	readers   *sql.DB    // query-only connections for read snapshots
 	writeLock chan struct{}
 	clock     *Clock
@@ -154,6 +155,7 @@ func openWith(dir string, ms []migration, o Options, existing bool) (db *DB, err
 	db.readers.SetMaxOpenConns(reads)
 	db.readers.SetMaxIdleConns(reads)
 	db.readers.SetConnMaxLifetime(0)
+	db.readStmts = newStmtCache(db.readers)
 	return db, nil
 }
 
@@ -204,6 +206,7 @@ func (db *DB) SchemaVersion() int { return db.version }
 func (db *DB) Close() error {
 	var errs []error
 	db.stmts.close()
+	db.readStmts.close()
 	for _, p := range []*sql.DB{db.readers, db.writer} {
 		if p != nil {
 			errs = append(errs, p.Close())

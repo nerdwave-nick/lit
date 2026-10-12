@@ -3,18 +3,24 @@ package storage
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"sync"
+	"time"
 )
 
-// stmtCacheLimit bounds the distinct statements the writer keeps prepared.
+// stmtCacheLimit bounds the distinct statements a pool keeps prepared.
 const stmtCacheLimit = 512
 
-// stmtCache keeps the writer connection's statements prepared across write
-// transactions, so a write does not parse its SQL (and compile the search
-// index triggers it fires) again each time. A statement seen for the first
-// time runs unprepared and is prepared once the transaction has ended and the
-// writer connection is free (prepareSeen): the writer pool has exactly one
-// connection, which an open transaction holds.
+// prepareWait bounds how long prepareSeen waits for a free connection of the
+// pool; a statement not prepared in time stays noted for the next call.
+const prepareWait = 5 * time.Millisecond
+
+// stmtCache keeps a pool's statements prepared across transactions, so a
+// request does not parse its SQL (and, for a write, compile the search index
+// triggers it fires) again each time. A statement seen for the first time
+// runs unprepared and is prepared once its transaction has ended and freed its
+// connection (prepareSeen): the writer pool has exactly one connection, which
+// an open transaction holds, and reader connections are capped.
 type stmtCache struct {
 	pool  *sql.DB
 	mu    sync.Mutex
@@ -44,19 +50,37 @@ func (c *stmtCache) lookup(query string) *sql.Stmt {
 }
 
 // prepareSeen prepares the statements noted since the last call. It runs
-// while no transaction holds the writer connection; a statement that fails to
-// prepare is simply not cached.
+// after a transaction ended, holding no connection; a statement that fails to
+// prepare is not cached, one that found no free connection in time stays
+// noted.
 func (c *stmtCache) prepareSeen() {
 	if c == nil {
 		return
 	}
 	c.mu.Lock()
-	defer c.mu.Unlock()
+	queries := make([]string, 0, len(c.seen))
 	for query := range c.seen {
-		if s, e := c.pool.PrepareContext(context.Background(), query); e == nil {
+		queries = append(queries, query)
+	}
+	c.mu.Unlock()
+	// Prepare without holding mu: a transaction waiting in lookup must not
+	// keep the connection this waits for.
+	for _, query := range queries {
+		ctx, cancel := context.WithTimeout(context.Background(), prepareWait)
+		s, e := c.pool.PrepareContext(ctx, query)
+		cancel()
+		c.mu.Lock()
+		switch {
+		case errors.Is(e, context.DeadlineExceeded): // no free connection: retry later
+		case e != nil:
+			delete(c.seen, query)
+		case c.stmts[query] != nil || !c.seen[query]: // prepared concurrently or closed
+			_ = s.Close()
+		default:
 			c.stmts[query] = s
+			delete(c.seen, query)
 		}
-		delete(c.seen, query)
+		c.mu.Unlock()
 	}
 }
 

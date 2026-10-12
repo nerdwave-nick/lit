@@ -140,7 +140,7 @@ func (db *DB) Read(ctx context.Context) (*ReadTx, error) {
 	if e != nil {
 		return nil, db.report(e)
 	}
-	r := &ReadTx{queries{tx, db, nil}, now}
+	r := &ReadTx{queries{tx, db, db.readStmts}, now}
 	// A deferred transaction takes its snapshot at the first read; take it now.
 	var v int
 	if e = r.queryRow(ctx, []any{&v}, "SELECT schema_version FROM service"); e != nil {
@@ -154,4 +154,8 @@ func (db *DB) Read(ctx context.Context) (*ReadTx, error) {
 func (r *ReadTx) Now() time.Time { return r.now }
 
 // Close ends the snapshot.
-func (r *ReadTx) Close() error { return r.classify(r.tx.Rollback()) }
+func (r *ReadTx) Close() error {
+	e := r.classify(r.tx.Rollback())
+	r.stmts.prepareSeen()
+	return e
+}
