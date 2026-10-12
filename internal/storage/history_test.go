@@ -135,6 +135,9 @@ func TestHistoryFailsClosedOnDamagedRows(t *testing.T) {
 		"UPDATE history SET body_diff = replace(body_diff, '+two', '+zwei') WHERE revision = 2",
 		"UPDATE history SET body_diff = NULL WHERE revision = 2",
 		"DELETE FROM history WHERE revision = 2",
+		// An intent that still decodes, but is not the one its request hash names.
+		`UPDATE transactions SET intent = json_set(intent, '$.operation', 'tampered')
+			WHERE request_hash = (SELECT request_hash FROM history WHERE revision = 3)`,
 	} {
 		t.Run(damage, func(t *testing.T) {
 			db := openTemp(t)
