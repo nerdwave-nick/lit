@@ -3,6 +3,7 @@ package integration
 import (
 	"os"
 	"os/exec"
+	"slices"
 	"strings"
 	"testing"
 )
@@ -41,9 +42,10 @@ func TestRankedSearchCLI(t *testing.T) {
 		t.Fatal(match)
 	}
 	for query, want := range map[string]string{"cafe": "Café opening", "C++": "Café opening", "net/http": "Café opening", `"timeout handling`: "Connection timeout handling",
-		"connection timeout -retry -ci": "Connection timeout handling", "handl*": "Connection timeout handling", "opening OR handling": "Connection timeout handling|Café opening"} {
+		"connection timeout -retry -ci": "Connection timeout handling", "handl*": "Connection timeout handling", "opening OR handling": "Café opening|Connection timeout handling"} {
 		got := ids(run(t, cwd, state, 0, "search", "--", query))
-		if strings.Join(got, "|") != want && !(strings.Contains(want, "|") && len(got) == 2) {
+		slices.Sort(got)
+		if strings.Join(got, "|") != want {
 			t.Errorf("%q: %v, want %s", query, got, want)
 		}
 	}
