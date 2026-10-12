@@ -42,6 +42,7 @@ var routes = []struct {
 	{"GET", "/v1/claims", readAccess},
 	{"POST", "/v1/claim-snapshots", readAccess},
 	{"POST", "/v1/search", searchAccess},
+	{"POST", "/v1/ranked-search", searchAccess},
 	{"POST", "/v1/issue-summaries", readAccess},
 	{"POST", "/v1/snapshots", readAccess},
 	{"POST", "/v1/transaction-previews", readAccess},
