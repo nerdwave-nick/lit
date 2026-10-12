@@ -112,3 +112,28 @@ func TestSearchSendsTheGrepRequest(t *testing.T) {
 		t.Fatalf("items omitted: %v", err)
 	}
 }
+
+// Search with Regex is lit grep -E: a Go RE2 pattern matched line by line,
+// with the same result shape; an invalid pattern is validation_failed.
+func TestSearchRegexLikeGrepE(t *testing.T) {
+	h := newHarness(t)
+	s := h.connect("grep-e", "person")
+	_, issues := seed(t, s, "grepe", "ECONNREFUSED on dial", "Reset by peer", "Unrelated")
+	ctx := context.Background()
+	scope := protocol.SearchScope{ProjectID: issues["Unrelated"].ProjectID}
+	page, err := s.Search(ctx, protocol.SearchRequest{Scope: scope, Query: `^(econnrefused|reset)\b`, Regex: true})
+	if err != nil || len(page.Items) != 2 || page.NextCursor != nil {
+		t.Fatalf("regex: %+v %v", page, err)
+	}
+	for _, r := range page.Items {
+		if r.Type != "issues" || r.Excerpts[0].Field != "title" || (r.ID != issues["ECONNREFUSED on dial"].ID && r.ID != issues["Reset by peer"].ID) {
+			t.Fatalf("result %+v", r)
+		}
+	}
+	if page, err = s.Search(ctx, protocol.SearchRequest{Scope: scope, Query: `^(econnrefused|reset)\b`, Regex: true, CaseSensitive: true}); err != nil || len(page.Items) != 0 {
+		t.Fatalf("case-sensitive regex: %+v %v", page, err)
+	}
+	if _, err := s.Search(ctx, protocol.SearchRequest{Scope: scope, Query: `(unclosed`, Regex: true}); litclient.Code(err) != "validation_failed" {
+		t.Fatalf("invalid pattern: %v", err)
+	}
+}

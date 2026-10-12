@@ -26,7 +26,7 @@ func requirementsFor(path string) (string, string) {
 	case "transactions status":
 		return "Required flags: none. Without --file, inspect all retained request files.\n--file selects one retained request envelope (not a mutation array or stdin).\nOnly explicit --session filters by service/client binding; LIT_SESSION does not filter.\nEach retained request supplies its own endpoint; this command never replays mutations.", prefix + " [--session NAME]\n" + prefix + " --file PATH [--session NAME]"
 	case "grep":
-		return "Required: one nonempty PATTERN and project selection, or --all-projects.\n--project and --all-projects are mutually exclusive. Omitted --project uses session selection.\n" + sessionRequirement, prefix + " [--project REF | --all-projects] [--limit N] [--cursor TOKEN] PATTERN\n" + prefix + " [--project REF | --all-projects] -- --help"
+		return "Required: one nonempty PATTERN and project selection, or --all-projects.\n--project and --all-projects are mutually exclusive. Omitted --project uses session selection.\n" + sessionRequirement, prefix + " [--project REF | --all-projects] [-E] [--limit N] [--cursor TOKEN] PATTERN\n" + prefix + " [--project REF | --all-projects] -- --help"
 	}
 	if strings.HasPrefix(path, "workflow-session ") {
 		return workflowRequirements(strings.TrimPrefix(path, "workflow-session "))

@@ -83,6 +83,18 @@ text and queries over an alphabet of those hazards. `internal/textfold` checks
 `Scalar` against `cases.Fold` for every scalar and that `Grep` keeps
 substrings.
 
+Regex grep (`internal/service/regex_test.go`) has a table test of anchors,
+alternation, case, RE2's simple folding (`ss` is not `ß`, `ß` is `ẞ`), patterns
+without literals, matches that would cross a newline, excerpts, paging and
+invalid patterns (`validation_failed`), and a table of the literals extracted
+per pattern. `TestRegexGrepPrefilterMatchesTheScan` and its random-pattern
+twin require pages identical to a scan of every record without the
+prefilter, over the literal grep world plus case-folding hazards: Cherokee and
+the newest Latin letters, whose RE2 fold orbits lit's full fold maps to more
+than one string, the Kelvin sign and the long s. `internal/storage` tests
+`SearchScanAny` and its query plan (one index `GLOB` per literal);
+`integration/regex_test.go` drives `lit grep -E` end to end.
+
 The backup tests snapshot a tracker with history (`Backup`), restore the
 snapshot into a new data directory and require `OpenExisting` plus `Verify`
 and the startup checks to pass; a snapshot taken while a write transaction is
