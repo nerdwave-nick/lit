@@ -236,6 +236,17 @@ plain-text snippets of at most 160 characters around the first match.
 The storage module writes a record's `rank_text` row in the same transaction
 as the record, and triggers keep `rank_index` in step with it.
 
+Each commit adds its new index entries to `grep_index` and `rank_index` as a
+new FTS5 segment. FTS5 would merge segments inside the commits that cross its
+work units (`automerge`), so that a few commits pay for merges of hundreds of
+pages while they hold the write lock. Opening the database sets `automerge` to
+0 in both indexes instead (`internal/storage/merge.go`), and after every 4
+commits a background merger takes the write lock when no write holds it and
+merges at most 64 pages per index per step, like automerge a level of 4 segments at a
+time, until nothing is left to merge. A write arriving meanwhile waits for one
+step. FTS5 still merges a level of 16 segments inside a commit (`crisismerge`)
+should the merger fall behind. Merging changes no indexed content.
+
 ## Computed membership lists
 
 A project's `issue_ids` and an issue's `child_ids` and `comment_ids` are

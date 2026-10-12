@@ -2,6 +2,7 @@ package storage
 
 import (
 	"context"
+	"database/sql"
 	"fmt"
 	"testing"
 )
@@ -37,14 +38,14 @@ func TestWriterReusesPreparedStatements(t *testing.T) {
 	if v := writeOnce(t, db, q, 1); v != 2 {
 		t.Fatalf("first run: %d", v)
 	}
-	first := db.stmts.stmts[q]
+	first := db.stmts.prepared(q)
 	if first == nil {
 		t.Fatal("statement not prepared after its first transaction")
 	}
 	if v := writeOnce(t, db, q, 41); v != 42 {
 		t.Fatalf("cached run: %d", v)
 	}
-	if db.stmts.stmts[q] != first {
+	if db.stmts.prepared(q) != first {
 		t.Fatal("statement prepared again")
 	}
 }
@@ -57,7 +58,7 @@ func TestWriterStatementCacheIsBounded(t *testing.T) {
 			t.Fatalf("statement %d: %d", n, v)
 		}
 	}
-	if got := len(db.stmts.stmts) + len(db.stmts.seen); got > stmtCacheLimit {
+	if got := db.stmts.size(); got > stmtCacheLimit {
 		t.Fatalf("cache holds %d statements", got)
 	}
 }
@@ -80,7 +81,7 @@ func TestReadersReusePreparedStatements(t *testing.T) {
 		if e = r.Close(); e != nil {
 			t.Fatal(e)
 		}
-		if db.readStmts.stmts[q] == nil {
+		if db.readStmts.prepared(q) == nil {
 			t.Fatalf("run %d: statement not prepared", n)
 		}
 	}
@@ -122,4 +123,18 @@ func TestCachedStatementsDoNotBlockCheckpoints(t *testing.T) {
 	if e = db.writer.QueryRowContext(ctx, "PRAGMA wal_checkpoint(TRUNCATE)").Scan(&busy, &log, &done); e != nil || busy != 0 {
 		t.Fatalf("checkpoint busy=%d log=%d done=%d: %v", busy, log, done, e)
 	}
+}
+
+// prepared and size read the cache under its lock: the merger's writes
+// prepare statements in the background.
+func (c *stmtCache) prepared(q string) *sql.Stmt {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.stmts[q]
+}
+
+func (c *stmtCache) size() int {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return len(c.stmts) + len(c.seen)
 }

@@ -22,7 +22,7 @@ func corruptSchema(t *testing.T, db *DB) {
 		"UPDATE sqlite_schema SET sql = 'CREATE INDEX issues_parent ON' WHERE name = 'issues_parent'",
 		"PRAGMA writable_schema = OFF",
 	} {
-		if _, e := o.Exec(s); e != nil {
+		if e := execWhenFree(o, s); e != nil {
 			t.Fatal(s, e)
 		}
 	}
@@ -30,7 +30,7 @@ func corruptSchema(t *testing.T, db *DB) {
 	if e := o.QueryRow("PRAGMA schema_version").Scan(&v); e != nil {
 		t.Fatal(e)
 	}
-	if _, e := o.Exec(fmt.Sprintf("PRAGMA schema_version = %d", v+1)); e != nil {
+	if e := execWhenFree(o, fmt.Sprintf("PRAGMA schema_version = %d", v+1)); e != nil {
 		t.Fatal(e)
 	}
 }

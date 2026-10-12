@@ -40,7 +40,7 @@ func closed(t *testing.T, db *DB, f func(o *sql.DB)) string {
 func execAll(t *testing.T, o *sql.DB, list ...string) {
 	t.Helper()
 	for _, s := range list {
-		if _, e := o.Exec(s); e != nil {
+		if e := execWhenFree(o, s); e != nil {
 			t.Fatalf("%s: %v", s, e)
 		}
 	}

@@ -36,7 +36,7 @@ func rankHits(t *testing.T, db *sql.DB, match string) []string {
 // rank_text.
 func checkRankIndex(t *testing.T, db *sql.DB) {
 	t.Helper()
-	if _, e := db.Exec("INSERT INTO rank_index (rank_index, rank) VALUES ('integrity-check', 1)"); e != nil {
+	if e := execWhenFree(db, "INSERT INTO rank_index (rank_index, rank) VALUES ('integrity-check', 1)"); e != nil {
 		t.Fatal(e)
 	}
 }

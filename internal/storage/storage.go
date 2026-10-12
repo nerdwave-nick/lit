@@ -50,6 +50,7 @@ type DB struct {
 	readStmts *stmtCache // the readers' prepared statements
 	readers   *sql.DB    // query-only connections for read snapshots
 	ckpt      *checkpointer
+	merge     *merger
 	writeLock chan struct{}
 	clock     *Clock
 	serviceID string
@@ -163,10 +164,14 @@ func openWith(dir string, ms []migration, o Options, existing bool) (db *DB, err
 	db.readers.SetMaxIdleConns(reads)
 	db.readers.SetConnMaxLifetime(0)
 	db.readStmts = newStmtCache(db.readers)
+	if err = db.report(configureMerges(context.Background(), db.writer)); err != nil {
+		return nil, err
+	}
 	if err = db.startCheckpointer(path); err != nil {
 		return nil, err
 	}
 	db.noteWrites() // a migration's pages
+	db.startMerger()
 	return db, nil
 }
 
@@ -219,11 +224,15 @@ func (db *DB) SchemaVersion() int { return db.version }
 // CleanMarker; see CloseClean.
 func (db *DB) Close() error { return errors.Join(db.closeConnections(), db.release()) }
 
-// closeConnections stops the checkpointer and closes the prepared statements
-// and connection pools; the writer closes last, checkpointing the WAL into the
-// database file.
+// closeConnections stops the merger and the checkpointer and closes the
+// prepared statements and connection pools; the writer closes last,
+// checkpointing the WAL into the database file.
 func (db *DB) closeConnections() error {
 	var errs []error
+	if db.merge != nil {
+		db.merge.stop()
+		db.merge = nil
+	}
 	if db.ckpt != nil {
 		errs = append(errs, db.ckpt.stop())
 		db.ckpt = nil
