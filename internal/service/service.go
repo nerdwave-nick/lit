@@ -77,6 +77,9 @@ func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		r.Body = io.NopCloser(bytes.NewReader(body))
+		if routeAccess(r.Method, r.URL.Path) == writeAccess {
+			r = s.predecode(r, body)
+		}
 	}
 	// The response is buffered, so a slow reader never holds the write lock or
 	// a read snapshot.
@@ -153,10 +156,15 @@ func (s *Server) Body(r *http.Request, v any) error {
 	if e != nil {
 		return protocol.E(400, "invalid_json", "cannot read JSON body")
 	}
-	if int64(len(b)) > s.Config.Limits.RequestBytes {
+	return decodeBody(b, s.Config.Limits.RequestBytes, v)
+}
+
+// decodeBody decodes the JSON request body b, of at most limit bytes, into v.
+func decodeBody(b []byte, limit int64, v any) error {
+	if int64(len(b)) > limit {
 		return protocol.E(413, "limit_exceeded", "request body exceeds limit")
 	}
-	if e = protocol.Decode(b, v); e != nil {
+	if e := protocol.Decode(b, v); e != nil {
 		code := "invalid_json"
 		if strings.HasPrefix(e.Error(), "json: unknown field ") {
 			code = "unknown_field"

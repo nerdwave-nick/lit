@@ -161,22 +161,21 @@ func union(a, b []string) []string {
 }
 
 func (s *Server) executeProjects(w http.ResponseWriter, r *http.Request, c protocol.Client, routeID, kind string) error {
-	var req protocol.DurableRequest
-	if e := s.Body(r, &req); e != nil {
-		return e
+	d := s.durable(r)
+	if d.bodyErr != nil {
+		return d.bodyErr
 	}
+	req := d.req
 	if req.SchemaVersion != 0 && req.SchemaVersion != 1 {
 		return invalid("unsupported schema_version")
 	}
-	b, hash, e := protocol.Canonical(req.Intent)
-	if e != nil {
-		return invalid(e.Error())
+	if d.canonErr != nil {
+		return invalid(d.canonErr.Error())
 	}
+	hash, i := d.hash, d.intent
 	if hash != req.RequestHash {
 		return protocol.E(422, "request_hash_mismatch", "canonical intent hash differs")
 	}
-	var i protocol.Intent
-	protocol.Decode(b, &i)
 	if kind == "relationships" {
 		if e := validateRelationshipRoute(i.Operations, routeID); e != nil {
 			return e
