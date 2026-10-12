@@ -10,7 +10,7 @@ import (
 	"testing"
 )
 
-func openTemp(t *testing.T) *DB {
+func openTemp(t testing.TB) *DB {
 	t.Helper()
 	db, e := Open(t.TempDir())
 	if e != nil {

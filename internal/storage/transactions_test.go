@@ -17,7 +17,7 @@ func at(n int) string { return fmt.Sprintf("2026-10-11T13:%02d:%02d.000000Z", n/
 
 // request builds the canonical request that changes records at stamp: one
 // operation and target per record, and results from the records' revisions.
-func request(t *testing.T, stamp string, records ...any) Request {
+func request(t testing.TB, stamp string, records ...any) Request {
 	t.Helper()
 	i := protocol.Intent{SchemaVersion: 1, Operation: "transaction", ServiceID: testService, Actor: testActor}
 	results := []protocol.ChangedObject{}
@@ -46,13 +46,13 @@ func request(t *testing.T, stamp string, records ...any) Request {
 }
 
 // apply writes and commits one request built by request.
-func apply(t *testing.T, db *DB, stamp string, records ...any) error {
+func apply(t testing.TB, db *DB, stamp string, records ...any) error {
 	t.Helper()
 	r := request(t, stamp, records...)
 	return write(t, db, func(ctx context.Context, tx *WriteTx) error { return tx.WriteRequest(ctx, r, records) })
 }
 
-func mustApply(t *testing.T, db *DB, stamp string, records ...any) {
+func mustApply(t testing.TB, db *DB, stamp string, records ...any) {
 	t.Helper()
 	if e := apply(t, db, stamp, records...); e != nil {
 		t.Fatal(e)

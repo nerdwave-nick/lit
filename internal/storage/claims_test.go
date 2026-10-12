@@ -68,7 +68,7 @@ func putClaims(t *testing.T, db *DB, claims ...protocol.Claim) {
 }
 
 // read runs f in a fresh read snapshot.
-func read(t *testing.T, db *DB, f func(ctx context.Context, r *ReadTx)) {
+func read(t testing.TB, db *DB, f func(ctx context.Context, r *ReadTx)) {
 	t.Helper()
 	ctx := context.Background()
 	r, e := db.Read(ctx)
