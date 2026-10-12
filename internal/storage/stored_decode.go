@@ -64,12 +64,17 @@ var storedJSON = jsonv2.JoinOptions(strict, jsonv2.WithUnmarshalers(jsonv2.JoinU
 
 // decodeTransaction decodes a stored transaction's intent and results.
 func decodeTransaction(intent, results string) (protocol.Intent, []protocol.ChangedObject, error) {
+	return decodeStored([]byte(intent), []byte(results))
+}
+
+// decodeStored is decodeTransaction of the stored JSON as bytes.
+func decodeStored(intent, results []byte) (protocol.Intent, []protocol.ChangedObject, error) {
 	var i protocol.Intent
 	var c []protocol.ChangedObject
-	if e := jsonv2.Unmarshal([]byte(intent), &i, storedJSON); e != nil {
+	if e := jsonv2.Unmarshal(intent, &i, storedJSON); e != nil {
 		return i, nil, fmt.Errorf("stored intent: %w", e)
 	}
-	if e := jsonv2.Unmarshal([]byte(results), &c, storedJSON); e != nil {
+	if e := jsonv2.Unmarshal(results, &c, storedJSON); e != nil {
 		return i, nil, fmt.Errorf("stored results: %w", e)
 	}
 	return i, c, nil
