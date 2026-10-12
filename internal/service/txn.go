@@ -27,6 +27,7 @@ type reads interface {
 	LiveClaims(ctx context.Context, owner string, now time.Time) ([]protocol.Claim, error)
 	MilestoneProgress(ctx context.Context, milestoneID string, now time.Time) ([]storage.MemberProgress, error)
 	History(ctx context.Context, typ, id string, afterRevision int64, limit int) ([]storage.HistoryEntry, error)
+	HistoryRows(ctx context.Context, typ, id string, afterRevision int64, limit int) ([]storage.HistoryRow, error)
 	HistoryRevision(ctx context.Context, typ, id, hash string) (int64, string, bool, error)
 	HistoryByRequest(ctx context.Context, typ, id, hash string) (storage.HistoryEntry, bool, error)
 	Transaction(ctx context.Context, hash string) (storage.Request, bool, error)

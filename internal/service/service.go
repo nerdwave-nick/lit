@@ -59,6 +59,16 @@ func (b *bufferedResponse) Header() http.Header         { return b.header }
 func (b *bufferedResponse) WriteHeader(status int)      { b.status = status }
 func (b *bufferedResponse) Write(p []byte) (int, error) { return b.body.Write(p) }
 
+// writeBody writes body, which the caller no longer uses, as the response
+// body; a buffered response without a body yet keeps body instead of a copy.
+func writeBody(w http.ResponseWriter, body []byte) {
+	if b, ok := w.(*bufferedResponse); ok && b.body.Len() == 0 {
+		b.body = *bytes.NewBuffer(body)
+		return
+	}
+	_, _ = w.Write(body)
+}
+
 var errShuttingDown = protocol.E(503, "shutting_down", "service is shutting down")
 
 func (s *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {

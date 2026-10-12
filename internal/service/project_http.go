@@ -175,11 +175,7 @@ func (s *Server) projectRoute(w http.ResponseWriter, r *http.Request, c protocol
 			}
 			hash := strings.TrimPrefix(tail, "/")
 			if hash == "" && suffix == "/history" {
-				page, e := s.historyPage("projects", p.ID, p.ID, r.URL.Query())
-				if e != nil {
-					return true, e
-				}
-				return true, s.writeReadPage(w, page)
+				return true, s.serveHistory(w, "projects", p.ID, p.ID, r.URL.Query())
 			}
 			return true, s.historyEntry(w, "projects", p.ID, hash, suffix == "/requests/", p.Revision)
 		}

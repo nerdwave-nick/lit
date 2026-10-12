@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 )
 
 func mustJSON(v any) []byte {
@@ -35,31 +36,51 @@ type historyCursor struct {
 	Last    string `json:"last"`
 }
 
-// historyPage reads one keyset page of a record's history, oldest first. The
-// cursor format is unchanged from the file store; storage pages by revision,
-// which orders history as timestamps do.
-func (s *Server) historyPage(typ, id, binding string, values url.Values) (ProjectPage, error) {
-	out := ProjectPage{Items: []any{}}
+// serveHistory answers one keyset page of a record's history, oldest first,
+// in the page envelope. The cursor format is unchanged from the file store;
+// storage pages by revision, which orders history as timestamps do. The
+// entries are written from their stored JSON (storage.AppendHistory), which
+// encodes them as the decoded entries would be.
+func (s *Server) serveHistory(w http.ResponseWriter, typ, id, binding string, values url.Values) error {
+	rows, next, e := s.historyPage(typ, id, binding, values)
+	if e != nil {
+		return e
+	}
+	b := append(make([]byte, 0, 64), `{"items":`...)
+	b = storage.AppendHistory(b, id, rows)
+	b = append(b, `,"next_cursor":`...)
+	b = append(b, mustJSON(next)...)
+	b = append(b, `,"server_time":`...)
+	b = append(b, mustJSON(s.responseTime())...)
+	b = append(b, "}\n"...)
+	w.Header().Set("Content-Type", "application/json")
+	writeBody(w, b)
+	return nil
+}
+
+// historyPage reads one keyset page of a record's history and the cursor of
+// the next page, nil after the last one.
+func (s *Server) historyPage(typ, id, binding string, values url.Values) ([]storage.HistoryRow, *string, error) {
 	for key := range values {
 		if key != "limit" && key != "cursor" && key != "all" {
-			return out, invalid("unsupported history query")
+			return nil, nil, invalid("unsupported history query")
 		}
 	}
 	q, e := recordURLQuery("projects", values)
 	if e != nil {
-		return out, e
+		return nil, nil, e
 	}
 	if q.All && (q.Limit != 0 || q.Cursor != "" || q.Fields["limit"] || q.Fields["cursor"]) {
-		return out, invalid("all conflicts with pagination")
+		return nil, nil, invalid("all conflicts with pagination")
 	}
 	if q.Fields["limit"] && q.Limit == 0 {
-		return out, invalid("limit must be positive")
+		return nil, nil, invalid("limit must be positive")
 	}
 	if q.Limit == 0 {
 		q.Limit = s.Config.Limits.DefaultPage
 	}
 	if q.Limit < 1 || q.Limit > s.Config.Limits.MaxPage {
-		return out, invalid("invalid limit")
+		return nil, nil, invalid("invalid limit")
 	}
 	binding += ":" + strconv.Itoa(q.Limit)
 	var after int64
@@ -67,34 +88,31 @@ func (s *Server) historyPage(typ, id, binding string, values url.Values) (Projec
 		var cursor historyCursor
 		b, e := base64.RawURLEncoding.DecodeString(q.Cursor)
 		if e != nil || protocol.Decode(b, &cursor) != nil || cursor.Binding != binding {
-			return out, protocol.E(400, "invalid_cursor", "invalid history cursor")
+			return nil, nil, protocol.E(400, "invalid_cursor", "invalid history cursor")
 		}
 		if after, e = s.historyPosition(typ, id, cursor.Last); e != nil {
-			return out, e
+			return nil, nil, e
 		}
 	}
 	limit := q.Limit + 1
 	if q.All {
 		limit = s.Config.Limits.ExpandedRecords + 1
 	}
-	hs, e := s.q().History(s.ctx(), typ, id, after, limit)
+	rows, e := s.q().HistoryRows(s.ctx(), typ, id, after, limit)
 	if e != nil {
-		return out, e
+		return nil, nil, e
 	}
-	if q.All && len(hs) > s.Config.Limits.ExpandedRecords {
-		return out, protocol.E(413, "limit_exceeded", "history snapshot exceeds item limit")
+	if q.All && len(rows) > s.Config.Limits.ExpandedRecords {
+		return nil, nil, protocol.E(413, "limit_exceeded", "history snapshot exceeds item limit")
 	}
-	if !q.All && len(hs) > q.Limit {
-		hs = hs[:q.Limit]
-		last := hs[len(hs)-1]
-		b, _ := json.Marshal(historyCursor{binding, last.Timestamp + "-" + last.RequestHash})
-		value := base64.RawURLEncoding.EncodeToString(b)
-		out.NextCursor = &value
+	if q.All || len(rows) <= q.Limit {
+		return rows, nil, nil
 	}
-	for _, h := range hs {
-		out.Items = append(out.Items, h)
-	}
-	return out, nil
+	rows = rows[:q.Limit]
+	last := rows[len(rows)-1]
+	b, _ := json.Marshal(historyCursor{binding, last.Timestamp + "-" + last.RequestHash})
+	value := base64.RawURLEncoding.EncodeToString(b)
+	return rows, &value, nil
 }
 
 // historyPosition finds the revision of the entry a cursor names by its
