@@ -139,7 +139,7 @@ func validateArgs(a Args) error {
 	if a.Command == "claims" {
 		return validateClaimArgs(a)
 	}
-	if a.Command == "grep" || a.Command == "projects" || a.Command == "issues" || a.Command == "comments" || a.Command == "milestones" {
+	if a.Command == "grep" || a.Command == "search" || a.Command == "projects" || a.Command == "issues" || a.Command == "comments" || a.Command == "milestones" {
 		return nil
 	}
 	if len(a.Positionals) > 0 {
@@ -232,6 +232,8 @@ func (a *App) Print(r Result) int {
 		b, e = a.markdownResult(r)
 	} else if a.Args.Command == "grep" {
 		b = []byte(humanText(string(a.humanSearch(r))))
+	} else if a.Args.Command == "search" {
+		b = formatRankedSearch(r, a.highlightMatches())
 	} else {
 		b, e = a.cliResult(r)
 	}
@@ -336,6 +338,8 @@ func (a *App) dispatch() (Result, error) {
 		return a.claims()
 	case "grep":
 		return a.grep()
+	case "search":
+		return a.rankedSearch()
 	case "projects":
 		return a.projects()
 	case "issues", "comments", "milestones":

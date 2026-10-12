@@ -102,6 +102,36 @@ There is no persistent completion cache or local state write.
 
 See the [completion API](completion-api.md) for the metadata projection and limits.
 
+## Ranked search
+
+`lit grep` finds literal substrings; `lit search QUERY` finds words and ranks
+the results by relevance, most relevant first:
+
+```sh
+lit search --session demo 'connection timeout'
+lit search --session demo --all-projects --state open '"claim renewal" -flaky'
+lit search --session demo -- '-flaky timeout'
+```
+
+Words match whole words, ignoring case and diacritics (`cafe` finds `Café`),
+and every word must match. `"a phrase"` matches its words in order (an
+unclosed quote runs to the end), `-word` or `-"a phrase"` excludes, `a OR b`
+matches either (`a OR b c` means `(a OR b) c`), and `word*` matches words
+beginning with `word`. Everything else is plain text, so `C++`, `net/http`,
+`NOT` or `title:x` never cause errors. Titles count most, then bodies and
+project descriptions, then comments.
+
+Each result is an issue, a project or a milestone. An issue's result carries
+its matching title and body and its best three matching comments (with their
+IDs), and `comment_matches` counts them all. Matches are plain-text snippets
+of at most 160 characters of the field around its first match, with
+`highlights` as byte offsets into the snippet; on a terminal the CLI shows the
+matched words in bold (unless `NO_COLOR` is set). `--state open|closed`
+returns only issues in that state. Pages hold 20 results by default (at most
+100, `--limit`); `--cursor` continues the same query in rank order. Like
+grep, the search runs under the server's search deadline and accepts queries
+of at most 1,000 bytes.
+
 ## Batch and literal arguments
 
 Arguments are parsed in order against lit's command grammar, so flag order is

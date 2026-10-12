@@ -20,6 +20,7 @@ Available Commands:
   issues           Track work, state and relationships
   milestones       Group project issues into named worksets
   projects         Create and discover project containers
+  search           Search current content ranked by relevance
   session          Inspect or change session preferences
   setup-skills     Install embedded skills for Codex or Claude
   transactions     Reconcile uncertain mutation outcomes
@@ -1887,6 +1888,48 @@ Examples:
 Flags:
       --endpoint URL   Optional. Service URL passed to lit-tui; flag > LIT_ENDPOINT > http://127.0.0.1:7411
   -h, --help           help for tui
+== lit search --help
+Search the selected project, or explicitly use --all-projects, for the most relevant issues,
+projects and milestones first. An issue's result includes its matching comments.
+Words match whole words, ignoring case and diacritics (cafe finds Café); all words must match.
+"a phrase" matches words in order, -word excludes, a OR b matches either, and word* matches prefixes.
+Everything else is plain text. Titles count most, then bodies and descriptions, then comments.
+Use -- before a query beginning with a dash. For literal substrings, use lit grep.
+
+Requirements:
+  Required: one nonempty QUERY and project selection, or --all-projects.
+  --project and --all-projects are mutually exclusive. Omitted --project uses session selection.
+  Required session: --session NAME or LIT_SESSION; connect that session first.
+
+References:
+  Project REF: exact title, UUID or unique UUID prefix.
+  Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
+
+Valid forms:
+  lit search [--project REF | --all-projects] [--state open|closed] [--limit N] [--cursor TOKEN] QUERY
+  lit search [--project REF | --all-projects] -- '-flaky timeout'
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit search QUERY [flags]
+
+Examples:
+  lit search --session my-session 'connection timeout'
+  lit search --session my-session --all-projects --state open '"claim renewal" -flaky'
+
+Flags:
+      --all-projects   Optional. Search or list across projects instead of the selected project
+      --cursor TOKEN   Optional. Continue the same query with opaque TOKEN
+  -h, --help           help for search
+      --limit N        Optional. Page size N (default 20, maximum 100)
+      --project REF    Optional. Project REF: title or UUID; otherwise session selection
+      --state STATE    Optional. Only issues in STATE: open or closed
+
+Global Flags:
+      --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
+      --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
+      --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
 == lit workflow-session --help
 Bind explicit runtime identity to durable workflow state. Never starts a service.
 Fresh sessions and subagents get isolated clients; resume reuses the recorded client.

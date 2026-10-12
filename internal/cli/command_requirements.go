@@ -25,6 +25,8 @@ func requirementsFor(path string) (string, string) {
 		return "Required flags: none. No session is needed; lit-tui must be installed next to lit or on PATH.\nlit tui needs an interactive terminal; lit-tui refuses to start without one.", prefix + " [--endpoint URL]\nlit [--endpoint URL]  # on a terminal"
 	case "transactions status":
 		return "Required flags: none. Without --file, inspect all retained request files.\n--file selects one retained request envelope (not a mutation array or stdin).\nOnly explicit --session filters by service/client binding; LIT_SESSION does not filter.\nEach retained request supplies its own endpoint; this command never replays mutations.", prefix + " [--session NAME]\n" + prefix + " --file PATH [--session NAME]"
+	case "search":
+		return "Required: one nonempty QUERY and project selection, or --all-projects.\n--project and --all-projects are mutually exclusive. Omitted --project uses session selection.\n" + sessionRequirement, prefix + " [--project REF | --all-projects] [--state open|closed] [--limit N] [--cursor TOKEN] QUERY\n" + prefix + " [--project REF | --all-projects] -- '-flaky timeout'"
 	case "grep":
 		return "Required: one nonempty PATTERN and project selection, or --all-projects.\n--project and --all-projects are mutually exclusive. Omitted --project uses session selection.\n" + sessionRequirement, prefix + " [--project REF | --all-projects] [--limit N] [--cursor TOKEN] PATTERN\n" + prefix + " [--project REF | --all-projects] -- --help"
 	}
@@ -235,7 +237,7 @@ func referenceHelp(path string) string {
 	const comment = "Comment REF: UUID, unique UUID prefix, or id:UUID_PREFIX.\nComments have no title selector or project-qualified selector."
 	const milestone = "Milestone REF: exact title in the selected project, UUID, unique UUID prefix, title:TITLE, or id:UUID_PREFIX.\nIssue membership references resolve inside the selected milestone project."
 	switch {
-	case path == "connect" || path == "session set" || path == "grep" || path == "workflow-session fresh" || path == "workflow-session subagent":
+	case path == "connect" || path == "session set" || path == "grep" || path == "search" || path == "workflow-session fresh" || path == "workflow-session subagent":
 		return project
 	case strings.HasPrefix(path, "projects ") && path != "projects create" && path != "projects list":
 		return project

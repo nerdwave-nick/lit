@@ -50,7 +50,7 @@ func give(f nwcli.Flag) []string {
 
 func base(path []string) []string {
 	argv := append([]string{}, path...)
-	if path[0] == "grep" {
+	if path[0] == "grep" || path[0] == "search" {
 		argv = append(argv, "pattern")
 	}
 	return argv
