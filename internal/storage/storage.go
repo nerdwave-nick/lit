@@ -45,8 +45,10 @@ var ErrLegacyStore = errors.New("data directory holds a legacy lit file store")
 type DB struct {
 	dir       string
 	lockFile  *os.File
-	writer    *sql.DB // exactly one connection, used under the write lock
-	readers   *sql.DB // query-only connections for read snapshots
+	writer    *sql.DB    // exactly one connection, used under the write lock
+	stmts     *stmtCache // the writer's prepared statements
+	readStmts *stmtCache // the readers' prepared statements
+	readers   *sql.DB    // query-only connections for read snapshots
 	writeLock chan struct{}
 	clock     *Clock
 	serviceID string
@@ -131,6 +133,7 @@ func openWith(dir string, ms []migration, o Options, existing bool) (db *DB, err
 	db.writer.SetMaxOpenConns(1)
 	db.writer.SetMaxIdleConns(1)
 	db.writer.SetConnMaxLifetime(0)
+	db.stmts = newStmtCache(db.writer)
 	if existing {
 		err = requireCurrent(context.Background(), db.writer, ms)
 	} else {
@@ -152,6 +155,7 @@ func openWith(dir string, ms []migration, o Options, existing bool) (db *DB, err
 	db.readers.SetMaxOpenConns(reads)
 	db.readers.SetMaxIdleConns(reads)
 	db.readers.SetConnMaxLifetime(0)
+	db.readStmts = newStmtCache(db.readers)
 	return db, nil
 }
 
@@ -169,8 +173,11 @@ func refuseLegacyStore(dir string) error {
 
 // dsn configures every connection: WAL, enforced foreign keys and the busy
 // timeout. Writer connections begin transactions with BEGIN IMMEDIATE through
-// the driver's _txlock option; reader connections are query-only, and their
-// read-only transactions begin deferred, which in WAL mode takes no write lock.
+// the driver's _txlock option and commit with synchronous=NORMAL: in WAL mode a
+// commit is not fsynced, only checkpoints are, so power loss can lose the last
+// commits but never corrupts the database (docs/storage-format.md). Reader
+// connections are query-only, and their read-only transactions begin deferred,
+// which in WAL mode takes no write lock.
 func dsn(path string, readOnly bool) string {
 	q := url.Values{}
 	q.Add("_pragma", fmt.Sprintf("busy_timeout(%d)", busyTimeout.Milliseconds()))
@@ -179,6 +186,7 @@ func dsn(path string, readOnly bool) string {
 	if readOnly {
 		q.Add("_pragma", "query_only(1)")
 	} else {
+		q.Add("_pragma", "synchronous(NORMAL)")
 		q.Set("_txlock", "immediate")
 	}
 	return (&url.URL{Scheme: "file", Path: path, RawQuery: q.Encode()}).String()
@@ -197,6 +205,8 @@ func (db *DB) SchemaVersion() int { return db.version }
 // requests first; open transactions must be finished.
 func (db *DB) Close() error {
 	var errs []error
+	db.stmts.close()
+	db.readStmts.close()
 	for _, p := range []*sql.DB{db.readers, db.writer} {
 		if p != nil {
 			errs = append(errs, p.Close())

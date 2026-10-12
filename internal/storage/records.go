@@ -116,7 +116,7 @@ func scanRecord(typ string, s rowScanner) (any, error) {
 
 // each runs a query and calls scan for every result row.
 func (q queries) each(ctx context.Context, query string, args []any, scan func(rowScanner) error) error {
-	rows, e := q.tx.QueryContext(ctx, query, args...)
+	rows, e := q.query(ctx, query, args...)
 	if e != nil {
 		return q.classify(e)
 	}
@@ -136,7 +136,7 @@ func (q queries) Record(ctx context.Context, typ, id string) (any, error) {
 	if e != nil {
 		return nil, e
 	}
-	r, e := scanRecord(typ, q.tx.QueryRowContext(ctx, "SELECT "+cols+" FROM "+typ+" r WHERE r.id = ?", id))
+	r, e := scanRecord(typ, q.row(ctx, "SELECT "+cols+" FROM "+typ+" r WHERE r.id = ?", id))
 	if errors.Is(e, sql.ErrNoRows) {
 		return nil, fmt.Errorf("%s %s: %w", typ, id, ErrRecordNotFound)
 	}

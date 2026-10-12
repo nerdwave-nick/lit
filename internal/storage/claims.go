@@ -127,7 +127,7 @@ func (q queries) oneClaim(ctx context.Context, query string, args ...any) (*prot
 
 // claims runs a claim query; the result is empty, never nil, without rows.
 func (q queries) claims(ctx context.Context, query string, args ...any) ([]protocol.Claim, error) {
-	rows, e := q.tx.QueryContext(ctx, query, args...)
+	rows, e := q.query(ctx, query, args...)
 	if e != nil {
 		return nil, q.classify(e)
 	}
