@@ -107,8 +107,8 @@ func TestAppendHistoryEncodesAsTheDecodedEntries(t *testing.T) {
 					t.Fatalf("%s %s after %d limit %d encodes as\n%s\nnot\nprefix%s", o.typ, o.id, after, limit, got, want)
 				}
 				// One allocation of about the right size holds the whole array.
-				if size := historySize(o.id, rows); len(want) > size || size-len(want) > 2+64*len(rows) {
-					t.Fatalf("%s %s after %d limit %d: size %d for %d bytes", o.typ, o.id, after, limit, size, len(want))
+				if spare := cap(AppendHistory(nil, o.id, rows)) - len(want); spare < 0 || spare > 2+64*len(rows)+8192 {
+					t.Fatalf("%s %s after %d limit %d: %d spare bytes for %d", o.typ, o.id, after, limit, spare, len(want))
 				}
 			}
 		}
@@ -138,7 +138,10 @@ func TestAppendStringEncodesAsEncodingJSON(t *testing.T) {
 	check(escapes)
 	for _, p := range pieces {
 		check(p)
-		check("plain " + p + " text")
+		// Every position in and across the 8-byte words tested at once.
+		for k := range 17 {
+			check(strings.Repeat("a", k) + p + strings.Repeat("b", 17))
+		}
 	}
 	rnd := rand.New(rand.NewSource(1))
 	for range 5000 {
