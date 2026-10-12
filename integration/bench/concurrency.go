@@ -15,8 +15,8 @@ var writeOps = []string{"issue.create", "issue.update", "comment.create", "claim
 
 // Concurrent runs Writers agents, each writing about once per second
 // (0.5-1.5 s apart) in its own project among the first n, while Readers
-// readers run literal grep over all projects in a loop, for r.P.Concurrent.
-// Ranked search arrives with M2; until then the readers only grep.
+// readers run literal grep and ranked search over all projects in turn, in a
+// loop, for r.P.Concurrent.
 func (r *Runner) Concurrent(name string, n int) (Concurrency, PhaseResult, error) {
 	rec := NewRecorder()
 	if r.P.Writers > n {
@@ -49,8 +49,12 @@ func (r *Runner) Concurrent(name string, n int) (Concurrency, PhaseResult, error
 		go func() {
 			defer wg.Done()
 			for i := k; time.Now().Before(end); i++ {
-				q := GrepQueries[i%len(GrepQueries)]
-				_, _ = c.Grep(grepOp(q), q) // failures are recorded
+				// failures are recorded
+				if op, q := readerQuery(i); op == "ranked" {
+					_, _ = c.RankedSearch(op, q)
+				} else {
+					_, _ = c.Grep(op, q)
+				}
 			}
 		}()
 	}
@@ -61,7 +65,7 @@ func (r *Runner) Concurrent(name string, n int) (Concurrency, PhaseResult, error
 		writes = append(writes, rec.Samples(op)...)
 	}
 	out.Writes = Summarize(writes)
-	out.Reads = Summarize(append(rec.Samples("grep"), rec.Samples("grep.short")...))
+	out.Reads = Summarize(append(append(rec.Samples("grep"), rec.Samples("grep.short")...), rec.Samples("ranked")...))
 	for _, codes := range rec.Failures() {
 		for code, count := range codes {
 			switch classifyFailure(code) {

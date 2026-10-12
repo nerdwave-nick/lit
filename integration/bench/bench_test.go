@@ -148,7 +148,7 @@ var notes = []string{
 	"Startup runs from starting the process to the first 200 from /v1/meta after a clean stop, so it includes the full integrity check; its p95 over the restarts is their maximum.",
 	"History independence: the decision says \"within noise\" without a number; the harness reads it as at most 1.5x the baseline plus 1 ms, for p50 and p95. A history-dependent cost doubles with the history.",
 	"The 10x corpus adds 900 projects to the 100 whose history was doubled. Concurrency at 10x is reported but not gated: the decision states the concurrency criterion without a size.",
-	"M2 adds ranked search (lit search top 20, < 100 ms) and regex (lit grep -E, < 1 s); until then the concurrent readers run literal grep only.",
+	"Ranked search (lit search) is POST /v1/ranked-search over all projects with the default page of 20; each query is also listed on its own. The concurrent readers alternate literal grep and ranked search.",
 	"Scheduled backups are off during the run.",
 }
 

@@ -15,8 +15,7 @@ type Target struct {
 }
 
 // M1Targets are the targets measurable in milestone M1, plus M2's regex
-// (lit grep -E, < 1 s). Ranked search (lit search top 20, < 100 ms) is added
-// when it lands.
+// (lit grep -E, < 1 s) and ranked search (lit search top 20, < 100 ms).
 var M1Targets = []Target{
 	{"meta", "/v1/meta", 5 * time.Millisecond},
 	{"issue.get", "get one issue", 5 * time.Millisecond},
@@ -30,6 +29,7 @@ var M1Targets = []Target{
 	{"grep", "literal grep, all projects", 100 * time.Millisecond},
 	{"grep.short", "literal grep, all projects, query under 3 characters", 500 * time.Millisecond},
 	{"regex", "regex grep (lit grep -E), all projects", time.Second},
+	{"ranked", "ranked search top 20 (lit search), all projects", 100 * time.Millisecond},
 	{"history.200", "history of an issue with 200 revisions", 50 * time.Millisecond},
 	{"startup", "startup including the full integrity check", 2 * time.Second},
 }
