@@ -3,6 +3,7 @@ package storage
 import (
 	"encoding/json"
 	"reflect"
+	"slices"
 	"testing"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
@@ -70,5 +71,48 @@ func TestDecodeTransactionRejectsCorruptRows(t *testing.T) {
 		if _, _, e := decodeTransaction(intent, "[]"); e == nil {
 			t.Errorf("%q decoded", intent)
 		}
+	}
+}
+
+// TestDecodeTransactionEqualsStrictDecoding covers every **string field and
+// every type with its own UnmarshalJSON of a stored transaction; storedJSON
+// rebuilds what those methods add. A new one needs a case there.
+func TestStoredTransactionsHaveKnownSpecialCases(t *testing.T) {
+	unmarshaler := reflect.TypeFor[json.Unmarshaler]()
+	var pointers, methods []string
+	seen := map[reflect.Type]bool{}
+	var walk func(reflect.Type)
+	walk = func(typ reflect.Type) {
+		if seen[typ] {
+			return
+		}
+		seen[typ] = true
+		if typ.Kind() != reflect.Pointer && reflect.PointerTo(typ).Implements(unmarshaler) {
+			methods = append(methods, typ.Name())
+		}
+		switch typ.Kind() {
+		case reflect.Struct:
+			for f := range typ.Fields() {
+				if !f.IsExported() || f.Tag.Get("json") == "-" {
+					continue
+				}
+				if f.Type == reflect.TypeFor[**string]() {
+					pointers = append(pointers, typ.Name()+"."+f.Name)
+				}
+				walk(f.Type)
+			}
+		case reflect.Pointer, reflect.Slice, reflect.Array, reflect.Map:
+			walk(typ.Elem())
+		}
+	}
+	walk(reflect.TypeFor[protocol.Intent]())
+	walk(reflect.TypeFor[[]protocol.ChangedObject]())
+	slices.Sort(pointers)
+	slices.Sort(methods)
+	if want := []string{"ProjectSet.Assignee", "ProjectSet.ParentID"}; !slices.Equal(pointers, want) {
+		t.Errorf("**string fields %v, want %v", pointers, want)
+	}
+	if want := []string{"Intent", "ProjectMembers", "ProjectSet"}; !slices.Equal(methods, want) {
+		t.Errorf("types with UnmarshalJSON %v, want %v", methods, want)
 	}
 }
