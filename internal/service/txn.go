@@ -18,6 +18,7 @@ type reads interface {
 	IDByTitle(ctx context.Context, typ, projectID, title string) (string, bool, error)
 	IDsByPrefix(ctx context.Context, typ, prefix, projectID string, limit int) ([]string, error)
 	List(ctx context.Context, l storage.ListQuery) ([]any, error)
+	RankedSearch(ctx context.Context, q storage.RankedQuery) ([]storage.RankedResult, bool, error)
 	StructuralSet(ctx context.Context, issueIDs []string) ([]storage.RecordRef, error)
 	NewestStamp(ctx context.Context) (string, error)
 	Client(ctx context.Context, id string) (protocol.Client, bool, error)

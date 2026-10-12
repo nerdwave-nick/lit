@@ -83,6 +83,9 @@ func (r *Runner) Measure(name string, n int, factor float64, startups []time.Dur
 	if err = measureRegex(c, rec, max(20, r.P.Samples/len(RegexQueries)), tolerate); err != nil {
 		return PhaseResult{}, err
 	}
+	if err = measureRanked(c, rec, max(20, r.P.Samples/len(RankedQueries)), tolerate); err != nil {
+		return PhaseResult{}, err
+	}
 	for range r.P.Samples {
 		if err = tolerate(m.writes()); err != nil {
 			return PhaseResult{}, err

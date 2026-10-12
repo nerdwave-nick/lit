@@ -104,12 +104,16 @@ be retried. The CLI exits 1 for it, and 2 for `validation_failed`.
 
 ## Schema
 
-All tables are `STRICT`. The schema is version 2:
+All tables are `STRICT`. The schema is version 3:
 [`internal/storage/schema_v1.sql`](../internal/storage/schema_v1.sql), then
 the migration to version 2
 ([`schema_v2.sql`](../internal/storage/schema_v2.sql), the search index of
-`lit grep`). The version is recorded in the `service` table with the
-service identity.
+`lit grep`) and to version 3
+([`schema_v3.sql`](../internal/storage/schema_v3.sql), the word index of
+`lit search`). The version is recorded in the `service` table with the
+service identity. Each migration of an existing database is preceded by a
+`VACUUM INTO` snapshot in the backup directory and fills its new tables from
+the records.
 
 | Table | Holds |
 | --- | --- |
@@ -125,6 +129,8 @@ service identity.
 | `history` | one row per changed record per request: changed fields and the body diff |
 | `grep_text` | one row per record (`owner_type`, `owner_id`): its searchable fields folded for `lit grep`, `title` and `body` |
 | `grep_index` | FTS5 `trigram case_sensitive 1` table over `grep_text` as external content |
+| `rank_text` | one row per record (`owner_type`, `owner_id`): its original text for `lit search` in `title`, `body` (a project's description) and `comment` (a comment's body), with its `project_id` and `issue_id` (an issue's own, a comment's issue) |
+| `rank_index` | FTS5 `unicode61 remove_diacritics 2` table over `rank_text` as external content |
 
 Records keep their exact text: titles, bodies (CR bytes, Unicode and a missing
 final newline included) and RFC 3339 timestamps. Record and transaction stamps
@@ -176,6 +182,31 @@ characters, at most 32 of them, with the longest shortest literal. A pattern
 without one reads every record of the scope. The final match is RE2 on the
 original text, line by line, so the prefilter only ever drops records that
 cannot match.
+
+### Ranked search
+
+`lit search` (`POST /v1/ranked-search`) reads `rank_index`, a word index that
+ignores case and diacritics (`cafe` finds `Café`; `ß` stays `ß`). The storage
+module parses the search box query into an FTS5 query whose terms are all
+quoted strings, so user text is never FTS5 syntax: words are ANDed,
+`"phrases"`, `-word` and `-"phrase"` exclusions (one `NOT` of all of them),
+`OR` between two terms (binding tighter than AND) and `word*` prefixes are the
+only operators. Terms without a letter or digit are dropped; a query without
+anything to search for has no results.
+
+Every matching `rank_text` row is scored with `bm25` weighted title 10, body
+3, comment 1, and grouped into its result: a comment's row counts for its
+issue, so one issue is one result, and projects and milestones are results of
+their own. A result's score is its best row's; results come in score order,
+then by type and ID, which is also the key that a page's cursor continues
+after. A `state` filter returns issues only. Each result carries the matching
+fields of its own row and its three best matching comments, with the matched
+words found by FTS5 `highlight()` (between Unicode noncharacter markers;
+a text containing a marker is reported without offsets). The service cuts
+plain-text snippets of at most 160 characters around the first match.
+
+The storage module writes a record's `rank_text` row in the same transaction
+as the record, and triggers keep `rank_index` in step with it.
 
 ## Computed membership lists
 
@@ -234,7 +265,8 @@ while it runs; do not write to it from outside.
 ## Integrity
 
 Every start runs the FTS5 `integrity-check` of each search table (rebuilding
-one that fails), recomputes `grep_text` (rewriting missing, stale and orphaned rows),
+one that fails), recomputes `grep_text` and resynchronizes `rank_text` from the
+records (rewriting missing, stale and orphaned rows, with a log line per record type),
 `PRAGMA integrity_check` and `PRAGMA foreign_key_check`. A
 damaged database puts lit-server in degraded mode (`503 recovery_required` for
 every request); damage met while serving makes it exit for its supervisor to

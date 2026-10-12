@@ -143,6 +143,8 @@ func newGrammar() *nwcli.Command {
 			Flags: join(flags("project limit cursor context n"), switches("case-sensitive all-projects"), flags("regex"))},
 		&nwcli.Command{Name: "setup-skills", Flags: flags("scope agent path"), Without: strings.Fields(globals)},
 		&nwcli.Command{Name: "tui", Flags: flags("endpoint"), Without: []string{"session", "format", "timeout"}},
+		&nwcli.Command{Name: "search", Operands: nwcli.Operands{Usage: "QUERY", Max: 1},
+			Flags: join(flags("project state limit cursor"), switches("all-projects"))},
 		workflowSession(),
 		completionCommand(),
 	)

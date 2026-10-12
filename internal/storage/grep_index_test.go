@@ -54,8 +54,8 @@ func foldedText(t *testing.T, db *sql.DB, typ, id string) (title, body string) {
 
 func TestFreshDatabaseHasTheTrigramIndex(t *testing.T) {
 	db := openTemp(t)
-	if db.SchemaVersion() != 2 {
-		t.Fatalf("schema version %d, want 2", db.SchemaVersion())
+	if db.SchemaVersion() != current {
+		t.Fatalf("schema version %d, want %d", db.SchemaVersion(), current)
 	}
 	var text string
 	if e := outside(t, db).QueryRow("SELECT sql FROM sqlite_schema WHERE name = 'grep_index'").Scan(&text); e != nil {
@@ -142,8 +142,8 @@ func TestVersion1DatabaseIsMigratedWithItsGrepIndex(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer db.Close()
-	if db.SchemaVersion() != 2 {
-		t.Fatalf("migrated to version %d, want 2", db.SchemaVersion())
+	if db.SchemaVersion() != current {
+		t.Fatalf("migrated to version %d, want %d", db.SchemaVersion(), current)
 	}
 	if snaps := backups(t, dir); len(snaps) != 1 || !strings.Contains(filepath.Base(snaps[0]), "pre-migration-v1") {
 		t.Fatalf("snapshots %v", snaps)
@@ -176,7 +176,7 @@ func TestVersion1DatabaseIsMigratedWithItsGrepIndex(t *testing.T) {
 }
 
 // The setup import (Create, then ImportRecords through the row writer) gives
-// a schema version 2 database whose folded text and trigram index are
+// a database at the current schema version whose folded text and trigram index are
 // complete: grep finds the imported records through the index, and the
 // startup checks and Verify pass without rewriting anything.
 func TestImportedRecordsAreFoundThroughTheTrigramIndex(t *testing.T) {
@@ -186,8 +186,8 @@ func TestImportedRecordsAreFoundThroughTheTrigramIndex(t *testing.T) {
 		t.Fatal(e)
 	}
 	t.Cleanup(func() { db.Close() })
-	if db.SchemaVersion() != 2 {
-		t.Fatalf("created schema version %d, want 2", db.SchemaVersion())
+	if db.SchemaVersion() != current {
+		t.Fatalf("created schema version %d, want %d", db.SchemaVersion(), current)
 	}
 	w := newLegacyWorld(t)
 	w.db.Close()

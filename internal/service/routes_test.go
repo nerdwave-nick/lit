@@ -65,7 +65,7 @@ func TestRouteTableClassifiesEveryRoute(t *testing.T) {
 		)
 	}
 	// Searches are reads bounded by the search deadline.
-	searches := [][2]string{{"POST", "/v1/search"}}
+	searches := [][2]string{{"POST", "/v1/search"}, {"POST", "/v1/ranked-search"}}
 	for want, cases := range map[access][][2]string{readAccess: reads, searchAccess: searches, writeAccess: writes} {
 		for _, c := range cases {
 			if got := routeAccess(c[0], c[1]); got != want {

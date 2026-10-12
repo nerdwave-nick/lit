@@ -22,6 +22,7 @@ var topSummaries = map[string]string{
 	"setup-skills": "Install embedded skills for Codex or Claude", "workflow-session": "Bind explicit agent runtime sessions to lit clients",
 	"completion": "Generate the autocompletion script for the specified shell",
 	"tui":        "Open the terminal UI (lit-tui)",
+	"search":     "Search current content ranked by relevance",
 }
 
 var workflowSummaries = map[string]string{
@@ -90,6 +91,9 @@ func commandDocs(path []string, group bool) (summary, description, example strin
 	case name == "tui":
 		summary, description = topSummaries[name], tuiHelp
 		example = "  lit tui\n  lit tui --endpoint http://127.0.0.1:7411"
+	case name == "search":
+		summary, description = topSummaries[name], rankedSearchHelp
+		example = "  lit search --session my-session 'connection timeout'\n  lit search --session my-session --all-projects --state open '\"claim renewal\" -flaky'"
 	case name == "setup-skills":
 		summary, description = topSummaries[name], setupSkillsHelp
 		example = "  lit setup-skills --scope local --agent both\n  lit setup-skills --scope custom --path /work/project --agent codex"
@@ -155,6 +159,10 @@ func flagUsage(path []string, f nwcli.Flag) string {
 		u = "Sort `FIELD`: " + strings.Join(f.Value.Choices, ", ")
 	case f.Name == "clear":
 		u = "Clear `FIELD` (repeatable): " + strings.Join(f.Value.Choices, ", ")
+	case p == "search" && f.Name == "limit":
+		u = "Page size `N` (default 20, maximum 100)"
+	case p == "search" && f.Name == "state":
+		u = "Only issues in `STATE`: open or closed"
 	case p == "tui" && f.Name == "endpoint":
 		u = "Service `URL` passed to lit-tui; flag > LIT_ENDPOINT > http://127.0.0.1:7411"
 	case p == "workflow-session checkout" && f.Name == "path":

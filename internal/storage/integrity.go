@@ -37,8 +37,9 @@ const maxProblems = 100
 //     a table that fails is rebuilt, and logf reports it with one line; a
 //     table that cannot be rebuilt is a problem;
 //  2. the folded text of lit grep (grep_text), derived from the records in
-//     Go: missing, stale and orphaned rows are rewritten, and logf reports
-//     each record type with changes; the search index follows;
+//     Go, and the original text of lit search (rank_text): missing, stale and
+//     orphaned rows are rewritten, and logf reports each record type with
+//     changes; the search indexes follow;
 //  3. PRAGMA integrity_check and PRAGMA foreign_key_check of the whole
 //     database.
 //
@@ -116,21 +117,32 @@ func checkSearchTable(ctx context.Context, w *Writer, name string, logf func(str
 	return nil, nil
 }
 
-// checkFolded recomputes the grep_text rows of every record in one write
-// transaction and commits it when rows changed. A damaged table that cannot
-// be read is a problem; PRAGMA integrity_check reports the details.
+// checkFolded recomputes the grep_text and rank_text rows of every record in
+// one write transaction and commits it when rows changed. A damaged table that
+// cannot be read is a problem; PRAGMA integrity_check reports the details.
 func checkFolded(ctx context.Context, w *Writer, logf func(string, ...any)) ([]string, error) {
 	tx, e := w.Begin(ctx)
 	if e != nil {
 		return nil, e
 	}
 	defer func() { _ = tx.Rollback() }()
-	changed := make([]int, len(grepSources))
+	type pass struct {
+		what, table string
+		run         func() (int, error)
+	}
+	var passes []pass
+	for _, src := range grepSources {
+		passes = append(passes, pass{"folded text", src.table, func() (int, error) { return refold(ctx, tx.tx, src) }})
+	}
+	for _, src := range rankSources {
+		passes = append(passes, pass{"ranked search text", src.table, func() (int, error) { return resyncRank(ctx, tx.tx, src) }})
+	}
+	changed := make([]int, len(passes))
 	total := 0
-	for i, src := range grepSources {
-		changed[i], e = refold(ctx, tx.tx, src)
+	for i, p := range passes {
+		changed[i], e = p.run()
 		if e = classify(e); errors.Is(e, ErrFatal) {
-			return []string{fmt.Sprintf("folded text of %s could not be checked: %v", src.table, e)}, nil
+			return []string{fmt.Sprintf("%s of %s could not be checked: %v", p.what, p.table, e)}, nil
 		}
 		if e != nil {
 			return nil, e
@@ -143,9 +155,9 @@ func checkFolded(ctx context.Context, w *Writer, logf func(string, ...any)) ([]s
 	if e = tx.Commit(); e != nil {
 		return nil, e
 	}
-	for i, src := range grepSources {
+	for i, p := range passes {
 		if changed[i] > 0 {
-			logf("lit-server: folded text of %d %s was stale; rewrote it", changed[i], src.table)
+			logf("lit-server: %s of %d %s was stale; rewrote it", p.what, changed[i], p.table)
 		}
 	}
 	return nil, nil

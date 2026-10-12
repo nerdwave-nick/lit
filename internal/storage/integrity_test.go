@@ -127,14 +127,14 @@ func TestStartupCheckFailsOnForeignKeyViolations(t *testing.T) {
 
 // A search index that disagrees with its content is rebuilt, with a log line,
 // and the check passes; so is one whose own pages are damaged. A body changed
-// behind the storage module also leaves its folded columns stale, which the
-// check rewrites with a second log line.
+// behind the storage module also leaves its folded and ranked text stale,
+// which the check rewrites with a log line each.
 func TestStartupCheckRebuildsADamagedSearchIndex(t *testing.T) {
 	for name, c := range map[string]struct {
 		damage []string
 		lines  int
 	}{
-		"stale":   {[]string{"UPDATE comments SET body = 'changed behind the index'"}, 2},
+		"stale":   {[]string{"UPDATE comments SET body = 'changed behind the index'"}, 3},
 		"damaged": {[]string{"UPDATE comment_search_data SET block = x'00' WHERE id > 10"}, 1},
 	} {
 		damage := c.damage
@@ -150,7 +150,7 @@ func TestStartupCheckRebuildsADamagedSearchIndex(t *testing.T) {
 			}
 			log, e := check(t, db)
 			t.Log(log)
-			if e != nil || len(log) != c.lines || !strings.Contains(log[0], "comment_search") || !strings.Contains(log[0], "rebuilt") || c.lines == 2 && !strings.Contains(log[1], "folded text of 1 comments was stale") {
+			if e != nil || len(log) != c.lines || !strings.Contains(log[0], "comment_search") || !strings.Contains(log[0], "rebuilt") || c.lines == 3 && (!strings.Contains(log[1], "folded text of 1 comments was stale") || !strings.Contains(log[2], "ranked search text of 1 comments was stale")) {
 				t.Fatal(log, e)
 			}
 			if e = ftsCheck(t, db, "comment_search"); e != nil {

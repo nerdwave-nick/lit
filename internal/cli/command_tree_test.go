@@ -61,7 +61,7 @@ func TestEveryCommandHasScopedOfflineHelp(t *testing.T) {
 	t.Setenv("LIT_WORKFLOW_STATE_DIR", "/dev/null/blocked")
 	grammar.Walk(func(path []string, cmd *nwcli.Command) {
 		for _, form := range [][]string{append(append([]string{}, path...), "--help"), append(append([]string{}, path...), "-h"), append([]string{"help"}, path...), append(append([]string{}, path...), "help")} {
-			if (cmd.Name == "grep" || cmd.Name == "run") && len(form) > 0 && form[len(form)-1] == "help" || len(form) == 1 && form[0] == "help" && len(path) == 0 {
+			if (cmd.Name == "grep" || cmd.Name == "search" || cmd.Name == "run") && len(form) > 0 && form[len(form)-1] == "help" || len(form) == 1 && form[0] == "help" && len(path) == 0 {
 				continue
 			}
 			var out, err bytes.Buffer

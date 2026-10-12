@@ -32,7 +32,7 @@ Deferred archives, editing windows, drafts, and saved plans have no routes.
   its migrations, and every query (see [the storage format](../storage-format.md)).
   Reads are typed around the service's use cases (records by ID, selectors,
   filtered keyset lists, neighbours, milestone progress, claims, history, the
-  client, the search scan). Writes go through `WriteTx.WriteRequest` (records,
+  client, the search scan, ranked search). Writes go through `WriteTx.WriteRequest` (records,
   history and the transaction record of one durable request), the claim and
   client writes. Only a `Writer`, which proves the process write lock is held,
   begins a write transaction. There is no fault-injection seam: atomicity rests

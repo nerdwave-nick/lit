@@ -30,7 +30,7 @@ It builds `lit-server` without the race detector, starts it on a temporary data
 directory and free port, seeds 100 projects of about 15 issues through the HTTP
 API in transactions of 1-5 operations, then measures p50/p95/p99 per operation,
 the database size and the startup time; it doubles the history with updates,
-runs 8 writing agents and 2 grepping readers, grows to 1,000 projects, and fails
+runs 8 writing agents and 2 readers (grep and ranked search), grows to 1,000 projects, and fails
 on any missed target. `LIT_BENCH_DIR` should be on the filesystem lit-server
 really uses (tmpfs makes fsync free). The package documentation lists the other
 variables, and the report lists how each operation is measured.
@@ -187,6 +187,23 @@ its deadline still succeeds, because the deadline starts when its snapshot
 opens; queries of 1,000 bytes pass and 1,001 bytes (also counted in multi-byte
 characters) are `validation_failed`. `integration/search_test.go` runs the same
 limits through the binaries with `LIT_SEARCH_TIMEOUT=1ns`.
+
+Ranked search (`lit search`) is covered at each layer. `internal/storage`
+`rank_index_test.go` checks schema version 3 (`rank_text` and `rank_index`),
+writes keeping both in step, the migration of a version 2 database with rows,
+the setup import (`Create` + `ImportRecords`) producing a complete index, and
+the startup check rebuilding a stale `rank_index` and rewriting missing, stale
+and orphaned `rank_text` rows. `rank_query_test.go` pins the search box parser
+(phrases, exclusions, `OR`, prefixes, unbalanced quotes, `C++`, `net/http`,
+FTS5 keywords and queries without words); `rank_search_test.go` checks
+ranking order on a fixture (title over body over comments), grouping of
+comments under their issue, projects and milestones as results, scope and
+state filters, rank-order paging, diacritics (`cafe` finds `Café`), byte
+offsets, text containing the highlight markers, and 300 random queries
+without an FTS5 error. `internal/service/ranked_search_test.go` covers
+snippets, the route's settled JSON shape, cursors, validation and the search
+deadline; `integration/ranked_search_test.go` runs `lit search` through the
+binaries.
 
 `integration/tui_dispatch_test.go` covers how `lit` finds and starts `lit-tui`
 (sibling first, then PATH, process replacement, endpoint pass-through, the missing
