@@ -53,6 +53,9 @@ type Writer struct {
 	now  time.Time
 	held bool
 	open *WriteTx
+	// committed records a commit, whose pages Unlock counts for the
+	// checkpointer.
+	committed bool
 }
 
 // LockWrites waits for the process write lock, or until ctx ends. The
@@ -96,6 +99,9 @@ func (w *Writer) Unlock() {
 	if w.open != nil {
 		_ = w.open.Rollback()
 	}
+	if w.committed {
+		w.db.noteWrites()
+	}
 	w.db.stmts.prepareSeen()
 	w.held = false
 	<-w.db.writeLock
@@ -112,7 +118,11 @@ type WriteTx struct {
 func (t *WriteTx) Now() time.Time { return t.w.now }
 
 // Commit makes the transaction durable.
-func (t *WriteTx) Commit() error { return t.finish(t.tx.Commit) }
+func (t *WriteTx) Commit() error {
+	e := t.finish(t.tx.Commit)
+	t.w.committed = t.w.committed || e == nil
+	return e
+}
 
 // Rollback discards the transaction.
 func (t *WriteTx) Rollback() error { return t.finish(t.tx.Rollback) }

@@ -66,6 +66,14 @@ The owner chose this to shorten the time each write holds the write lock.
 Restoring `synchronous=FULL` in `internal/storage/storage.go` makes every
 acknowledged commit durable again at the cost of one fsync per commit.
 
+Checkpoints run on a connection of their own, outside the write lock
+(`internal/storage/checkpoint.go`): the writer connection never checkpoints
+(`wal_autocheckpoint=0`), and after the commits that wrote SQLite's default
+of 1,000 pages to the WAL, a background PASSIVE checkpoint copies the WAL into
+the database file with its two fsyncs, while later writes go on. The threshold
+is SQLite's, so the commits a power loss can lose are the same as above: those
+since the last checkpoint. Closing the database checkpoints what is left.
+
 ## Requests and transactions
 
 One static route table (`internal/service/routes.go`) classifies every route
