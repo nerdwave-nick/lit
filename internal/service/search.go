@@ -47,6 +47,13 @@ func searchExcerpt(field, body, query string, sensitive bool, context int) (prot
 		last = positions[last-1] + 1
 		first = positions[first]
 	}
+	return excerptAround(field, source, first, last, context), true
+}
+
+// excerptAround is the excerpt of the match source[first:last] in field: its
+// lines and context lines around them, centered on the match within at most
+// 400 scalars.
+func excerptAround(field string, source []rune, first, last, context int) protocol.SearchExcerpt {
 	lineStart := first
 	for lineStart > 0 && source[lineStart-1] != '\n' {
 		lineStart--
@@ -82,7 +89,7 @@ func searchExcerpt(field, body, query string, sensitive bool, context int) (prot
 			left = right - 400
 		}
 	}
-	return protocol.SearchExcerpt{Field: field, Text: string(source[left:right]), StartLine: 1 + strings.Count(string(source[:left]), "\n"), MatchLine: 1 + strings.Count(string(source[:first]), "\n"), ExcerptTruncated: left > wantLeft || right < wantRight}, true
+	return protocol.SearchExcerpt{Field: field, Text: string(source[left:right]), StartLine: 1 + strings.Count(string(source[:left]), "\n"), MatchLine: 1 + strings.Count(string(source[:first]), "\n"), ExcerptTruncated: left > wantLeft || right < wantRight}
 }
 
 // grepNeedle is the folded text that the textfold.Grep fold of a field
@@ -113,6 +120,10 @@ func (s *Server) searchPage(q protocol.SearchRequest, c protocol.Client) (Projec
 		return out, invalid("query must be nonempty UTF-8 and context_lines nonnegative")
 	}
 	if e := checkSearchText("query", q.Query); e != nil {
+		return out, e
+	}
+	m, e := newGrepMatcher(q)
+	if e != nil {
 		return out, e
 	}
 	if q.Scope.AllProjects && q.Scope.ProjectID != "" {
@@ -166,13 +177,13 @@ func (s *Server) searchPage(q protocol.SearchRequest, c protocol.Client) (Projec
 	if !q.Scope.AllProjects {
 		scope = q.Scope.ProjectID
 	}
-	e := s.q().SearchScan(s.ctx(), scope, grepNeedle(q.Query, q.CaseSensitive), func(record storage.SearchRecord) error {
+	e = m.scan(s.ctx(), s.q(), scope, func(record storage.SearchRecord) error {
 		result := protocol.SearchResult{Type: record.Type, ID: record.ID, ProjectID: record.ProjectID, IssueID: record.IssueID, IssueTitle: record.IssueTitle, Revision: record.Revision, Excerpts: []protocol.SearchExcerpt{}}
 		if searchKey(result) <= after {
 			return nil
 		}
 		for _, field := range record.Fields {
-			if ex, ok := searchExcerpt(field.Name, field.Text, q.Query, q.CaseSensitive, q.ContextLines); ok {
+			if ex, ok := m.match(field); ok {
 				result.Excerpts = append(result.Excerpts, ex)
 			}
 		}

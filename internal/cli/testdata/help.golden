@@ -1792,6 +1792,9 @@ Global Flags:
       --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
 == lit grep --help
 Search the selected project, or explicitly use --all-projects. Matching is case-insensitive by default.
+PATTERN is a literal substring. With -E/--regex it is a Go RE2 regular expression (linear time; no backreferences
+or lookarounds), matched line by line as grep does: ^ and $ match at each line, and no match crosses a newline.
+Regex matching ignores case with RE2's simple case folding, so ss does not match ß there (literal grep matches it).
 Use -- before patterns beginning with a dash; grep -- --help searches for literal --help.
 
 Requirements:
@@ -1804,7 +1807,7 @@ References:
   Use title:TITLE for literal title matching, or id:UUID_PREFIX for ID-only matching.
 
 Valid forms:
-  lit grep [--project REF | --all-projects] [--limit N] [--cursor TOKEN] PATTERN
+  lit grep [--project REF | --all-projects] [-E] [--limit N] [--cursor TOKEN] PATTERN
   lit grep [--project REF | --all-projects] -- --help
   [] means optional; | separates alternatives; ... means repeatable.
 
@@ -1813,17 +1816,19 @@ Usage:
 
 Examples:
   lit grep --session my-session 'renewal'
+  lit grep --session my-session -E 'econn(refused|reset)' --all-projects -n -C 1
   lit grep --session my-session -- --help
 
 Flags:
       --all-projects     Optional. Search or list across projects instead of the selected project
-      --case-sensitive   Optional. Use case-sensitive literal matching
+      --case-sensitive   Optional. Match case exactly (literal and regex)
   -C, --context N        Optional. Include N surrounding lines in search excerpts
       --cursor TOKEN     Optional. Continue the same query with opaque TOKEN
   -h, --help             help for grep
       --limit N          Optional. Page size N (default 100, maximum 1000 unless configured)
   -n, --n                Optional. Show line numbers in search excerpts
       --project REF      Optional. Project REF: title or UUID; otherwise session selection
+  -E, --regex            Optional. Match PATTERN as a Go RE2 regular expression, line by line
 
 Global Flags:
       --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
