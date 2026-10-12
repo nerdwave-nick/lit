@@ -162,15 +162,3 @@ func (q queries) Transaction(ctx context.Context, hash string) (r Request, found
 	}
 	return r, true, nil
 }
-
-func decodeTransaction(intent, results string) (protocol.Intent, []protocol.ChangedObject, error) {
-	var i protocol.Intent
-	var c []protocol.ChangedObject
-	if e := protocol.Decode([]byte(intent), &i); e != nil {
-		return i, nil, fmt.Errorf("stored intent: %w", e)
-	}
-	if e := protocol.Decode([]byte(results), &c); e != nil {
-		return i, nil, fmt.Errorf("stored results: %w", e)
-	}
-	return i, c, nil
-}

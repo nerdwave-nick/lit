@@ -23,7 +23,7 @@ const (
 )
 
 // write runs f in one write transaction and commits it only when f succeeds.
-func write(t *testing.T, db *DB, f func(ctx context.Context, tx *WriteTx) error) error {
+func write(t testing.TB, db *DB, f func(ctx context.Context, tx *WriteTx) error) error {
 	t.Helper()
 	ctx := context.Background()
 	w, e := db.LockWrites(ctx)
