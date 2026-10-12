@@ -3,7 +3,9 @@ package storage
 import (
 	"bytes"
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -114,13 +116,54 @@ type HistoryEntry struct {
 	BodyHunks      []BodyHunk                 `json:"body_hunks"`
 }
 
+// HistoryRow is one revision of a record as storage holds it, before its
+// request is decoded: the request's canonical intent, its results and the
+// changed fields as stored JSON, and the body before and after the change
+// (nil when the body is unchanged). AppendHistory encodes rows as the
+// history API returns them; History decodes them.
+type HistoryRow struct {
+	Revision    int64
+	RequestHash string
+	Timestamp   string
+	Intent      []byte
+	Results     []byte
+	Differences []byte
+	Body        *BodyHunk
+}
+
 // History reads the revisions of one record after afterRevision, oldest
+// first, at most limit of them (0 for all), with each request decoded; see
+// HistoryRows.
+func (q queries) History(ctx context.Context, typ, id string, afterRevision int64, limit int) ([]HistoryEntry, error) {
+	rows, e := q.HistoryRows(ctx, typ, id, afterRevision, limit)
+	if e != nil {
+		return nil, e
+	}
+	out := make([]HistoryEntry, 0, len(rows))
+	for _, r := range rows {
+		h := HistoryEntry{SchemaVersion: 1, OwnerID: id, BeforeRevision: r.Revision - 1, Revision: r.Revision, Timestamp: r.Timestamp, RequestHash: r.RequestHash, BodyHunks: []BodyHunk{}}
+		if e := json.Unmarshal(r.Differences, &h.Differences); e != nil {
+			return nil, fmt.Errorf("stored differences: %w", e)
+		}
+		if h.Intent, h.Results, e = decodeStored(r.Intent, r.Results); e != nil {
+			return nil, e
+		}
+		if r.Body != nil {
+			h.BodyHunks = append(h.BodyHunks, *r.Body)
+		}
+		out = append(out, h)
+	}
+	return out, nil
+}
+
+// HistoryRows reads the revisions of one record after afterRevision, oldest
 // first, at most limit of them (0 for all): a keyset page by revision. Body
 // hunks are rebuilt by replaying the stored diffs forward from the empty body
 // of the record's creation, in one pass that includes the revisions before the
 // page. A record without history, or a page past its newest revision, gives an
-// empty list. Missing revisions or a diff that does not apply are errors.
-func (q queries) History(ctx context.Context, typ, id string, afterRevision int64, limit int) ([]HistoryEntry, error) {
+// empty list. Missing revisions, a diff that does not apply, or an intent that
+// is not the one its request hash names are errors.
+func (q queries) HistoryRows(ctx context.Context, typ, id string, afterRevision int64, limit int) ([]HistoryRow, error) {
 	if _, e := recordColumns(typ); e != nil {
 		return nil, e
 	}
@@ -154,30 +197,26 @@ func (q queries) History(ctx context.Context, typ, id string, afterRevision int6
 	if limit <= 0 {
 		limit = -1 // no LIMIT
 	}
-	out := []HistoryEntry{}
+	out := []HistoryRow{}
 	e = q.each(ctx, `SELECT h.revision, h.request_hash, h.differences, h.body_diff, t.timestamp, t.intent, t.results
 		FROM history h JOIN transactions t ON t.request_hash = h.request_hash
 		WHERE h.owner_type = ? AND h.owner_id = ? AND h.revision > ? ORDER BY h.revision LIMIT ?`, []any{typ, id, afterRevision, limit}, func(s rowScanner) error {
-		h := HistoryEntry{SchemaVersion: 1, OwnerID: id, BodyHunks: []BodyHunk{}}
-		var differences, intent, results string
+		var h HistoryRow
 		var diff *string
-		if e := s.Scan(&h.Revision, &h.RequestHash, &differences, &diff, &h.Timestamp, &intent, &results); e != nil {
+		if e := s.Scan(&h.Revision, &h.RequestHash, &h.Differences, &diff, &h.Timestamp, &h.Intent, &h.Results); e != nil {
 			return e
 		}
-		h.BeforeRevision = h.Revision - 1
-		if e := json.Unmarshal([]byte(differences), &h.Differences); e != nil {
-			return fmt.Errorf("stored differences: %w", e)
-		}
-		var e error
-		if h.Intent, h.Results, e = decodeTransaction(intent, results); e != nil {
-			return e
+		// The intent is served as stored, so it must be the canonical intent
+		// whose hash the request carries.
+		if sum := sha256.Sum256(h.Intent); hex.EncodeToString(sum[:]) != h.RequestHash {
+			return fmt.Errorf("stored intent of request %s does not match its hash", h.RequestHash)
 		}
 		before := body
-		if e = replay(h.Revision, diff); e != nil {
+		if e := replay(h.Revision, diff); e != nil {
 			return e
 		}
 		if diff != nil {
-			h.BodyHunks = append(h.BodyHunks, BodyHunk{Before: before, After: body})
+			h.Body = &BodyHunk{Before: before, After: body}
 		}
 		out = append(out, h)
 		return nil

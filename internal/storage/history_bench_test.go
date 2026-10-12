@@ -81,3 +81,23 @@ func BenchmarkHistory205(b *testing.B) {
 		}
 	}
 }
+
+// BenchmarkHistoryJSON205 reads the whole history of an issue with 205
+// revisions as stored rows and encodes them as the history API does.
+func BenchmarkHistoryJSON205(b *testing.B) {
+	db, issue := longLived(b, 205)
+	ctx := context.Background()
+	b.ResetTimer()
+	for range b.N {
+		r, e := db.Read(ctx)
+		if e != nil {
+			b.Fatal(e)
+		}
+		rows, e := r.HistoryRows(ctx, Issues, issue, 0, 1001)
+		r.Close()
+		if e != nil || len(rows) != 205 {
+			b.Fatal(len(rows), e)
+		}
+		_ = AppendHistory(nil, issue, rows)
+	}
+}

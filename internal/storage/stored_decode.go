@@ -1,9 +1,9 @@
 package storage
 
 import (
-	"bytes"
 	"encoding/json/jsontext"
 	jsonv2 "encoding/json/v2"
+	"errors"
 	"fmt"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
@@ -26,32 +26,19 @@ var storedJSON = jsonv2.JoinOptions(strict, jsonv2.WithUnmarshalers(jsonv2.JoinU
 		return jsonv2.UnmarshalDecode(d, (*plain)(v))
 	}),
 	jsonv2.UnmarshalFromFunc(func(d *jsontext.Decoder, v *protocol.ProjectSet) error {
-		raw, e := d.ReadValue()
-		if e != nil {
-			return e
-		}
 		type plain protocol.ProjectSet
-		var nulls struct {
-			ParentID jsontext.Value `json:"parent_id"`
-			Assignee jsontext.Value `json:"assignee"`
+		return jsonv2.UnmarshalDecode(d, (*plain)(v))
+	}),
+	// A set's parent_id and assignee (its only **string fields) keep a null
+	// as a pointer to nil, which clears them; other values decode as usual.
+	jsonv2.UnmarshalFromFunc(func(d *jsontext.Decoder, v ***string) error {
+		if d.PeekKind() != 'n' {
+			return errors.ErrUnsupported
 		}
-		if e = jsonv2.Unmarshal(raw, (*plain)(v), strict); e != nil {
+		if _, e := d.ReadToken(); e != nil {
 			return e
 		}
-		// Compact JSON escapes the quotes inside strings, so a body cannot
-		// contain these; most sets clear neither and skip the second pass.
-		if !bytes.Contains(raw, []byte(`"parent_id":null`)) && !bytes.Contains(raw, []byte(`"assignee":null`)) {
-			return nil
-		}
-		if e = jsonv2.Unmarshal(raw, &nulls); e != nil {
-			return e
-		}
-		if string(nulls.ParentID) == "null" {
-			v.ParentID = new(*string)
-		}
-		if string(nulls.Assignee) == "null" {
-			v.Assignee = new(*string)
-		}
+		*v = new(*string)
 		return nil
 	}),
 	jsonv2.UnmarshalFromFunc(func(d *jsontext.Decoder, v *protocol.ProjectMembers) error {
@@ -77,12 +64,17 @@ var storedJSON = jsonv2.JoinOptions(strict, jsonv2.WithUnmarshalers(jsonv2.JoinU
 
 // decodeTransaction decodes a stored transaction's intent and results.
 func decodeTransaction(intent, results string) (protocol.Intent, []protocol.ChangedObject, error) {
+	return decodeStored([]byte(intent), []byte(results))
+}
+
+// decodeStored is decodeTransaction of the stored JSON as bytes.
+func decodeStored(intent, results []byte) (protocol.Intent, []protocol.ChangedObject, error) {
 	var i protocol.Intent
 	var c []protocol.ChangedObject
-	if e := jsonv2.Unmarshal([]byte(intent), &i, storedJSON); e != nil {
+	if e := jsonv2.Unmarshal(intent, &i, storedJSON); e != nil {
 		return i, nil, fmt.Errorf("stored intent: %w", e)
 	}
-	if e := jsonv2.Unmarshal([]byte(results), &c, storedJSON); e != nil {
+	if e := jsonv2.Unmarshal(results, &c, storedJSON); e != nil {
 		return i, nil, fmt.Errorf("stored results: %w", e)
 	}
 	return i, c, nil

@@ -154,11 +154,7 @@ func (s *Server) recordRoute(w http.ResponseWriter, r *http.Request, c protocol.
 			if typ == "milestones" {
 				values.Del("project_id")
 			}
-			page, e := s.historyPage(typ, segments[0], typ+":"+segments[0], values)
-			if e != nil {
-				return true, e
-			}
-			return true, s.writeReadPage(w, page)
+			return true, s.serveHistory(w, typ, segments[0], typ+":"+segments[0], values)
 		}
 		if len(segments) != 3 {
 			return true, invalid("request hash required")

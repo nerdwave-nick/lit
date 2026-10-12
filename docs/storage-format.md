@@ -273,6 +273,9 @@ a `history` row with its new revision:
 
 The history API rebuilds each entry's `body_hunks` (the whole body before and
 after) by replaying the diffs from the empty body of the record's creation.
+It writes each entry's intent, results and field differences as they are
+stored, without decoding them; the bytes equal encoding the decoded values. A
+stored intent must hash to its request hash, or the read fails.
 History pages follow revisions; their cursors name the previous page's last
 entry by timestamp and request hash, as before. `transactions status` proves a
 commit by looking up the request hash in `transactions`, with the proof
