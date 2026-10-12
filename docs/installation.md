@@ -379,7 +379,9 @@ The stack:
   after [damage met while serving](recovery.md#damage-while-serving) or a
   crash, Docker starts it again; `docker compose stop` stops it until the next
   `docker compose start` or `up`. SIGTERM gets the 30-second drain
-  (`stop_grace_period: 35s`).
+  (`stop_grace_period: 35s`); a stop that drains in time is a
+  [clean shutdown](recovery.md#clean-and-unclean-shutdowns), so the next start
+  skips the full integrity scan, while a restart after a crash runs it.
 - **Health:** an exec-form healthcheck runs `lit-server healthcheck`, which
   calls `GET /v1/meta` on the configured listen address. It reports unhealthy
   in [degraded mode](recovery.md#degraded-mode) (503 `recovery_required`), on
@@ -543,7 +545,8 @@ CONFIG=${XDG_CONFIG_HOME:-$HOME/.config}/lit-server/config.json
    at the new directory: set `data_dir` in `$CONFIG`, or `Environment=LIT_DATA_DIR=`
    in the unit, or pass `--data-dir "$NEW"`. Then
    `systemctl --user enable --now lit.socket` (or `lit.service`), or start it in
-   the foreground. Its startup check runs first. An old binary started on `$NEW`
+   the foreground. Its full integrity scan runs first: an imported database
+   has no clean-shutdown marker. An old binary started on `$NEW`
    refuses it, and the new binary refuses `$OLD`.
 6. **Smoke test.** `curl -s http://127.0.0.1:7411/v1/meta` shows the same
    `service_id` as before; connect with an existing session (`lit connect`);

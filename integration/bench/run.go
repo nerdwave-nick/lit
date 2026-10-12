@@ -140,11 +140,35 @@ func (r *Runner) issues(n int, long bool) []*IssueState {
 	return out
 }
 
-// Restart stops the server, records the database size, and restarts it
-// r.P.Restarts times, returning each startup time.
-func (r *Runner) Restart() (SizeStats, []time.Duration, error) {
+// Startups are the timed restarts at one size: Clean after a graceful stop,
+// which skips the full integrity scan, and Unclean after kill -9, which runs
+// it.
+type Startups struct{ Clean, Unclean []time.Duration }
+
+// Restart stops the server gracefully, records the database size, and
+// restarts it r.P.Restarts times; then kills it (kill -9) and restarts it
+// r.P.Restarts times. A restart that did not take the expected path, a skipped
+// scan after the graceful stop and a full scan after kill -9, is an error.
+func (r *Runner) Restart() (SizeStats, Startups, error) {
 	var size SizeStats
-	var startups []time.Duration
+	var startups Startups
+	restart := func(want string, into *[]time.Duration) error {
+		s, d, err := StartServer(r.Bin, r.Data, r.Config)
+		if err != nil {
+			return err
+		}
+		r.Server = s
+		if !strings.Contains(s.Log(), want) {
+			return fmt.Errorf("lit-server at a timed restart did not log %q: %s", want, s.Log())
+		}
+		*into = append(*into, d)
+		for _, line := range strings.Split(s.Log(), "\n") {
+			if strings.Contains(line, "rebuilt") || strings.Contains(line, "rewrote") || strings.Contains(line, "integrity check") {
+				r.StartupLog = append(r.StartupLog, line)
+			}
+		}
+		return nil
+	}
 	for n := range r.P.Restarts {
 		if err := r.Server.Stop(); err != nil {
 			return size, startups, err
@@ -156,20 +180,26 @@ func (r *Runner) Restart() (SizeStats, []time.Duration, error) {
 				r.Logf("dbstat: %v", err)
 			}
 		}
-		s, d, err := StartServer(r.Bin, r.Data, r.Config)
-		if err != nil {
+		if err := restart(CleanStartLog, &startups.Clean); err != nil {
 			return size, startups, err
 		}
-		r.Server = s
-		startups = append(startups, d)
-		for _, line := range strings.Split(s.Log(), "\n") {
-			if strings.Contains(line, "rebuilt") || strings.Contains(line, "rewrote") || strings.Contains(line, "integrity") {
-				r.StartupLog = append(r.StartupLog, line)
-			}
+	}
+	for range r.P.Restarts {
+		if err := r.Server.Kill(); err != nil {
+			return size, startups, err
+		}
+		if err := restart(UncleanStartLog, &startups.Unclean); err != nil {
+			return size, startups, err
 		}
 	}
 	return size, startups, nil
 }
+
+// The startup log lines of lit-server's two startup paths.
+const (
+	CleanStartLog   = "lit-server: clean shutdown: full integrity scan skipped"
+	UncleanStartLog = "lit-server: unclean shutdown: running full integrity scan"
+)
 
 // Double adds as many history rows as the first n projects hold, with
 // update-only transactions of 1-5 random issues.

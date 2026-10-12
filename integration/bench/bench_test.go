@@ -91,7 +91,7 @@ func TestBenchmark(t *testing.T) {
 	stats, err = r.Double(n)
 	must(err)
 	report.Corpus = append(report.Corpus, stats)
-	after := phase(r.Measure("After doubling the history with updates only", n, 0, nil))
+	after := phase(r.Measure("After doubling the history with updates only", n, 0, Startups{}))
 	checks = append(append(checks, HistoryChecks(target.Summaries, after.Summaries)...), FailureCheck("after doubling", after.Failures))
 
 	conc, result, err := r.Concurrent(fmt.Sprintf("Concurrency at the target size: %d agents writing, %d readers, %s", p.Writers, p.Readers, p.Concurrent), n)
@@ -145,7 +145,7 @@ var notes = []string{
 	"Get one issue is POST /v1/snapshots with one target (lit issues get). The issue list without bodies is POST /v1/issue-summaries over all projects with limit 100, following the cursor. The whole project with bodies is POST /v1/snapshots for all issues of one project. History reads every entry (all=true) of an issue with 205 or more updates.",
 	"Literal grep is POST /v1/search over all projects with the default page of 100 and no context lines; each query is also listed on its own. Queries of fewer than 3 folded characters have the 500 ms target.",
 	"Regex grep (lit grep -E) is POST /v1/search with regex over all projects, case-insensitive, with the default page of 100 and no context lines; each pattern is also listed on its own. The first four patterns are prefiltered through the trigram index by a literal they require; ^#+ \\w+ and \\d{5}-\\d{5}-\\d{5} require none and read every record (the second matches nothing: a full scan). The concurrent readers do not run regex.",
-	"Startup runs from starting the process to the first 200 from /v1/meta after a clean stop, so it includes the full integrity check; its p95 over the restarts is their maximum.",
+	"Startup runs from starting the process to the first 200 from /v1/meta. startup is the restart after a graceful stop, which skips the full integrity scan (clean-shutdown marker), and is gated; startup.unclean is the restart after kill -9, which runs the full integrity scan, and is informational, not gated. Each p95 over the restarts is their maximum.",
 	"History independence: the decision says \"within noise\" without a number; the harness reads it as at most 1.5x the baseline plus 1 ms, for p50 and p95. A history-dependent cost doubles with the history.",
 	"The 10x corpus adds 900 projects to the 100 whose history was doubled. Concurrency at 10x is reported but not gated: the decision states the concurrency criterion without a size.",
 	"Ranked search (lit search) is POST /v1/ranked-search over all projects with the default page of 20; each query is also listed on its own. The concurrent readers alternate literal grep and ranked search.",

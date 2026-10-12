@@ -16,7 +16,10 @@
 // 10th project and a 64 KB body in every 20th; text comes from this
 // repository's Markdown and Go files and body sizes follow the live tracker
 // (median 870 B, at most 15 KB). Then it measures each operation's p50, p95
-// and p99, the database size and the startup time; doubles the history with
+// and p99, the database size and the startup time, both after a graceful stop
+// (startup: the clean-shutdown marker skips the full integrity scan; gated)
+// and after kill -9 (startup.unclean: the full scan runs; informational, not
+// gated); doubles the history with
 // updates only and measures again; runs 8 writing agents and 2 readers
 // (literal grep and ranked search in turn); and grows the corpus to 1,000 projects (10x) and measures again.
 // Any missed target or criterion fails the test.

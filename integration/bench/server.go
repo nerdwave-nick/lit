@@ -53,7 +53,8 @@ func WriteConfig(dir string) (string, error) {
 
 // StartServer starts bin and returns once GET /v1/meta answers 200. The
 // returned duration runs from starting the process to that answer, so it
-// includes opening the database and the full startup integrity check.
+// includes opening the database and, after an unclean shutdown, the full
+// integrity scan.
 func StartServer(bin, data, config string) (*Server, time.Duration, error) {
 	l, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
@@ -114,6 +115,21 @@ func (s *Server) Stop() error {
 	case <-time.After(2 * time.Minute):
 		_ = s.cmd.Process.Kill()
 		return fmt.Errorf("lit-server did not stop: %s", s.log)
+	}
+}
+
+// Kill kills the server (kill -9), as a crash would end it, and waits for it
+// to exit.
+func (s *Server) Kill() error {
+	http.DefaultTransport.(*http.Transport).CloseIdleConnections()
+	if err := s.cmd.Process.Kill(); err != nil {
+		return err
+	}
+	select {
+	case <-s.exited:
+		return nil
+	case <-time.After(time.Minute):
+		return fmt.Errorf("lit-server did not exit after kill -9: %s", s.log)
 	}
 }
 

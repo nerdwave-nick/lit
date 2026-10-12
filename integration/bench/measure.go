@@ -26,11 +26,15 @@ func grepOp(query string) string {
 
 // Measure measures every operation sequentially, after a warm-up, over the
 // first n projects. The phase's recorder gets each operation's samples;
-// startups are added as the "startup" operation.
-func (r *Runner) Measure(name string, n int, factor float64, startups []time.Duration) (PhaseResult, error) {
+// startups are added as the "startup" (clean, gated) and "startup.unclean"
+// (informational) operations.
+func (r *Runner) Measure(name string, n int, factor float64, startups Startups) (PhaseResult, error) {
 	rec := NewRecorder()
-	for _, d := range startups {
+	for _, d := range startups.Clean {
 		rec.Add("startup", d)
+	}
+	for _, d := range startups.Unclean {
+		rec.Add("startup.unclean", d)
 	}
 	c, err := Connect(r.Server.Endpoint, "measure", r.HTTP)
 	if err != nil {

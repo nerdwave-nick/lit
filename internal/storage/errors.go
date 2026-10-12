@@ -57,6 +57,7 @@ func (db *DB) OnFatal(f func(error)) { db.fatal.Store(&f) }
 func (db *DB) report(e error) error {
 	e = classify(e)
 	if errors.Is(e, ErrFatal) {
+		db.failed.Store(true)
 		if f := db.fatal.Load(); f != nil {
 			(*f)(e)
 		}

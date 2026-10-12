@@ -54,6 +54,8 @@ type DB struct {
 	serviceID string
 	version   int
 	fatal     atomic.Pointer[func(error)] // see OnFatal
+	failed    atomic.Bool                 // a fatal error was met; see CloseClean
+	prior     PriorShutdown               // see PriorShutdown
 }
 
 // Open takes ownership of the data directory dir, creating it when missing,
@@ -63,7 +65,8 @@ type DB struct {
 // binary knows is refused. A second owner fails with an error containing
 // "already owned". A directory that still holds a legacy file store (its
 // LegacyMarker) is refused with ErrLegacyStore before anything is written to
-// it.
+// it. Under the owner lock, before the database is opened, the open reads and
+// removes the CleanMarker (see PriorShutdown).
 func Open(dir string) (*DB, error) { return OpenWith(dir, Options{}) }
 
 // Options configure an opened database; the zero value uses the defaults.
@@ -126,6 +129,9 @@ func openWith(dir string, ms []migration, o Options, existing bool) (db *DB, err
 			owned.Close()
 		}
 	}()
+	if db.prior, err = takeMarker(dir); err != nil {
+		return nil, err
+	}
 	path := filepath.Join(dir, DatabaseFile)
 	if db.writer, err = sql.Open("sqlite", dsn(path, false)); err != nil {
 		return nil, err
@@ -202,8 +208,13 @@ func (db *DB) ServiceID() string { return db.serviceID }
 func (db *DB) SchemaVersion() int { return db.version }
 
 // Close closes the database and releases ownership. Callers stop issuing
-// requests first; open transactions must be finished.
-func (db *DB) Close() error {
+// requests first; open transactions must be finished. It writes no
+// CleanMarker; see CloseClean.
+func (db *DB) Close() error { return errors.Join(db.closeConnections(), db.release()) }
+
+// closeConnections closes the prepared statements and connection pools; the
+// writer closes last, checkpointing the WAL into the database file.
+func (db *DB) closeConnections() error {
 	var errs []error
 	db.stmts.close()
 	db.readStmts.close()
@@ -213,9 +224,15 @@ func (db *DB) Close() error {
 		}
 	}
 	db.readers, db.writer = nil, nil
-	if db.lockFile != nil {
-		errs = append(errs, unlock(db.lockFile), db.lockFile.Close())
-		db.lockFile = nil
-	}
 	return errors.Join(errs...)
+}
+
+// release releases ownership of the data directory.
+func (db *DB) release() error {
+	if db.lockFile == nil {
+		return nil
+	}
+	e := errors.Join(unlock(db.lockFile), db.lockFile.Close())
+	db.lockFile = nil
+	return e
 }

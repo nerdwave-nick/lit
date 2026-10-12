@@ -29,7 +29,9 @@ LIT_BENCH=1 LIT_BENCH_DIR=~/.cache/lit-bench go test -run TestBenchmark -timeout
 It builds `lit-server` without the race detector, starts it on a temporary data
 directory and free port, seeds 100 projects of about 15 issues through the HTTP
 API in transactions of 1-5 operations, then measures p50/p95/p99 per operation,
-the database size and the startup time; it doubles the history with updates,
+the database size and the startup time after a graceful stop (gated; the
+clean-shutdown marker skips the full integrity scan) and after kill -9
+(`startup.unclean`, informational; the full scan runs); it doubles the history with updates,
 runs 8 writing agents and 2 readers (grep and ranked search), grows to 1,000 projects, and fails
 on any missed target. `LIT_BENCH_DIR` should be on the filesystem lit-server
 really uses (tmpfs makes fsync free). The package documentation lists the other
@@ -64,7 +66,12 @@ unparsable schema (`writable_schema`, then a schema cookie bump so open
 connections reload it) are `ErrFatal`. The `Verify` tests change rows and
 history behind the history (fields, bodies, sets, links, members, revisions,
 diffs, "before" values) and insert legacy membership-list history rows that
-must be skipped.
+must be skipped. The clean-shutdown tests (`clean_test.go`) require
+`CloseClean` to leave the marker that the next open consumes (`Open` and
+`OpenExisting` alike), a plain `Close` and a fresh database to leave none, a
+fatal error met while open to prevent it, and the marker to go stale when the
+database is written from outside, replaced by a snapshot (renamed or copied
+over in place), or the marker is deleted or damaged.
 
 The grep index tests cover the migration to schema version 2 (a version 1
 database with rows gets a filled `grep_text` and `grep_index` after its
@@ -155,10 +162,16 @@ admitted request waits inside its `BEGIN IMMEDIATE` (the test waits until a
 goroutine runs `storage.(*Writer).Begin`), `Stop` refuses new requests, and
 releasing the lock lets the admitted request commit. Lock contention outlasting
 the busy timeout answers `503 storage_busy`. `cmd/lit-server` tests start the service on
-damaged and healthy data directories (degraded mode, search index rebuild) and
-run `lit-server verify`; `integration/integrity_test.go` drives the binary in
-degraded mode, its exit on corruption met while serving, and `verify` on a
-tracker written through the CLI.
+damaged and healthy data directories (degraded mode, search index rebuild),
+check the startup log line of each path (a clean marker skips the scan, so a
+foreign-key violation behind it is served; a missing one runs it) and run
+`lit-server verify`, which leaves the marker only when the database verified;
+`integration/integrity_test.go` drives the binary in degraded mode, its exit
+on corruption met while serving (leaving no marker), and `verify` on a
+tracker written through the CLI. `integration/clean_shutdown_test.go` starts
+the binary, stops it gracefully and restarts it with the scan skipped, kills it
+with kill -9 and restarts it with the scan run, and restores an identical copy
+of the database, which is scanned.
 `cmd/lit-server` healthcheck tests serve a started service and degraded mode
 over loopback HTTP and run `lit-server healthcheck` against them, a closed port
 and foreign answers; the listen address comes from flags, environment or config,

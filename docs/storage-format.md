@@ -15,6 +15,11 @@ The data directory holds:
 - `lit.db.lock`, the owner lock. lit-server takes an exclusive `flock` on it,
   so only one lit-server serves a database. A second one fails with
   `storage is already owned`;
+- `lit.db.clean`, the clean-shutdown marker, present only while no owner has
+  the database open after a clean shutdown (or a `lit-server verify` that
+  passed). Every owner removes it when it opens the database; it names the
+  database files it was written for, so it does not apply to a database that
+  changed since. See [clean and unclean shutdowns](recovery.md#clean-and-unclean-shutdowns);
 - `backup/`, the default backup directory (`backup_dir`, `LIT_BACKUP_DIR`):
   the scheduled `VACUUM INTO` snapshots `lit-<UTC time>-scheduled.db`, of which
   the newest `backup_keep` are kept, and the snapshots
@@ -39,7 +44,7 @@ lit-server runs. Each reads one WAL snapshot,
 which SQLite isolates from the owner's later commits. A reader never creates,
 migrates or writes the database; it refuses a missing database, a legacy file
 store and a schema version other than its own.
-`lit-server verify` is different: it runs the startup checks, which may rebuild
+`lit-server verify` is different: it runs the full integrity scan, which may rebuild
 a search index, so it takes the owner lock (`storage.OpenExisting`) and needs
 lit-server stopped. It never creates or migrates a database either.
 
@@ -54,7 +59,8 @@ checkpointed into the database file. The trade-off:
 - Power loss or an operating-system crash can lose the most recent
   acknowledged commits, those since the last checkpoint. The database stays
   consistent: it reopens at an earlier committed state, never with a partial
-  transaction, and passes the startup integrity checks.
+  transaction, and passes the full integrity scan, which the next start runs
+  because the crash left no clean-shutdown marker.
 
 The owner chose this to shorten the time each write holds the write lock.
 Restoring `synchronous=FULL` in `internal/storage/storage.go` makes every
@@ -179,7 +185,8 @@ module for the records whose `grep_text` may contain it:
 The storage module writes a record's `grep_text` row in the same transaction
 as the record, and triggers keep `grep_index` in step with `grep_text`. A
 writer that skips `grep_text` (or a changed fold) is repaired by the next
-startup check. The final match and the excerpts are computed by the service
+full integrity scan, which runs at a start after an unclean shutdown and in
+`lit-server verify`. The final match and the excerpts are computed by the service
 on the original text, exactly as before the index, so results, excerpts and
 pages are unchanged; the scan stops once a page and the start of the next one
 are found.
@@ -277,7 +284,10 @@ while it runs; do not write to it from outside.
 
 ## Integrity
 
-Every start runs the FTS5 `integrity-check` of each search table (rebuilding
+A start after an unclean shutdown, and `lit-server verify`, run the full
+integrity scan; a start after a clean shutdown (`lit.db.clean`, see
+[clean and unclean shutdowns](recovery.md#clean-and-unclean-shutdowns)) skips
+it. The scan runs the FTS5 `integrity-check` of each search table (rebuilding
 one that fails), recomputes `grep_text` and resynchronizes `rank_text` from the
 records (rewriting missing, stale and orphaned rows, with a log line per record type),
 `PRAGMA integrity_check` and `PRAGMA foreign_key_check`. The checks that only

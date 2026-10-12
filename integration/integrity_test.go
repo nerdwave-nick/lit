@@ -124,6 +124,9 @@ func TestCorruptionWhileServingExits(t *testing.T) {
 		s.cmd.Process.Kill()
 		t.Fatalf("still running: %s", s.log)
 	}
+	if cleanMarker(t, data) {
+		t.Fatal("a database failure recorded a clean shutdown")
+	}
 	s = start(t, data)
 	if code, errCode, msg := errorCode(t, s, "GET", "/v1/meta"); code != 503 || errCode != "recovery_required" || !strings.Contains(msg, "malformed") {
 		t.Fatal(code, errCode, msg)

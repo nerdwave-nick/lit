@@ -32,7 +32,7 @@ func scheduledBackups(t *testing.T, dir string) []string {
 // lit-server takes scheduled backups into LIT_BACKUP_DIR while it serves and
 // keeps LIT_BACKUP_KEEP of them, leaving other files alone. A snapshot
 // restored as docs/recovery.md describes (stop, replace the database,
-// lit-server verify, start) passes verify and the startup checks and serves
+// lit-server verify, start) passes verify, which leaves it clean, and serves
 // the tracker as it was.
 func TestScheduledBackupRestores(t *testing.T) {
 	root := t.TempDir()
@@ -90,6 +90,10 @@ func TestScheduledBackupRestores(t *testing.T) {
 	s = start(t, data, "LIT_BACKUP_DIR="+backup, "LIT_BACKUP_INTERVAL=0")
 	if code, errCode, msg := errorCode(t, s, "GET", "/v1/meta"); code != 200 {
 		t.Fatal(code, errCode, msg, s.log)
+	}
+	// verify ran the full scan on the restored database and recorded it.
+	if !strings.Contains(s.log.String(), scanSkipped) {
+		t.Fatal(s.log.String())
 	}
 	got := item(run(t, root, state, 0, "issues", "get", "title:Kept", "--endpoint", s.endpoint, "--format", "json"))
 	if got["body"] != "one\nthree\n" {

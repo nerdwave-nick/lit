@@ -66,11 +66,26 @@ func TestVerifyArgumentErrors(t *testing.T) {
 	}
 }
 
+// A database that verified is left clean: the next start skips the full
+// integrity scan that verify just ran.
 func TestVerifyPassesOnAConsistentDatabase(t *testing.T) {
 	dir := fresh(t, func(*sql.DB) {})
 	code, out, errOut := verifyCLI(t, "--data-dir", dir)
 	if code != 0 || !strings.Contains(out, "verified") || errOut != "" {
 		t.Fatal(code, out, errOut)
+	}
+	if !markerPresent(t, dir) {
+		t.Fatal("verify left no clean-shutdown marker")
+	}
+}
+
+// A database that failed verify keeps no marker, even one left by a clean
+// shutdown before the damage, so the next start runs the full scan.
+func TestVerifyFailureLeavesNoMarker(t *testing.T) {
+	dir := fresh(t, func(o *sql.DB) { execSQL(t, o, projectRow) })
+	markClean(t, dir)
+	if code, out, _ := verifyCLI(t, "--data-dir", dir); code != 1 || markerPresent(t, dir) {
+		t.Fatal(code, out, markerPresent(t, dir))
 	}
 }
 

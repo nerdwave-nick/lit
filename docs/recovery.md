@@ -57,7 +57,9 @@ a tracker back.
 
 ## Startup checks
 
-Every start runs, before the first request is served:
+The full integrity scan runs at a start after an unclean shutdown, and on
+demand with [`lit-server verify`](#lit-server-verify). A start after a clean
+shutdown skips it. The scan runs, before the first request is served:
 
 1. the FTS5 `integrity-check` of every FTS5 (search) table, compared with its
    content table. Search tables are derived from rows of the same database, so
@@ -72,9 +74,44 @@ Every start runs, before the first request is served:
 3. `PRAGMA integrity_check` and `PRAGMA foreign_key_check` of the whole
    database.
 
-The full check reads the whole database, so a start takes longer as the
-database grows; with socket activation it delays the first request after a
-start.
+The full scan reads the whole database, so it takes longer as the database
+grows; with socket activation it delays the first request after such a start.
+
+### Clean and unclean shutdowns
+
+lit-server records a clean shutdown in the clean-shutdown marker `lit.db.clean`
+in the data directory. On a graceful stop (SIGTERM or SIGINT) it writes the
+marker only after the periodic jobs stopped, the HTTP server drained and the
+database closed without an error, and only when no request met a database
+failure (`SQLITE_CORRUPT`, `SQLITE_NOTADB` or an I/O error). It writes it
+atomically (a temporary file, fsynced and renamed, then the directory
+fsynced). Degraded mode, an exit on [damage while serving](#damage-while-serving),
+the 30-second shutdown deadline, a crash, `kill -9` and power loss leave no
+marker.
+
+Every start reads and removes the marker, and fsyncs the data directory,
+before it serves anything, so a crash while serving is always detected at the
+next start. It logs one line naming the path it took:
+
+- `lit-server: clean shutdown: full integrity scan skipped`;
+- `lit-server: unclean shutdown: running full integrity scan`;
+- `lit-server: new database: full integrity scan skipped`, when the start
+  created the database in an empty data directory.
+
+The marker records the identity of the database files as the clean shutdown
+left them: device, inode, size, modification and status change times of
+`lit.db`, and of `lit.db-wal` if it is not empty. A marker that no longer
+matches is ignored, so a database replaced or written after the clean
+shutdown is scanned: a [restored snapshot](#restore-a-snapshot), a repair, or
+a write from outside lit-server (even an identical copy, or a change of
+`lit.db`'s owner or mode). A schema migration at a start does not force the
+scan by itself: the marker is checked before the migration runs.
+
+To force the full scan at the next start, delete `lit.db.clean` from the
+stopped lit-server's data directory, or run `lit-server verify`, which runs it
+at once. A lit-server upgrade after a clean shutdown skips the scan; if the
+new version changes how `lit grep` folds text, its folded text is rewritten
+only by the next full scan, so force one after such an upgrade.
 
 ## Degraded mode
 
@@ -111,8 +148,9 @@ what degraded mode needs: restarting would meet the same damage.
 When a request meets `SQLITE_CORRUPT`, `SQLITE_NOTADB` or an I/O error,
 lit-server logs `lit-server: database failure while serving; exiting ...` and
 exits with status 1. The supervisor restarts it (systemd `Restart=on-failure`;
-a container restart policy such as `restart: unless-stopped`), and the startup
-checks run again: a rebuilt search index lets it serve normally, damage to the
+a container restart policy such as `restart: unless-stopped`), and the full
+integrity scan runs at that start, since the exit leaves no clean-shutdown
+marker: a rebuilt search index lets it serve normally, damage to the
 records puts it in degraded mode. Requests in flight lose their connection;
 mutations among them are uncertain outcomes that clients reconcile with
 `lit transactions status`, as after any crash.
@@ -120,7 +158,7 @@ mutations among them are uncertain outcomes that clients reconcile with
 ## `lit-server verify`
 
 `lit-server verify [--data-dir DIR] [--config FILE]` verifies a database on
-demand; it never runs at startup. It runs the startup checks (including the
+demand; it never runs at startup. It runs the full integrity scan (including the
 automatic search index rebuild and folded text rewrite), then replays every record's field and body
 history from its creation, in one read snapshot, and compares the result with
 the record's current state: every revision from 1 must be present, each stored
@@ -134,6 +172,11 @@ replayed when the startup checks fail.
 Each problem is one line on stdout, naming the record type and ID. Exit status
 0 means the database verified, 1 that a check or the replay found a problem or
 the database could not be opened, 2 that the arguments were invalid.
+
+Like a start, `verify` removes the clean-shutdown marker when it opens the
+database. When the database verified it writes a new marker as it closes, so
+the next start skips the scan that `verify` just ran; when it found a problem
+or failed, it leaves none, so the next start runs the scan.
 
 `verify` takes the data directory's owner lock, because its startup checks
 may rebuild a search index, so lit-server must be stopped (unlike
@@ -195,12 +238,17 @@ A snapshot is a complete database file without WAL files. To restore one:
 3. Copy the snapshot into the data directory as `lit.db`, readable and writable
    by lit-server's user.
 4. Run `lit-server verify` with the same data directory (`--data-dir`,
-   `LIT_DATA_DIR` or the config file). It runs the startup checks and replays
-   all history; continue only when it exits 0. If it reports problems, try the
-   next older snapshot.
-5. Start lit-server. Its startup checks run again before it serves.
+   `LIT_DATA_DIR` or the config file). It runs the full integrity scan and
+   replays all history; continue only when it exits 0. If it reports problems,
+   try the next older snapshot.
+5. Start lit-server. It skips the full integrity scan, which `verify` just ran
+   on this database and recorded in the clean-shutdown marker.
 
-This order verifies the snapshot before anything is served from it.
+This order verifies the snapshot before anything is served from it. The
+marker the stopped lit-server left in step 1 does not carry over to the
+restored database: it names the replaced files, so it is ignored, and a start
+on the restored database without step 4 runs the full scan. Deleting
+`lit.db.clean` in step 2 is harmless but not needed.
 Under Docker Compose the database is in a named volume; the
 [compose restore commands](installation.md#docker-compose) follow the same steps.
 

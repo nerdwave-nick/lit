@@ -88,9 +88,62 @@ func startTest(t *testing.T, dir string) (started, string) {
 	return s, log.String()
 }
 
+const (
+	scanSkipped = "lit-server: clean shutdown: full integrity scan skipped"
+	scanRun     = "lit-server: unclean shutdown: running full integrity scan"
+	scanNew     = "lit-server: new database: full integrity scan skipped"
+)
+
 func TestStartupServesAHealthyDatabase(t *testing.T) {
 	s, log := startTest(t, t.TempDir())
-	if code, _ := meta(t, s.handler); code != 200 || s.db == nil || s.fatal == nil || log != "" {
+	if code, _ := meta(t, s.handler); code != 200 || s.db == nil || s.fatal == nil || log != scanNew+"\n" {
+		t.Fatal(code, log)
+	}
+}
+
+// markClean opens dir as its owner and closes it cleanly, leaving the
+// clean-shutdown marker for its files as they are.
+func markClean(t *testing.T, dir string) {
+	t.Helper()
+	db, e := storage.Open(dir)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if e = db.CloseClean(); e != nil {
+		t.Fatal(e)
+	}
+}
+
+func markerPresent(t *testing.T, dir string) bool {
+	t.Helper()
+	_, e := os.Stat(filepath.Join(dir, storage.CleanMarker))
+	if e != nil && !os.IsNotExist(e) {
+		t.Fatal(e)
+	}
+	return e == nil
+}
+
+// After a clean shutdown the full integrity scan does not run: here it would
+// have found the foreign key violation and served degraded mode. The marker
+// is gone before anything is served.
+func TestStartupSkipsTheScanAfterACleanShutdown(t *testing.T) {
+	dir := fresh(t, func(o *sql.DB) {
+		execSQL(t, o, "INSERT INTO project_repositories (project_id, repository_ref) VALUES ('00000000-0000-4000-8000-000000000009', 'x')")
+	})
+	markClean(t, dir)
+	s, log := startTest(t, dir)
+	if code, _ := meta(t, s.handler); code != 200 || s.fatal == nil || log != scanSkipped+"\n" {
+		t.Fatal(code, log)
+	}
+	if markerPresent(t, dir) {
+		t.Fatal("the clean-shutdown marker survived the start")
+	}
+}
+
+// Without the marker, after a crash or a plain close, the scan runs.
+func TestStartupScansAfterAnUncleanShutdown(t *testing.T) {
+	s, log := startTest(t, fresh(t, func(*sql.DB) {}))
+	if code, _ := meta(t, s.handler); code != 200 || log != scanRun+"\n" {
 		t.Fatal(code, log)
 	}
 }
@@ -124,7 +177,7 @@ func TestStartupServesDegradedModeOnADamagedDatabase(t *testing.T) {
 			if (s.db != nil) != x.opened || s.fatal != nil {
 				t.Fatalf("db %v fatal %v", s.db, s.fatal)
 			}
-			if !strings.Contains(log, "degraded mode") || !strings.Contains(log, x.message) {
+			if !strings.Contains(log, "degraded mode") || !strings.Contains(log, x.message) || (x.opened && !strings.Contains(log, scanRun)) {
 				t.Fatal(log)
 			}
 		})

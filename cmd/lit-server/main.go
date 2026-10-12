@@ -73,6 +73,15 @@ func runService(c service.Config, errOut io.Writer) int {
 		os.Exit(1)
 	}
 	stop()
+	// Only a healthy database that closes without a failure, after the jobs
+	// stopped and the requests drained, is left clean; degraded mode, a
+	// database failure, the deadline exit above and every error return leave
+	// the next start to run the full integrity scan.
+	if s.fatal != nil {
+		if e = s.db.CloseClean(); e != nil {
+			fmt.Fprintf(errOut, "lit-server: %v; the next start runs the full integrity scan\n", e)
+		}
+	}
 	fmt.Fprintln(errOut, "lit-server stopped")
 	return 0
 }

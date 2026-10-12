@@ -50,9 +50,10 @@ const maxProblems = 100
 // steps 2 and 3 in order on the repaired database, as a sequential run would.
 //
 // Problems are returned as an *IntegrityError (ErrIntegrity); other errors
-// mean the checks could not run. lit-server runs CheckIntegrity at every start
-// before serving, and serves degraded mode when it reports ErrIntegrity;
-// Verify runs it too. Restoring a backup snapshot relies on it.
+// mean the checks could not run. lit-server runs CheckIntegrity, its full
+// integrity scan, before serving at a start after an unclean shutdown (see
+// CleanMarker and PriorShutdown), and serves degraded mode when it reports
+// ErrIntegrity; Verify runs it too. Restoring a backup snapshot relies on it.
 func (db *DB) CheckIntegrity(ctx context.Context, logf func(format string, args ...any)) error {
 	w, e := db.LockWrites(ctx)
 	if e != nil {

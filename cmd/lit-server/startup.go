@@ -21,13 +21,15 @@ type started struct {
 	fatal <-chan error
 }
 
-// startup opens the data directory and runs the startup checks
-// (storage.DB.CheckIntegrity), logging to errOut. A damaged database, whether
-// it cannot be opened (storage.ErrFatal) or fails a check
-// (storage.ErrIntegrity), is served in degraded mode: lit-server stays up and
-// answers 503 recovery_required instead of exiting into a restart loop. Other
-// failures, such as an owned or legacy data directory, are errors that stop
-// lit-server.
+// startup opens the data directory and, after an unclean shutdown, runs the
+// full integrity scan (storage.DB.CheckIntegrity), logging to errOut which
+// path it took. A clean shutdown (storage.CleanMarker, consumed by the open
+// before anything is served) and a database the open just created skip the
+// scan. A damaged database, whether it cannot be opened (storage.ErrFatal) or
+// fails the scan (storage.ErrIntegrity), is served in degraded mode:
+// lit-server stays up and answers 503 recovery_required instead of exiting
+// into a restart loop. Other failures, such as an owned or legacy data
+// directory, are errors that stop lit-server.
 func startup(c service.Config, errOut io.Writer) (started, error) {
 	logf := func(format string, args ...any) { fmt.Fprintf(errOut, format+"\n", args...) }
 	db, e := storage.OpenWith(c.DataDir, storage.Options{ReadConcurrency: c.ReadConcurrency, BackupDir: c.BackupDir})
@@ -37,7 +39,13 @@ func startup(c service.Config, errOut io.Writer) (started, error) {
 	if e != nil {
 		return started{}, e
 	}
-	e = db.CheckIntegrity(context.Background(), logf)
+	switch prior := db.PriorShutdown(); prior {
+	case storage.ShutdownClean, storage.ShutdownNone:
+		logf("lit-server: %s: full integrity scan skipped", prior)
+	default:
+		logf("lit-server: %s: running full integrity scan", prior)
+		e = db.CheckIntegrity(context.Background(), logf)
+	}
 	if errors.Is(e, storage.ErrIntegrity) || errors.Is(e, storage.ErrFatal) {
 		return degraded(db, e, errOut), nil
 	}

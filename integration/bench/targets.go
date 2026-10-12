@@ -31,7 +31,7 @@ var M1Targets = []Target{
 	{"regex", "regex grep (lit grep -E), all projects", time.Second},
 	{"ranked", "ranked search top 20 (lit search), all projects", 100 * time.Millisecond},
 	{"history.200", "history of an issue with 200 revisions", 50 * time.Millisecond},
-	{"startup", "startup including the full integrity check", 2 * time.Second},
+	{"startup", "startup after a clean stop (integrity scan skipped)", 2 * time.Second},
 }
 
 // History independence compares /v1/meta and get-issue latency before and
