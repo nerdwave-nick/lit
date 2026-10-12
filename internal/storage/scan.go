@@ -37,6 +37,12 @@ type SearchRecord struct {
 // scan stops at the first error from fn or ctx.
 func (q queries) SearchScan(ctx context.Context, projectID, needle string, fn func(SearchRecord) error) error {
 	query, args := searchQuery(projectID, needle)
+	return q.scanRecords(ctx, query, args, fn)
+}
+
+// scanRecords reads the search records that query (a searchQuery) selects
+// and calls fn for each, stopping at the first error from fn or ctx.
+func (q queries) scanRecords(ctx context.Context, query string, args []any, fn func(SearchRecord) error) error {
 	return q.each(ctx, query, args, func(s rowScanner) error {
 		if e := ctx.Err(); e != nil {
 			return e
@@ -58,7 +64,14 @@ func (q queries) SearchScan(ctx context.Context, projectID, needle string, fn fu
 // searchQuery is SearchScan's query and its arguments.
 func searchQuery(projectID, needle string) (string, []any) {
 	needle = grepSafe(needle)
-	hits := grepHits(needle)
+	return recordsQuery(grepHits(needle), projectID, globLiteral(needle), needle)
+}
+
+// recordsQuery is the query of the search records of the project ?1 (of
+// every project when it is empty) that hits selects as (owner_type,
+// owner_id), in SearchScan's order, and its arguments: projectID, then
+// args, which hits refers to from ?2 on. An empty hits selects every record.
+func recordsQuery(hits, projectID string, args ...any) (string, []any) {
 	match := func(typ string) string {
 		if hits == "" {
 			return "1"
@@ -79,7 +92,7 @@ func searchQuery(projectID, needle string) (string, []any) {
 	if hits != "" {
 		query = "WITH hits (owner_type, owner_id) AS MATERIALIZED (" + hits + ") " + query
 	}
-	return query, []any{projectID, globLiteral(needle), needle}
+	return query, append([]any{projectID}, args...)
 }
 
 // grepHits selects the records (owner_type, owner_id) whose folded title or
@@ -87,14 +100,20 @@ func searchQuery(projectID, needle string) (string, []any) {
 // three characters on (the trigram index needs three), otherwise a scan of
 // grep_text for the needle ?3. An empty needle needs no selection ("").
 func grepHits(needle string) string {
-	switch {
-	case needle == "":
+	if needle == "" {
 		return ""
-	case utf8.RuneCountInString(needle) >= 3:
-		return "SELECT owner_type, owner_id FROM grep_text WHERE seq IN (SELECT rowid FROM grep_index WHERE title GLOB ?2 UNION ALL SELECT rowid FROM grep_index WHERE body GLOB ?2)"
-	default:
-		return "SELECT owner_type, owner_id FROM grep_text WHERE instr(title, ?3) > 0 OR instr(body, ?3) > 0"
 	}
+	return needleHits(needle, "?2", "?3")
+}
+
+// needleHits selects the records whose folded title or body may contain the
+// nonempty needle: a GLOB with the pattern glob on grep_index from three
+// characters on, otherwise a scan of grep_text for raw (both parameters).
+func needleHits(needle, glob, raw string) string {
+	if utf8.RuneCountInString(needle) >= 3 {
+		return "SELECT owner_type, owner_id FROM grep_text WHERE seq IN (SELECT rowid FROM grep_index WHERE title GLOB " + glob + " UNION ALL SELECT rowid FROM grep_index WHERE body GLOB " + glob + ")"
+	}
+	return "SELECT owner_type, owner_id FROM grep_text WHERE instr(title, " + raw + ") > 0 OR instr(body, " + raw + ") > 0"
 }
 
 // globLiteral is a GLOB pattern matching any text that contains s: s between

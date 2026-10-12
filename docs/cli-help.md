@@ -175,6 +175,35 @@ boundary as other records.
 CLI argument errors retain the JSON error contract with `--format json` and exit
 code 2. Service and reconciliation outcomes retain their existing exit codes.
 
+## Regex grep
+
+`lit grep PATTERN` searches for a literal substring. With `-E` (`--regex`),
+PATTERN is a [Go RE2](https://pkg.go.dev/regexp/syntax) regular expression:
+
+```sh
+lit grep -E 'econn(refused|reset)' --all-projects -n -C 1
+```
+
+- **Dialect:** RE2, which runs in linear time; backreferences and lookarounds
+  do not exist in it. An invalid pattern fails with `validation_failed` (exit 2).
+- **Line by line, like grep:** each line of a field is matched on its own, so
+  `^` and `$` (and `\A` and `\z`) match at the start and end of every line, and
+  no part of a match (`.`, `\s`, `[^x]`, `\n`, even with `(?s)`) crosses a
+  newline.
+- **Per field:** a project's description, an issue's and a milestone's title
+  and body, and a comment's body are matched separately, as in literal grep.
+  Results, ordering, excerpts (the first matching line per field, `-n` line
+  numbers, `-C` context) and cursor paging are literal grep's.
+- **Case:** insensitive by default, `--case-sensitive` turns it off; inline
+  flags such as `(?-i)` work too. RE2 uses simple case folding, so in regex
+  mode `ss` does not match `ß` and `strasse` does not find `Straße`, while
+  literal grep, with full folding, does. `ß` and `ẞ` still match each other.
+- **Limits:** the same as literal grep: at most 1,000 bytes, and the search
+  deadline (`504 search_timeout`). A pattern that requires a literal of three or
+  more characters, such as `econn` above, reads only the records containing it
+  through the search index; a pattern without one, such as `^\d+$`, reads every
+  record in scope and is slower on a large tracker.
+
 ## Existing record references
 
 A reference selects an existing record; it is not the syntax for naming a new

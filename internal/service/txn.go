@@ -30,6 +30,7 @@ type reads interface {
 	HistoryRevision(ctx context.Context, typ, id, hash string) (int64, string, bool, error)
 	HistoryByRequest(ctx context.Context, typ, id, hash string) (storage.HistoryEntry, bool, error)
 	Transaction(ctx context.Context, hash string) (storage.Request, bool, error)
+	SearchScanAny(ctx context.Context, projectID string, needles []string, fn func(storage.SearchRecord) error) error
 	SearchScan(ctx context.Context, projectID, needle string, fn func(storage.SearchRecord) error) error
 	CompletionCandidates(ctx context.Context, typ, projectID string) ([]protocol.Completion, error)
 }

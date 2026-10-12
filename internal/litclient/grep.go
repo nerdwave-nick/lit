@@ -15,7 +15,9 @@ type SearchPage struct {
 // Search reads POST /v1/search with lit grep's semantics: a literal
 // substring of current content (project descriptions, issue titles and
 // bodies, comments, milestone titles and bodies), case-insensitive unless
-// q.CaseSensitive. q is sent as lit grep sends it; a q.Scope naming neither
+// q.CaseSensitive. With q.Regex it is lit grep -E instead: q.Query is a Go
+// RE2 pattern matched line by line, with the same result shape, and an
+// invalid pattern is validation_failed. q is sent as lit grep sends it; a q.Scope naming neither
 // a project nor all projects uses the session's selected project. It is a
 // read and journals nothing. A non-nil NextCursor continues the same query.
 // ctx bounds this read; nil keeps the session's context.

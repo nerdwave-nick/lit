@@ -28,7 +28,7 @@ func requirementsFor(path string) (string, string) {
 	case "search":
 		return "Required: one nonempty QUERY and project selection, or --all-projects.\n--project and --all-projects are mutually exclusive. Omitted --project uses session selection.\n" + sessionRequirement, prefix + " [--project REF | --all-projects] [--state open|closed] [--limit N] [--cursor TOKEN] QUERY\n" + prefix + " [--project REF | --all-projects] -- '-flaky timeout'"
 	case "grep":
-		return "Required: one nonempty PATTERN and project selection, or --all-projects.\n--project and --all-projects are mutually exclusive. Omitted --project uses session selection.\n" + sessionRequirement, prefix + " [--project REF | --all-projects] [--limit N] [--cursor TOKEN] PATTERN\n" + prefix + " [--project REF | --all-projects] -- --help"
+		return "Required: one nonempty PATTERN and project selection, or --all-projects.\n--project and --all-projects are mutually exclusive. Omitted --project uses session selection.\n" + sessionRequirement, prefix + " [--project REF | --all-projects] [-E] [--limit N] [--cursor TOKEN] PATTERN\n" + prefix + " [--project REF | --all-projects] -- --help"
 	}
 	if strings.HasPrefix(path, "workflow-session ") {
 		return workflowRequirements(strings.TrimPrefix(path, "workflow-session "))

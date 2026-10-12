@@ -13,9 +13,13 @@ type SearchRequest struct {
 	Scope         SearchScope `json:"scope"`
 	Query         string      `json:"query"`
 	CaseSensitive bool        `json:"case_sensitive"`
-	ContextLines  int         `json:"context_lines"`
-	Limit         int         `json:"limit,omitempty"`
-	Cursor        string      `json:"cursor,omitempty"`
+	// Regex matches Query as a Go RE2 regular expression, line by line,
+	// instead of as a literal substring (lit grep -E). It is omitted when
+	// false, so literal requests and their cursors are unchanged.
+	Regex        bool   `json:"regex,omitempty"`
+	ContextLines int    `json:"context_lines"`
+	Limit        int    `json:"limit,omitempty"`
+	Cursor       string `json:"cursor,omitempty"`
 }
 
 func (q *SearchRequest) UnmarshalJSON(b []byte) error {
@@ -29,7 +33,7 @@ func (q *SearchRequest) UnmarshalJSON(b []byte) error {
 	}
 	for k, v := range fields {
 		switch k {
-		case "scope", "query", "case_sensitive", "context_lines", "limit", "cursor":
+		case "scope", "query", "case_sensitive", "regex", "context_lines", "limit", "cursor":
 		default:
 			return fmt.Errorf("unknown search field %s", k)
 		}

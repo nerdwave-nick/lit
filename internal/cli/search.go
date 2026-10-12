@@ -92,7 +92,7 @@ func parseSearchArgs(argv []string, a Args) (Args, error) {
 	return a, nil
 }
 func (a *App) grep() (Result, error) {
-	q := protocol.SearchRequest{Query: a.Args.Positionals[0], CaseSensitive: a.Args.Has("case-sensitive")}
+	q := protocol.SearchRequest{Query: a.Args.Positionals[0], CaseSensitive: a.Args.Has("case-sensitive"), Regex: a.Args.Has("regex")}
 	q.ContextLines, _ = strconv.Atoi(a.Args.One("context"))
 	q.Limit, _ = strconv.Atoi(a.Args.One("limit"))
 	q.Cursor = a.Args.One("cursor")

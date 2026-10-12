@@ -171,6 +171,18 @@ on the original text, exactly as before the index, so results, excerpts and
 pages are unchanged; the scan stops once a page and the start of the next one
 are found.
 
+`lit grep -E` (`"regex": true`) reads its candidates the same way. The service
+extracts, with `regexp/syntax`, literals one of which every match of the
+pattern contains, folds them as `grep_text` is folded (a case-insensitive rune
+as every member of its RE2 case-fold orbit, since lit's full fold does not
+always map an orbit to one string), and the storage module reads the records
+whose `grep_text` may contain any of them (`SearchScanAny`, one index `GLOB`
+per literal). The best set is used: literals of three or more folded
+characters, at most 32 of them, with the longest shortest literal. A pattern
+without one reads every record of the scope. The final match is RE2 on the
+original text, line by line, so the prefilter only ever drops records that
+cannot match.
+
 ### Ranked search
 
 `lit search` (`POST /v1/ranked-search`) reads `rank_index`, a word index that
