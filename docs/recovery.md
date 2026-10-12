@@ -19,6 +19,9 @@ always establish an outcome:
   history evidence is absent and original preconditions no longer hold, such as
   after another edit, the service reports `original_preconditions_no_longer_valid`.
   It cannot conclude that replay is safe merely from current content.
+  After power loss the service may have lost its last acknowledged commits
+  (`synchronous=NORMAL`, see docs/storage-format.md), so a request the client
+  saw as committed can then report as not committed.
 - Disconnected clients and operational effects without durable history can also
   leave uncertainty. Reconnecting or obtaining another claim does not supply
   missing proof about an earlier request.

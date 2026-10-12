@@ -169,8 +169,11 @@ func refuseLegacyStore(dir string) error {
 
 // dsn configures every connection: WAL, enforced foreign keys and the busy
 // timeout. Writer connections begin transactions with BEGIN IMMEDIATE through
-// the driver's _txlock option; reader connections are query-only, and their
-// read-only transactions begin deferred, which in WAL mode takes no write lock.
+// the driver's _txlock option and commit with synchronous=NORMAL: in WAL mode a
+// commit is not fsynced, only checkpoints are, so power loss can lose the last
+// commits but never corrupts the database (docs/storage-format.md). Reader
+// connections are query-only, and their read-only transactions begin deferred,
+// which in WAL mode takes no write lock.
 func dsn(path string, readOnly bool) string {
 	q := url.Values{}
 	q.Add("_pragma", fmt.Sprintf("busy_timeout(%d)", busyTimeout.Milliseconds()))
@@ -179,6 +182,7 @@ func dsn(path string, readOnly bool) string {
 	if readOnly {
 		q.Add("_pragma", "query_only(1)")
 	} else {
+		q.Add("_pragma", "synchronous(NORMAL)")
 		q.Set("_txlock", "immediate")
 	}
 	return (&url.URL{Scheme: "file", Path: path, RawQuery: q.Encode()}).String()

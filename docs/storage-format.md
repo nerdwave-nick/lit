@@ -44,8 +44,21 @@ a search index, so it takes the owner lock (`storage.OpenExisting`) and needs
 lit-server stopped. It never creates or migrates a database either.
 
 Every connection enables WAL, foreign keys and a five-second busy timeout.
-`synchronous` stays at SQLite's default (`FULL`), so an acknowledged commit is
-durable.
+The writer connection sets `synchronous=NORMAL`. In WAL mode a commit then
+appends to the WAL without an fsync; the WAL is fsynced only when it is
+checkpointed into the database file. The trade-off:
+
+- An application crash (lit-server killed, panics, or exits) loses nothing: a
+  commit the process acknowledged is in the WAL in the operating system's
+  cache and is recovered on the next open.
+- Power loss or an operating-system crash can lose the most recent
+  acknowledged commits, those since the last checkpoint. The database stays
+  consistent: it reopens at an earlier committed state, never with a partial
+  transaction, and passes the startup integrity checks.
+
+The owner chose this to shorten the time each write holds the write lock.
+Restoring `synchronous=FULL` in `internal/storage/storage.go` makes every
+acknowledged commit durable again at the cost of one fsync per commit.
 
 ## Requests and transactions
 

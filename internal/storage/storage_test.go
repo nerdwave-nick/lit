@@ -120,6 +120,12 @@ func TestEveryConnectionUsesWALForeignKeysAndBusyTimeout(t *testing.T) {
 			t.Fatal(e)
 		}
 		check(t, tx.queries)
+		// The writer commits with synchronous=NORMAL (1): in WAL mode a commit
+		// is not fsynced, only checkpoints are; see docs/storage-format.md.
+		var sync int
+		if e := tx.queryRow(ctx, []any{&sync}, "PRAGMA synchronous"); e != nil || sync != 1 {
+			t.Fatalf("synchronous %d: %v", sync, e)
+		}
 	})
 	t.Run("read", func(t *testing.T) {
 		// Hold several snapshots at once so more than one reader connection is checked.
