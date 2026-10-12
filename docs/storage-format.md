@@ -267,7 +267,11 @@ while it runs; do not write to it from outside.
 Every start runs the FTS5 `integrity-check` of each search table (rebuilding
 one that fails), recomputes `grep_text` and resynchronizes `rank_text` from the
 records (rewriting missing, stale and orphaned rows, with a log line per record type),
-`PRAGMA integrity_check` and `PRAGMA foreign_key_check`. A
+`PRAGMA integrity_check` and `PRAGMA foreign_key_check`. The checks that only
+read (both pragmas and the comparison of `grep_text` and `rank_text` with the
+records) run concurrently on read snapshots while the FTS5 checks, which are
+write statements, run on the writer; when anything was repaired, the text and
+pragma checks run again in order on the repaired database. A
 damaged database puts lit-server in degraded mode (`503 recovery_required` for
 every request); damage met while serving makes it exit for its supervisor to
 restart it. `lit-server verify` replays all history against current state on
