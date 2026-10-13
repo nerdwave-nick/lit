@@ -13,6 +13,7 @@ func TestRouteTableClassifiesEveryRoute(t *testing.T) {
 	reads := [][2]string{
 		{"GET", "/v1/meta"},
 		{"GET", "/v1/completions/issues"},
+		{"GET", "/v1/project-context"},
 		{"GET", "/v1/clients/" + id},
 		{"GET", "/v1/claims"},
 		{"POST", "/v1/claim-snapshots"},
@@ -36,6 +37,7 @@ func TestRouteTableClassifiesEveryRoute(t *testing.T) {
 		{"POST", "/v1/issues/" + id + "/claim/release"},
 		{"POST", "/v1/transactions"},
 		{"POST", "/v1/transaction-status"},
+		{"POST", "/v1/project-context"},
 		{"POST", "/v1/projects"},
 		{"PATCH", "/v1/projects/feat/a"},
 		{"GET", "/v1/projects/" + id + "/requests/" + hash},
