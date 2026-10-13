@@ -135,13 +135,15 @@ be retried. The CLI exits 1 for it, and 2 for `validation_failed`.
 
 ## Schema
 
-All tables are `STRICT`. The schema is version 3:
+All tables are `STRICT`. The schema is version 4:
 [`internal/storage/schema_v1.sql`](../internal/storage/schema_v1.sql), then
 the migration to version 2
 ([`schema_v2.sql`](../internal/storage/schema_v2.sql), the search index of
-`lit grep`) and to version 3
+`lit grep`), to version 3
 ([`schema_v3.sql`](../internal/storage/schema_v3.sql), the word index of
-`lit search`). The version is recorded in the `service` table with the
+`lit search`) and to version 4
+([`schema_v4.sql`](../internal/storage/schema_v4.sql), the workflow stage of a
+client). The version is recorded in the `service` table with the
 service identity. Each migration of an existing database is preceded by a
 `VACUUM INTO` snapshot in the backup directory and fills its new tables from
 the records.
@@ -154,7 +156,7 @@ the records.
 | `issue_links` | `blocks(a, b)` once in its direction, `related(a, b)` once with `a < b` |
 | `comments` | comment fields and body, the owning issue |
 | `milestones`, `milestone_members` | milestone fields and body; members of the same project |
-| `clients` | client records |
+| `clients` | client records, with the optional workflow stage (`stage`, `NULL` when unset; 1 to 32 characters of `a-z`, `0-9` and `-`) |
 | `claims` | one live or expired claim per issue; release deletes the row |
 | `transactions` | one row per committed durable request: request hash, canonical intent, actor, timestamp, results |
 | `history` | one row per changed record per request: changed fields and the body diff |

@@ -136,7 +136,11 @@ func TestGrammarValueKindsMatchCompletion(t *testing.T) {
 		case nwcli.Choice:
 			return strings.Join(v.Choices, ","), ""
 		case nwcli.Dynamic:
-			return map[string]string{"sessions": "", "endpoints": "http://127.0.0.1:7411", "durations": "15m,30m,45m,1h"}[v.Completer] + map[bool]string{true: "record:" + v.Completer}[strings.HasSuffix(v.Completer, "s") && v.Completer != "sessions" && v.Completer != "endpoints" && v.Completer != "durations"], ""
+			local := map[string]string{"sessions": "", "endpoints": "http://127.0.0.1:7411", "durations": "15m,30m,45m,1h", "stages": strings.Join(protocol.StandardStages, ",")}
+			if values, isLocal := local[v.Completer]; isLocal {
+				return values, ""
+			}
+			return "record:" + v.Completer, ""
 		}
 		return "", ":4"
 	}

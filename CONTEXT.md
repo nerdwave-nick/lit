@@ -177,3 +177,13 @@ finishing the window validates and applies the edits together.
 **workflow skills**:
 The collection of skills gathered from other sources and adapted to my coding
 workflows and preferences.
+
+**Workflow stage**:
+The outer workflow skill (planner, clarify, research, prototype, to-spec,
+to-tickets, triage, impl or orchestrate) that a logical client session is
+currently running, stored with the client by lit-server so the status line, the
+TUI and other agents can see what the session is doing. It is a display label
+set and cleared with `lit session set|unset --stage`; changing it is a session
+update, never issue history. Values are checked for shape only, not against the
+standard names, and a session starts without one.
+_Avoid_: phase, mode

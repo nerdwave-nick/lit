@@ -4,6 +4,7 @@ import "strings"
 
 // These notes document the domain parsers, including conditional inputs that a
 // flag's own description cannot express: saved selections and batches.
+const stageRules = "Stage: the workflow stage this session is running, stored per session on lit-server. Setting or clearing it creates no\nissue history, and it survives workflow-session resume. Any label of lowercase letters, digits and single hyphens\n(starting with a letter, at most 32 characters) is accepted; it is not checked against the standard stages (planner,\nclarify, research, prototype, to-spec, to-tickets, triage, impl, orchestrate), which completion suggests."
 const sessionRequirement = "Required session: --session NAME or LIT_SESSION; connect that session first."
 const issueScope = "Issue titles need project selection: --project REF or the session's selected project.\nIssue UUIDs and project-qualified issue references can identify existing issues without that selection."
 const contentRules = "--content and --content-file are mutually exclusive per item; stdin (-) may be read only once."
@@ -38,11 +39,11 @@ func requirementsFor(path string) (string, string) {
 	if family == "session" {
 		switch verb {
 		case "get":
-			return "No required property flags. Without property flags, show every session property, including the logical session name\nand its distinct client UUID. --session-id selects only the client UUID.\nProperty selectors take no values.\n" + sessionRequirement, prefix + " [--session NAME] [--project] [--actor-name] [--status]"
+			return "No required property flags. Without property flags, show every session property, including the logical session name\nand its distinct client UUID. --session-id selects only the client UUID; --stage selects only the workflow stage\n(null when none is set). Property selectors take no values.\n" + sessionRequirement, prefix + " [--session NAME] [--project] [--actor-name] [--status] [--stage]"
 		case "set":
-			return "Required: at least one property flag with a value.\nProperties: --project, --output-format, --actor-name, --actor-kind,\n--runtime-vendor, --runtime-session-id. Multiple properties may be set together.\n" + sessionRequirement, prefix + " --project REF [--output-format cli|markdown|json]\n" + prefix + " --actor-name NAME --actor-kind human|agent"
+			return "Required: at least one property flag with a value.\nProperties: --project, --output-format, --actor-name, --actor-kind,\n--runtime-vendor, --runtime-session-id, --stage. Multiple properties may be set together.\n" + stageRules + "\n" + sessionRequirement, prefix + " --project REF [--output-format cli|markdown|json]\n" + prefix + " --actor-name NAME --actor-kind human|agent\n" + prefix + " --stage STAGE"
 		case "unset":
-			return "Required: at least one optional property selector (no value).\nChoose --project, --output-format, --runtime-vendor or --runtime-session-id.\nActor name and kind cannot be unset.\n" + sessionRequirement, prefix + " --project [--output-format]\n" + prefix + " --runtime-vendor --runtime-session-id"
+			return "Required: at least one optional property selector (no value).\nChoose --project, --output-format, --runtime-vendor, --runtime-session-id or --stage.\nActor name and kind cannot be unset. Unsetting --stage removes the workflow stage;\nthe session then has none, as after connecting.\n" + sessionRequirement, prefix + " --project [--output-format]\n" + prefix + " --runtime-vendor --runtime-session-id\n" + prefix + " --stage"
 		}
 	}
 	if family == "claims" {
@@ -208,7 +209,7 @@ func flagRequirements(path string) map[string]string {
 		m["agent"] = "Required"
 		m["path"] = "Required with --scope custom; forbidden otherwise"
 	case "session set", "session unset":
-		for _, name := range []string{"project", "output-format", "runtime-vendor", "runtime-session-id"} {
+		for _, name := range []string{"project", "output-format", "runtime-vendor", "runtime-session-id", "stage"} {
 			m[name] = "Optional individually; select at least one property"
 		}
 	case "transactions status":

@@ -165,12 +165,12 @@ Read session and current properties.
 
 Requirements:
   No required property flags. Without property flags, show every session property, including the logical session name
-  and its distinct client UUID. --session-id selects only the client UUID.
-  Property selectors take no values.
+  and its distinct client UUID. --session-id selects only the client UUID; --stage selects only the workflow stage
+  (null when none is set). Property selectors take no values.
   Required session: --session NAME or LIT_SESSION; connect that session first.
 
 Valid forms:
-  lit session get [--session NAME] [--project] [--actor-name] [--status]
+  lit session get [--session NAME] [--project] [--actor-name] [--status] [--stage]
   [] means optional; | separates alternatives; ... means repeatable.
 
 Usage:
@@ -190,6 +190,7 @@ Flags:
       --runtime-vendor       Optional. Show session property runtime-vendor
       --service-id           Optional. Show session property service-id
       --session-id           Optional. Show session property session-id
+      --stage                Optional. Show session property stage
       --status               Optional. Show session property status
 
 Global Flags:
@@ -203,7 +204,11 @@ Set explicit session properties.
 Requirements:
   Required: at least one property flag with a value.
   Properties: --project, --output-format, --actor-name, --actor-kind,
-  --runtime-vendor, --runtime-session-id. Multiple properties may be set together.
+  --runtime-vendor, --runtime-session-id, --stage. Multiple properties may be set together.
+  Stage: the workflow stage this session is running, stored per session on lit-server. Setting or clearing it creates no
+  issue history, and it survives workflow-session resume. Any label of lowercase letters, digits and single hyphens
+  (starting with a letter, at most 32 characters) is accepted; it is not checked against the standard stages (planner,
+  clarify, research, prototype, to-spec, to-tickets, triage, impl, orchestrate), which completion suggests.
   Required session: --session NAME or LIT_SESSION; connect that session first.
 
 References:
@@ -213,6 +218,7 @@ References:
 Valid forms:
   lit session set --project REF [--output-format cli|markdown|json]
   lit session set --actor-name NAME --actor-kind human|agent
+  lit session set --stage STAGE
   [] means optional; | separates alternatives; ... means repeatable.
 
 Usage:
@@ -229,6 +235,7 @@ Flags:
       --project REF             Optional individually; select at least one property. Project REF: title or UUID; otherwise session selection
       --runtime-session-id ID   Optional individually; select at least one property. Vendor runtime session ID
       --runtime-vendor NAME     Optional individually; select at least one property. Runtime vendor NAME
+      --stage STAGE             Optional individually; select at least one property. Workflow STAGE of this session, for example impl or to-spec; see Stage in the requirements
 
 Global Flags:
       --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
@@ -240,13 +247,15 @@ Clear optional session properties.
 
 Requirements:
   Required: at least one optional property selector (no value).
-  Choose --project, --output-format, --runtime-vendor or --runtime-session-id.
-  Actor name and kind cannot be unset.
+  Choose --project, --output-format, --runtime-vendor, --runtime-session-id or --stage.
+  Actor name and kind cannot be unset. Unsetting --stage removes the workflow stage;
+  the session then has none, as after connecting.
   Required session: --session NAME or LIT_SESSION; connect that session first.
 
 Valid forms:
   lit session unset --project [--output-format]
   lit session unset --runtime-vendor --runtime-session-id
+  lit session unset --stage
   [] means optional; | separates alternatives; ... means repeatable.
 
 Usage:
@@ -263,6 +272,7 @@ Flags:
       --project              Optional individually; select at least one property. Clear session property project
       --runtime-session-id   Optional individually; select at least one property. Clear session property runtime-session-id
       --runtime-vendor       Optional individually; select at least one property. Clear session property runtime-vendor
+      --stage                Optional individually; select at least one property. Clear session property stage
 
 Global Flags:
       --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411

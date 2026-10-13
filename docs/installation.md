@@ -273,6 +273,14 @@ The client never starts the service or falls back after a connection failure.
 keep the endpoint and identity saved in their runtime association, even when the
 shell's `LIT_ENDPOINT` changes.
 
+A session can also carry a workflow stage (`lit session set --stage impl`, cleared
+with `lit session unset --stage`). lit-server stores it with the client, so it is
+shared with other sessions and the status line, survives `workflow-session resume`
+and creates no issue history. A fresh session starts without one. A server that
+migrates an older database to storage schema 4 adds the column after the usual
+pre-migration snapshot; an older `lit-server` refuses the migrated database, and
+an older `lit` ignores the new `stage` field.
+
 ## Optional systemd user service
 
 The checked-in `packaging/lit.service.in` (also in Linux archives) is a template,

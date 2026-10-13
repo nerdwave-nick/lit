@@ -56,8 +56,8 @@ func owner(typ, id string) string { return typ + "/" + id }
 
 func TestFreshDatabaseHasTheRankedIndex(t *testing.T) {
 	db := openTemp(t)
-	if db.SchemaVersion() != 3 {
-		t.Fatalf("schema version %d, want 3", db.SchemaVersion())
+	if db.SchemaVersion() != current {
+		t.Fatalf("schema version %d, want %d", db.SchemaVersion(), current)
 	}
 	var text string
 	if e := outside(t, db).QueryRow("SELECT sql FROM sqlite_schema WHERE name = 'rank_index'").Scan(&text); e != nil {
@@ -153,8 +153,8 @@ func TestVersion2DatabaseIsMigratedWithItsRankedIndex(t *testing.T) {
 		t.Fatal(e)
 	}
 	defer db.Close()
-	if db.SchemaVersion() != 3 {
-		t.Fatalf("migrated to version %d, want 3", db.SchemaVersion())
+	if db.SchemaVersion() != current {
+		t.Fatalf("migrated to version %d, want %d", db.SchemaVersion(), current)
 	}
 	if snaps := backups(t, dir); len(snaps) != 1 || !strings.Contains(filepath.Base(snaps[0]), "pre-migration-v2") {
 		t.Fatalf("snapshots %v", snaps)

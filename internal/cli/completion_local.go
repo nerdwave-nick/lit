@@ -10,15 +10,18 @@ import (
 	"github.com/nerdwave-nick/lit/internal/clientendpoint"
 	"github.com/nerdwave-nick/lit/internal/litclient"
 	"github.com/nerdwave-nick/lit/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // completers supply lit's dynamic values: existing records from the service,
-// and saved sessions, endpoints and lease lengths from local state only.
+// and saved sessions, endpoints, lease lengths and the standard workflow
+// stages (suggestions only, stages are not restricted to them) from local state only.
 var completers = map[string]nwcli.Completer{
 	"projects": completeRecords("projects"), "issues": completeRecords("issues"),
 	"milestones": completeRecords("milestones"), "comments": completeRecords("comments"),
 	"sessions": completeLocal(savedSessions), "endpoints": completeLocal(savedEndpoints),
 	"durations": completeLocal(func() []string { return []string{"15m", "30m", "45m", "1h"} }),
+	"stages":    completeLocal(func() []string { return protocol.StandardStages }),
 }
 
 // completeLocal offers local values in their given order; each value may carry
