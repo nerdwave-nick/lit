@@ -152,10 +152,11 @@ claim before marking it closed in the ledger. On any failure, leave it open.
 After each closure, recompute the frontier from current tracker state and the
 new integration head. For a milestone, query its current members and compare
 the UUID set and revision with the frozen record before dispatch. The supported
-frontier query is `lit issues list --project P --milestone M1 --state open
---blocked false --claimed false`; inspect claims and requirements for each
-result, and intersect with the frozen member IDs and approved implementation
-scope. Never dispatch a newly added member. A membership change pauses new
+frontier query is `lit issues list --session NAME --project P --milestone M1
+--state open --blocked false --claimed false`; run it directly or through the
+coordinator's host adapter without `--session`. Inspect claims and requirements
+for each result, and intersect with the frozen member IDs and approved
+implementation scope. Never dispatch a newly added member. A membership change pauses new
 dispatch: report the current and frozen sets and ask the user how to proceed.
 Do not silently expand or shrink scope or undo integrated work. Stop or hold
 work on an affected member whose authorization changed; independently authorized

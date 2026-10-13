@@ -1,16 +1,18 @@
 ---
 name: lit
-description: Use lit for tracker projects, issues, comments, claims, and session context; apply shared ownership and recovery rules for tracker-backed workflows.
+description: Coordinate agent work in lit through explicit session and project context, issue discovery, milestones, claims, and recovery.
 ---
 
 # lit
 
-The client executable is `lit`; the server executable is `lit-server`. The skill name
-remains `lit`. Connections do not start the server.
+Use explicit `lit` CLI subcommands for agent tracker work.
+The client executable is `lit`; the server executable is `lit-server`.
+Connections do not start the server.
 
-Use the installed `lit --help` for the available version's syntax. Read
+Use `lit --help` for command syntax. Read
 repository conventions in `docs/agents/issue-tracker.md`, resolving paths against
-that repository. Tracker data is remote authority; do not read its storage files.
+that repository. Read and mutate tracker records through `lit`; local files do
+not establish tracker state or ownership.
 
 Establish an explicit logical session using [host setup](references/hosts.md).
 Independent agents and subagents need distinct sessions. Resume only the same
@@ -26,14 +28,9 @@ Use the relevant short recipe:
 - [Find, claim, and read work](references/work.md).
 - [Checkpoint, recover, and finish](references/recovery.md).
 
-The initial suite includes all sixteen agreed skills and the operations used by
-these recipes. Check executable help for the installed version; if it lacks a
-required capability, report the version mismatch rather than starting unclaimed
-implementation.
-
 Assignment records responsibility; a work claim grants temporary ownership.
-Sustained work requires an explicit claim. Claims default to thirty minutes,
-are capped at one hour, and need explicit renewal. Ordinary edits do not renew.
+Sustained work requires an explicit claim. Claims default to thirty minutes
+and are capped at one hour. Agents renew explicitly; ordinary edits do not renew.
 After expiry, reacquire and reread current context before continuing. Agents never
 force takeover. Claims do not protect Git files: coordinate shared checkouts or
 use separate worktrees.
@@ -50,3 +47,22 @@ explicit, may overlap across milestones, and does not follow parentage or create
 blockers. Read [milestone guidance](references/milestones.md) when planning,
 specifying, publishing, or selecting a milestone scope; installed command help
 remains authoritative for syntax.
+
+## Recommended workflow
+
+When guiding a human through an effort, explain the recommended sequence:
+
+1. [planner](../planner/SKILL.md): settle open decisions and record accepted
+   answers in a planning map.
+2. [to-spec](../to-spec/SKILL.md): synthesize agreed behavior, boundaries, and
+   decisions into the shared specification.
+3. [to-tickets](../to-tickets/SKILL.md): draft verifiable implementation slices,
+   review them with the human, and publish the approved tickets and blockers.
+4. [orchestrate](../orchestrate/SKILL.md): coordinate authorized implementation,
+   review handoffs, integrate changes, and verify the completed scope.
+
+Humans invoke these as `/planner -> /to-spec -> /to-tickets -> /orchestrate` in
+Claude, or `$planner -> $to-spec -> $to-tickets -> $orchestrate` in Codex.
+Recommend the stage matching the existing work; earlier stages are optional when
+their outcome is already settled. Explaining the sequence does not invoke the
+skills or authorize execution; follow the human's requested stage and scope.
