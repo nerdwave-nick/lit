@@ -46,8 +46,9 @@ const (
 )
 
 // ConcurrencyWriteP95 is the write p95 limit while 8 agents write and 2
-// readers search.
-const ConcurrencyWriteP95 = 50 * time.Millisecond
+// readers search. The owner relaxed it from 50 ms to 100 ms on 2026-10-13,
+// accepting the single-writer design (ticket 2aaa11f1).
+const ConcurrencyWriteP95 = 100 * time.Millisecond
 
 // Check is one pass/fail criterion with its measurement.
 type Check struct {
