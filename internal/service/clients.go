@@ -32,6 +32,9 @@ func validateClient(c protocol.Client) error {
 	if c.ProjectID != nil && !protocol.ValidUUID(*c.ProjectID) {
 		return fmt.Errorf("invalid project ID")
 	}
+	if c.Stage != nil && !protocol.ValidStage(*c.Stage) {
+		return fmt.Errorf("stage must be lowercase words of letters and digits joined by hyphens, starting with a letter, at most %d characters", protocol.MaxStageLength)
+	}
 	return nil
 }
 func precondition(r *http.Request, c protocol.Client) error {
@@ -144,6 +147,12 @@ func patch(c *protocol.Client, p map[string]json.RawMessage) error {
 			if e := json.Unmarshal(b, &c.ProjectID); e != nil {
 				return protocol.E(422, "validation_failed", "invalid project selector")
 			}
+		case "stage":
+			var stage *string
+			if e := json.Unmarshal(b, &stage); e != nil {
+				return protocol.E(422, "validation_failed", "invalid stage")
+			}
+			c.Stage = stage
 
 		default:
 			return protocol.E(400, "unknown_property", "unknown client property: "+k)

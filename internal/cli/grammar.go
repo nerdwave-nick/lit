@@ -20,7 +20,7 @@ func dynamic(completer string) nwcli.Value {
 // flagDefaults holds how a flag behaves wherever it appears; commands override
 // the exceptions explicitly. A missing entry is a single free-form value.
 var flagDefaults = map[string]nwcli.Flag{
-	"session": {Value: dynamic("sessions")}, "endpoint": {Value: dynamic("endpoints")}, "for": {Value: dynamic("durations")},
+	"session": {Value: dynamic("sessions")}, "endpoint": {Value: dynamic("endpoints")}, "for": {Value: dynamic("durations")}, "stage": {Value: dynamic("stages")},
 	"format": {Value: choice("cli", "markdown", "json")}, "output-format": {Value: choice("cli", "markdown", "json")},
 	"actor-kind": {Value: choice("human", "agent")}, "state": {Value: choice("open", "closed")},
 	"direction": {Value: choice("asc", "desc")}, "relation": {Value: choice("blocks", "blocked-by", "related")},
@@ -171,7 +171,7 @@ func itemFlag(path ...string) string {
 	return name
 }
 
-const sessionFields = "project output-format actor-name actor-kind runtime-vendor runtime-session-id"
+const sessionFields = "project output-format actor-name actor-kind runtime-vendor runtime-session-id stage"
 
 func group(name string, cmds ...*nwcli.Command) *nwcli.Command {
 	return &nwcli.Command{Name: name, Commands: cmds}

@@ -27,10 +27,14 @@ var schemaV2 string
 //go:embed schema_v3.sql
 var schemaV3 string
 
+//go:embed schema_v4.sql
+var schemaV4 string
+
 var migrations = []migration{
 	{1, func(ctx context.Context, tx *sql.Tx) error { _, e := tx.ExecContext(ctx, schemaV1); return e }},
 	{2, migrateGrepIndex},
 	{3, migrateRankIndex},
+	{4, func(ctx context.Context, tx *sql.Tx) error { _, e := tx.ExecContext(ctx, schemaV4); return e }},
 }
 
 // migrate brings the database to the newest version in ms. A fresh database

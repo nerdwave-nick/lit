@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"github.com/nerdwave-nick/lit/internal/protocol"
+	"path/filepath"
 	"strings"
 	"testing"
 	"time"
@@ -39,7 +40,7 @@ func TestClientRecordsRoundTrip(t *testing.T) {
 	db := openTemp(t)
 	full := protocol.Client{SchemaVersion: 1, ClientID: protocol.UUID(), StateRevision: 7, Status: "connected",
 		Actor: protocol.Actor{Name: "Ada", Kind: "human"}, ProjectID: strptr(protocol.UUID()),
-		Runtime: protocol.Runtime{Vendor: "claude", SessionID: "s-1"}, OutputFormat: strptr("markdown")}
+		Runtime: protocol.Runtime{Vendor: "claude", SessionID: "s-1"}, OutputFormat: strptr("markdown"), Stage: strptr("to-tickets")}
 	bare := protocol.Client{SchemaVersion: 1, ClientID: protocol.UUID(), StateRevision: 1, Status: "disconnected",
 		Actor: protocol.Actor{Name: "bot", Kind: "agent"}}
 	if e := write(t, db, func(ctx context.Context, tx *WriteTx) error {
@@ -63,7 +64,7 @@ func TestClientRecordsRoundTrip(t *testing.T) {
 
 	// Writing a client again replaces every field, including clearing optional ones.
 	next := full
-	next.StateRevision, next.Status, next.ProjectID, next.OutputFormat = 8, "disconnected", nil, nil
+	next.StateRevision, next.Status, next.ProjectID, next.OutputFormat, next.Stage = 8, "disconnected", nil, nil, nil
 	next.Actor, next.Runtime = protocol.Actor{Name: "Ada L.", Kind: "agent"}, protocol.Runtime{}
 	if e := write(t, db, func(ctx context.Context, tx *WriteTx) error {
 		if e := tx.PutClient(ctx, next); e != nil {
@@ -96,6 +97,10 @@ func TestInvalidClientRecordsAreRefused(t *testing.T) {
 		{"actor name", func(c *protocol.Client) { c.Actor.Name = "" }, "CHECK"},
 		{"state revision", func(c *protocol.Client) { c.StateRevision = 0 }, "CHECK"},
 		{"client ID", func(c *protocol.Client) { c.ClientID = "short" }, "CHECK"},
+		{"empty stage", func(c *protocol.Client) { c.Stage = strptr("") }, "CHECK"},
+		{"stage with a space", func(c *protocol.Client) { c.Stage = strptr("to spec") }, "CHECK"},
+		{"uppercase stage", func(c *protocol.Client) { c.Stage = strptr("Impl") }, "CHECK"},
+		{"overlong stage", func(c *protocol.Client) { c.Stage = strptr(strings.Repeat("a", 33)) }, "CHECK"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -212,4 +217,48 @@ func TestDisconnectIsAllOrNothing(t *testing.T) {
 			sameJSON(t, got, w.a)
 		})
 	}
+}
+
+// A version 3 database keeps its clients, without a stage, when it gains the
+// stage column, and is snapshotted first.
+func TestVersion3DatabaseIsMigratedWithClientStages(t *testing.T) {
+	dir := t.TempDir()
+	db, e := open(dir, migrations[:3], false)
+	if e != nil {
+		t.Fatal(e)
+	}
+	if db.SchemaVersion() != 3 {
+		t.Fatalf("schema version %d, want 3", db.SchemaVersion())
+	}
+	old := protocol.Client{SchemaVersion: 1, ClientID: protocol.UUID(), StateRevision: 4, Status: "connected",
+		Actor: protocol.Actor{Name: "Ada", Kind: "agent"}, ProjectID: strptr(protocol.UUID()),
+		Runtime: protocol.Runtime{Vendor: "claude", SessionID: "s-1"}, OutputFormat: strptr("json")}
+	// A version 3 database has no stage column, so write the row as it did.
+	if e = write(t, db, stmts([]any{`INSERT INTO clients (client_id, state_revision, status, actor_name, actor_kind, project_id, runtime_vendor, runtime_session_id, output_format)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`, old.ClientID, old.StateRevision, old.Status, old.Actor.Name, old.Actor.Kind, *old.ProjectID, old.Runtime.Vendor, old.Runtime.SessionID, *old.OutputFormat})); e != nil {
+		t.Fatal(e)
+	}
+	db.Close()
+	if db, e = Open(dir); e != nil {
+		t.Fatal(e)
+	}
+	defer db.Close()
+	if db.SchemaVersion() != current {
+		t.Fatalf("migrated to version %d, want %d", db.SchemaVersion(), current)
+	}
+	if snaps := backups(t, dir); len(snaps) != 1 || !strings.Contains(filepath.Base(snaps[0]), "pre-migration-v3") {
+		t.Fatalf("snapshots %v", snaps)
+	}
+	got, ok := readClient(t, db, old.ClientID)
+	if !ok {
+		t.Fatal("the client was lost by the migration")
+	}
+	sameJSON(t, got, old)
+	staged := got
+	staged.StateRevision, staged.Stage = 5, strptr("impl")
+	if e = write(t, db, func(ctx context.Context, tx *WriteTx) error { return tx.PutClient(ctx, staged) }); e != nil {
+		t.Fatal(e)
+	}
+	got, _ = readClient(t, db, old.ClientID)
+	sameJSON(t, got, staged)
 }
