@@ -4,7 +4,7 @@ import "strings"
 
 // These notes document the domain parsers, including conditional inputs that a
 // flag's own description cannot express: saved selections and batches.
-const stageRules = "Stage: the workflow stage this session is running, stored on lit-server per session so the status line and other\nagents can see it. Setting or clearing it is a session update, not issue history. The stage survives\nworkflow-session resume and stays until the next set or unset: it does not expire.\nStage values are lowercase labels of letters, digits and single hyphens, starting with a letter, at most 32\ncharacters. They are deliberately not checked against the standard names (planner, clarify, research, prototype,\nto-spec, to-tickets, triage, impl, orchestrate), which completion suggests: a label must not stop a workflow."
+const stageRules = "Stage: the workflow stage this session is running, stored per session on lit-server. Setting or clearing it creates no\nissue history, and it survives workflow-session resume. Any label of lowercase letters, digits and single hyphens\n(starting with a letter, at most 32 characters) is accepted; it is not checked against the standard stages (planner,\nclarify, research, prototype, to-spec, to-tickets, triage, impl, orchestrate), which completion suggests."
 const sessionRequirement = "Required session: --session NAME or LIT_SESSION; connect that session first."
 const issueScope = "Issue titles need project selection: --project REF or the session's selected project.\nIssue UUIDs and project-qualified issue references can identify existing issues without that selection."
 const contentRules = "--content and --content-file are mutually exclusive per item; stdin (-) may be read only once."
