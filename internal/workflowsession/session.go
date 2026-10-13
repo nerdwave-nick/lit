@@ -12,12 +12,12 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"runtime"
 	"strings"
 	"unicode/utf16"
 
 	"github.com/nerdwave-nick/lit/internal/clientendpoint"
 	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/workflowstate"
 )
 
 type record struct {
@@ -75,46 +75,6 @@ func key(parts ...string) string {
 	}
 	b.WriteByte(']')
 	return fmt.Sprintf("%x", sha256.Sum256([]byte(b.String())))
-}
-func expand(path string) (string, error) {
-	if path == "~" || strings.HasPrefix(path, "~/") {
-		h, e := os.UserHomeDir()
-		if e != nil {
-			return "", e
-		}
-		if path == "~" {
-			path = h
-		} else {
-			path = filepath.Join(h, strings.TrimPrefix(path, "~/"))
-		}
-	}
-	return filepath.Abs(path)
-}
-func stateDirectory() (string, error) {
-	if p := os.Getenv("LIT_WORKFLOW_STATE_DIR"); p != "" {
-		return expand(p)
-	}
-	home, e := os.UserHomeDir()
-	if e != nil {
-		return "", e
-	}
-	return statePath(runtime.GOOS, home, os.Getenv("XDG_STATE_HOME"), os.Getenv("LOCALAPPDATA"))
-}
-func statePath(platform, home, xdg, local string) (string, error) {
-	switch platform {
-	case "darwin":
-		return filepath.Join(home, "Library", "Application Support", "lit", "local"), nil
-	case "windows":
-		if local == "" {
-			return "", errors.New("LOCALAPPDATA is required on Windows")
-		}
-		return filepath.Join(local, "lit", "local"), nil
-	default:
-		if !filepath.IsAbs(xdg) {
-			xdg = filepath.Join(home, ".local", "state")
-		}
-		return filepath.Join(xdg, "lit", "local"), nil
-	}
 }
 func save(path string, v any) error {
 	b, e := json.MarshalIndent(v, "", "  ")
@@ -333,7 +293,7 @@ func run(args []string, out, errOut io.Writer) (int, error) {
 		}
 		*binary = v
 	}
-	dir, e := stateDirectory()
+	dir, e := workflowstate.Dir()
 	if e != nil {
 		return 1, e
 	}
@@ -454,7 +414,7 @@ func run(args []string, out, errOut io.Writer) (int, error) {
 			if r.Project == nil {
 				return 1, errors.New("checkout mapping requires explicit session project selection")
 			}
-			checkout, e := expand(path)
+			checkout, e := workflowstate.Expand(path)
 			if e != nil {
 				return 1, e
 			}
