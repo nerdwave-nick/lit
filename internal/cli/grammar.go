@@ -146,6 +146,7 @@ func newGrammar() *nwcli.Command {
 		&nwcli.Command{Name: "search", Operands: nwcli.Operands{Usage: "QUERY", Max: 1},
 			Flags: join(flags("project state limit cursor"), switches("all-projects"))},
 		workflowSession(),
+		contextCommand(),
 		completionCommand(),
 	)
 	documentGrammar(root)

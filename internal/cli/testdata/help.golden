@@ -14,6 +14,7 @@ Available Commands:
   comments         Discuss issues with durable comments
   completion       Generate the autocompletion script for the specified shell
   connect          Initialize or resume a client session
+  context          Manage the project remembered for this checkout
   disconnect       End a connected client session
   grep             Search current content using a literal substring
   help             Help about any command
@@ -2137,6 +2138,96 @@ Global Flags:
       --cli EXECUTABLE   Optional. Path to lit EXECUTABLE (default: this binary)
       --host HOST        Required agent HOST: codex or claude
       --runtime-id ID    Required explicit vendor runtime session ID
+== lit context --help
+Show or clear the project remembered for the current checkout: a machine-local
+preference recording which lit project, on which lit-server, you chose for one checkout.
+It is project context only: no client identity, claim token or session name is stored,
+so a new agent conversation still gets its own client.
+
+A checkout is the Git worktree root containing the current directory: every
+subdirectory shares it, linked worktrees and each nested repository are separate
+checkouts, and symlinked paths resolve to the same physical checkout. Outside Git
+the checkout is the exact current directory; parents are never searched. A moved
+checkout has a new path and remembers nothing until the project is remembered again.
+
+Records are versioned files in checkout-context/ below the workflow state directory
+(LIT_WORKFLOW_STATE_DIR; otherwise ${XDG_STATE_HOME:-~/.local/state}/lit/local on Linux,
+~/Library/Application Support/lit/local on macOS, %LOCALAPPDATA%\lit\local on Windows),
+separate from session associations, checkout-location maps, pending requests and
+output caches. Changes are atomic and serialized per checkout; the last one wins.
+
+These commands are offline: they never contact lit-server and need no logical
+session. They ignore LIT_SESSION and LIT_ENDPOINT.
+
+Usage:
+  lit context [flags]
+  lit context [command]
+
+Available Commands:
+  clear       Forget the project remembered for this checkout
+  show        Show the project remembered for this checkout
+
+Flags:
+      --format FORMAT   Optional. Output FORMAT: cli, markdown or json (default cli; no session preference applies)
+  -h, --help            help for context
+
+Use "lit context [command] --help" for more information about a command.
+== lit context show --help
+Show the project remembered for this checkout.
+The saved data is reported as not validated: show reads only the local record and never asks
+lit-server, so the project may since have been renamed, archived or removed.
+Nothing remembered is a successful, explicit empty result.
+
+Requirements:
+  Required flags: none. No session, endpoint or service is needed; the command works offline.
+  The saved preference is reported with validated: false (it is not checked against lit-server).
+  With nothing remembered it succeeds with remembered: false and the message No project remembered for this checkout.
+  A damaged or unsupported record fails with invalid_local_state (exit 1) and stays in place; lit context clear removes it.
+  Output: --format cli (default), markdown or json.
+
+Valid forms:
+  lit context show [--format cli|markdown|json]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit context show [flags]
+
+Examples:
+  lit context show
+  lit context show --format json
+
+Flags:
+  -h, --help   help for show
+
+Global Flags:
+      --format FORMAT   Optional. Output FORMAT: cli, markdown or json (default cli; no session preference applies)
+== lit context clear --help
+Forget the project remembered for this checkout.
+clear removes only this checkout's preference. It does not delete projects, disconnect sessions,
+release claims or touch pending requests, session associations or other workflow state.
+
+Requirements:
+  Required flags: none. No session, endpoint or service is needed; the command works offline.
+  The command is idempotent: clearing when nothing is remembered succeeds with outcome already_satisfied and creates nothing.
+  A damaged or unsupported record is removed too (removed: damaged_record), which is how to recover from invalid_local_state.
+  A change to this checkout's preference by another invocation is awaited briefly; a lock held longer fails with context_locked (exit 3).
+  Output: --format cli (default), markdown or json.
+
+Valid forms:
+  lit context clear [--format cli|markdown|json]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit context clear [flags]
+
+Examples:
+  lit context clear
+
+Flags:
+  -h, --help   help for clear
+
+Global Flags:
+      --format FORMAT   Optional. Output FORMAT: cli, markdown or json (default cli; no session preference applies)
 == lit completion --help
 Generate the autocompletion script for lit for the specified shell: bash, fish or zsh.
 See each sub-command's help for details on how to use the generated script.

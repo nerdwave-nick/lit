@@ -33,6 +33,9 @@ func requirementsFor(path string) (string, string) {
 	if strings.HasPrefix(path, "workflow-session ") {
 		return workflowRequirements(strings.TrimPrefix(path, "workflow-session "))
 	}
+	if strings.HasPrefix(path, "context ") {
+		return contextRequirements(path)
+	}
 	parts := strings.Fields(path)
 	family, verb := parts[0], parts[1]
 	if family == "session" {
