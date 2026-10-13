@@ -98,12 +98,12 @@ func TestHistoryIndependence(t *testing.T) {
 }
 
 func TestConcurrencyChecks(t *testing.T) {
-	ok := Concurrency{Writes: Summary{Count: 480, P95: ms(49)}, Reads: Summary{Count: 900}}
+	ok := Concurrency{Writes: Summary{Count: 480, P95: ConcurrencyWriteP95 - time.Millisecond}, Reads: Summary{Count: 900}}
 	if f := failed(ConcurrencyChecks(ok)); len(f) > 0 {
 		t.Fatal("failed:", f)
 	}
 	for name, bad := range map[string]Concurrency{
-		"write p95":   {Writes: Summary{Count: 480, P95: ms(50)}, Reads: Summary{Count: 900}},
+		"write p95":   {Writes: Summary{Count: 480, P95: ConcurrencyWriteP95}, Reads: Summary{Count: 900}},
 		"busy":        {Writes: ok.Writes, Reads: ok.Reads, Busy: 1},
 		"timeouts":    {Writes: ok.Writes, Reads: ok.Reads, Timeouts: 1},
 		"other error": {Writes: ok.Writes, Reads: ok.Reads, Other: 1},
