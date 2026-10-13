@@ -5,6 +5,7 @@ import (
 	"io/fs"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	"github.com/nerdwave-nick/lit/internal/protocol"
@@ -52,7 +53,12 @@ func readTree(t *testing.T, root string) map[string][]byte {
 // of it is read, converted or changed.
 func TestLegacyFileStoreIsRefused(t *testing.T) {
 	root := t.TempDir()
-	original := readTree(t, "testdata/project-only-v1")
+	// Legacy history file names contain ':', which Go module zips refuse, so
+	// the fixture stores it escaped as %3A and the copy restores it.
+	original := map[string][]byte{}
+	for rel, b := range readTree(t, "testdata/project-only-v1") {
+		original[strings.ReplaceAll(rel, "%3A", ":")] = b
+	}
 	for rel, b := range original {
 		target := filepath.Join(root, rel)
 		if e := os.MkdirAll(filepath.Dir(target), 0o700); e != nil {
