@@ -7,6 +7,43 @@ The home for my coding agent workflows, local tooling, and customized skills.
 - Simple and clear workflow for implementation tasks, supported by tooling for research, prototyping, testing, traceability
 - NOT a replacement for a fully featured issue tracker like Jira, this is only for the agent synchronization and details of implementation, not to replace feature planning in general
 
+## Recommended workflow
+
+Use the agent skills to move from an idea to verified implementation:
+
+```text
+/planner -> /to-spec -> /to-tickets -> /orchestrate
+```
+
+1. **[/planner](internal/workflow-skills/skills/planner/SKILL.md) — settle the decisions.**
+   Establish the intended outcome and constraints, then build a persistent planning
+   map in lit. Track precise questions and their dependencies, gather evidence
+   through research or prototypes, and resolve one human decision per working
+   session. Accepted answers stay linked from the map so later work can build on
+   them without reopening settled choices.
+2. **[/to-spec](internal/workflow-skills/skills/to-spec/SKILL.md) — write the shared specification.**
+   Synthesize the agreed decisions into one specification in lit: the problem,
+   intended behavior, meaningful edge cases, accepted contracts, testing boundaries,
+   and affected repositories. Keep exclusions and unresolved choices explicit.
+   This specification owns the requirements shared by all implementation tickets.
+3. **[/to-tickets](internal/workflow-skills/skills/to-tickets/SKILL.md) — make the work executable.**
+   Break the specification into small, coherent implementation tickets with
+   testable acceptance criteria and clear scope. Present the breakdown for human
+   review, then publish the approved tickets and real blocker relationships in lit.
+   Read back the dependency graph to identify which tickets can start; optional
+   milestones group useful delivery boundaries.
+4. **[/orchestrate](internal/workflow-skills/skills/orchestrate/SKILL.md) — implement and verify the authorized work.**
+   Coordinate native agent workers in isolated branches and worktrees, running
+   independent tickets in parallel as their dependencies allow. Review each
+   handoff, integrate changes one at a time, and run the required checks before
+   closing tickets. Keep durable progress and verification evidence so an
+   interrupted run can resume, and verify the full authorized scope at completion.
+
+Start at the stage that matches the work: an existing specification can go straight
+to `/to-tickets`, and approved implementation tickets can go to `/orchestrate`.
+Planning, specification, and ticket publication do not start implementation;
+authorize the execution scope before orchestration begins.
+
 ## Components
 
 - **`lit-server` — local issue tracker service:** one service per user on a machine,
