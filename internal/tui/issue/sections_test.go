@@ -20,7 +20,8 @@ func contents(secs []detail.Section) []string {
 }
 
 // The body and every comment are sections of their own, keyed by record and
-// revision; comment headings name the author and time literally.
+// revision; comment headings name the author and time literally, as a
+// heading, and a rule separates each comment from the one before it.
 func TestSectionsShowTheBodyAndEachComment(t *testing.T) {
 	d := &issue.Detail{Issue: &protocol.Issue{ID: issueID, Revision: 7, Body: "# Plan\n\n```go\nx := 1\n```"}, Consistent: true,
 		Comments: []protocol.Comment{
@@ -38,11 +39,12 @@ func TestSectionsShowTheBodyAndEachComment(t *testing.T) {
 		t.Fatalf("comments heading: %+v", secs[1])
 	}
 	c1, c2 := secs[2], secs[3]
-	if c1.RecordID != "c1" || c1.Revision != 1 || !strings.HasPrefix(c1.Content, `**Claude \*agent\*** · 2026\-10\-09T10:00:00Z`) ||
+	if c1.RecordID != "c1" || c1.Revision != 1 || !strings.HasPrefix(c1.Content, `### Claude \*agent\* · 2026\-10\-09T10:00:00Z`) ||
 		!strings.HasSuffix(c1.Content, "\n\n```\nunclosed fence") || strings.Contains(c1.Content, "edited") {
 		t.Fatalf("first comment: %+v", c1)
 	}
-	if c2.RecordID != "c2" || c2.Revision != 3 || !strings.Contains(c2.Content, `edited 2026\-10\-09T12:00:00Z`) {
+	if c2.RecordID != "c2" || c2.Revision != 3 || !strings.HasPrefix(c2.Content, "---\n\n### person · ") ||
+		!strings.Contains(c2.Content, `edited 2026\-10\-09T12:00:00Z`) {
 		t.Fatalf("edited comment: %+v", c2)
 	}
 }

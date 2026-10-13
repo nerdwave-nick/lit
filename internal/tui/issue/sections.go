@@ -38,8 +38,8 @@ func Sections(id string, d *Detail) []detail.Section {
 		text = NoBody
 	}
 	secs := []detail.Section{{RecordID: body, Revision: rev, Content: text}, {RecordID: id + "/comments", Revision: rev, Content: heading(d)}}
-	for _, c := range d.Comments {
-		secs = append(secs, detail.Section{RecordID: c.ID, Revision: c.Revision, Content: comment(c)})
+	for i, c := range d.Comments {
+		secs = append(secs, detail.Section{RecordID: c.ID, Revision: c.Revision, Content: comment(c, i > 0)})
 	}
 	return secs
 }
@@ -61,11 +61,16 @@ func heading(d *Detail) string {
 	return strings.Join(notes, "\n\n")
 }
 
-// comment is a comment's author and time, then its body.
-func comment(c protocol.Comment) string {
-	head := "**" + Escape(c.Author) + "** · " + Escape(c.CreatedAt)
+// comment is a comment's author and time as a heading, so it stands apart
+// from body text, then its body. A rule separates it from an earlier
+// comment.
+func comment(c protocol.Comment, rule bool) string {
+	head := "### " + Escape(c.Author) + " · " + Escape(c.CreatedAt)
 	if c.Revision > 1 {
 		head += " · edited " + Escape(c.UpdatedAt)
+	}
+	if rule {
+		head = "---\n\n" + head
 	}
 	return head + "\n\n" + c.Body
 }
