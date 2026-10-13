@@ -11,7 +11,7 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 )
 
 type endpointTransport func(*http.Request) (*http.Response, error)
@@ -31,7 +31,7 @@ func TestEndpointSelectionAndServiceBinding(t *testing.T) {
 			t.Setenv("LIT_STATE_DIR", state)
 			t.Setenv("LIT_SESSION", "")
 			t.Setenv("LIT_ENDPOINT", "")
-			data, err := store.Open(t.TempDir())
+			data, err := storage.Open(t.TempDir())
 			if err != nil {
 				t.Fatal(err)
 			}

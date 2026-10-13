@@ -1,12 +1,10 @@
 package service
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"net/http"
 	"net/url"
-	"strconv"
 	"strings"
 )
 
@@ -66,7 +64,7 @@ func (s *Server) projectRoute(w http.ResponseWriter, r *http.Request, c protocol
 		if e := s.Body(r, &req); e != nil {
 			return true, e
 		}
-		out, e := s.PrepareRecords(req, c)
+		out, e := s.prepareRecords(req, c)
 		if e != nil {
 			return true, e
 		}
@@ -147,7 +145,7 @@ func (s *Server) projectRoute(w http.ResponseWriter, r *http.Request, c protocol
 	path := strings.TrimPrefix(r.URL.Path, "/v1/projects/")
 	// Exact project titles may contain a history or requests segment.
 	if r.Method == "GET" || r.Method == "PATCH" {
-		if project, e := s.ResolveProject(path); e == nil {
+		if project, e := s.resolveProject(path); e == nil {
 			if r.Method == "PATCH" {
 				return true, s.executeProjects(w, r, c, project.ID, "update")
 			}
@@ -162,7 +160,7 @@ func (s *Server) projectRoute(w http.ResponseWriter, r *http.Request, c protocol
 		if pos := strings.Index(path, suffix); pos >= 0 {
 			selector := path[:pos]
 			tail := path[pos+len(suffix):]
-			p, e := s.ResolveProject(selector)
+			p, e := s.resolveProject(selector)
 			if e != nil {
 				if suffix == "/requests/" && protocol.ValidUUID(selector) {
 					if pe, ok := e.(*protocol.Error); ok && pe.Code == "not_found" {
@@ -175,36 +173,14 @@ func (s *Server) projectRoute(w http.ResponseWriter, r *http.Request, c protocol
 			if r.Method != "GET" {
 				return true, protocol.E(404, "not_found", "unknown route")
 			}
-			hs, e := s.ProjectHistory(p.ID)
-			if e != nil {
-				return true, e
-			}
 			hash := strings.TrimPrefix(tail, "/")
 			if hash == "" && suffix == "/history" {
-				page, e := s.projectHistoryPage(p.ID, hs, r.URL.Query())
-				if e != nil {
-					return true, e
-				}
-				return true, s.writeReadPage(w, page)
+				return true, s.serveHistory(w, "projects", p.ID, p.ID, r.URL.Query())
 			}
-			for _, h := range hs {
-				if h.RequestHash == hash {
-					if suffix == "/requests/" {
-						s.write(w, 200, map[string]any{"outcome": "recorded", "request_hash": hash, "results": h.Results})
-					} else {
-						s.write(w, 200, h)
-					}
-					return true, nil
-				}
-			}
-			if suffix == "/requests/" {
-				s.write(w, 200, map[string]any{"outcome": "not_recorded_here", "revision": p.Revision})
-				return true, nil
-			}
-			return true, protocol.E(404, "not_found", "history entry not found")
+			return true, s.historyEntry(w, "projects", p.ID, hash, suffix == "/requests/", p.Revision)
 		}
 	}
-	p, e := s.ResolveProject(path)
+	p, e := s.resolveProject(path)
 	if e != nil {
 		return true, e
 	}
@@ -228,60 +204,4 @@ func (s *Server) writeProjectPage(w http.ResponseWriter, p ProjectPage) {
 		NextCursor *string `json:"next_cursor"`
 		ServerTime string  `json:"server_time"`
 	}{p.Items, p.NextCursor, s.responseTime()})
-}
-
-func (s *Server) projectHistoryPage(id string, hs []ProjectHistory, values url.Values) (ProjectPage, error) {
-	out := ProjectPage{Items: []any{}}
-	for key := range values {
-		if key != "limit" && key != "cursor" && key != "all" {
-			return out, invalid("unsupported history query")
-		}
-	}
-	q, e := projectURLQuery(values)
-	if e != nil {
-		return out, e
-	}
-	if q.All && (q.Limit != 0 || q.Cursor != "" || q.Fields["limit"] || q.Fields["cursor"]) {
-		return out, invalid("all conflicts with pagination")
-	}
-	if q.Fields["limit"] && q.Limit == 0 {
-		return out, invalid("limit must be positive")
-	}
-	if q.Limit == 0 {
-		q.Limit = s.Config.Limits.DefaultPage
-	}
-	if q.Limit < 1 || q.Limit > s.Config.Limits.MaxPage {
-		return out, invalid("invalid limit")
-	}
-	binding := id + ":" + strconv.Itoa(q.Limit)
-	var cursor struct {
-		Binding string `json:"binding"`
-		Last    string `json:"last"`
-	}
-	if q.Cursor != "" {
-		b, e := base64.RawURLEncoding.DecodeString(q.Cursor)
-		if e != nil || protocol.Decode(b, &cursor) != nil || cursor.Binding != binding {
-			return out, protocol.E(400, "invalid_cursor", "invalid history cursor")
-		}
-	}
-	for _, h := range hs {
-		key := h.Timestamp + "-" + h.RequestHash
-		if key <= cursor.Last {
-			continue
-		}
-		if !q.All && len(out.Items) == q.Limit {
-			last := out.Items[len(out.Items)-1].(ProjectHistory)
-			cursor.Binding = binding
-			cursor.Last = last.Timestamp + "-" + last.RequestHash
-			b, _ := json.Marshal(cursor)
-			value := base64.RawURLEncoding.EncodeToString(b)
-			out.NextCursor = &value
-			break
-		}
-		out.Items = append(out.Items, h)
-		if len(out.Items) > s.Config.Limits.ExpandedRecords {
-			return out, protocol.E(413, "limit_exceeded", "history snapshot exceeds item limit")
-		}
-	}
-	return out, nil
 }

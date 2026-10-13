@@ -7,6 +7,7 @@ import (
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/textdiff"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/claims"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
@@ -47,7 +48,7 @@ type Preview struct {
 }
 
 // Diff is the change the draft makes to the recorded content.
-func (p Preview) Diff() []string { return drafts.Diff(p.Draft.Base, p.Content) }
+func (p Preview) Diff() []string { return textdiff.Diff(p.Draft.Base, p.Content) }
 
 // Lost reports that the edit claim was lost (or is no longer held), so an
 // apply is optimistic: fenced by the recorded revision only. A kind that
@@ -272,7 +273,7 @@ func (e *Editor) DiffCurrent(ctx context.Context, d drafts.Draft) Compared {
 		return err
 	})
 	if c.Err == nil {
-		c.Diff = drafts.Diff(c.Record.Content, c.Content)
+		c.Diff = textdiff.Diff(c.Record.Content, c.Content)
 	}
 	return c
 }

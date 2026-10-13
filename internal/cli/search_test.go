@@ -1,6 +1,16 @@
 package cli
 
-import "testing"
+import (
+	"bytes"
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+)
 
 func TestGrepArguments(t *testing.T) {
 	for _, argv := range [][]string{{"grep", "needle", "-n", "-C", "2", "--all-projects"}, {"--format", "json", "grep", "--", "--help"}, {"grep", "--", "-literal"}} {
@@ -42,6 +52,44 @@ func TestReservedFlagContentUsesEquals(t *testing.T) {
 		}
 		if _, err := Parse([]string{"issues", "create", "--issue", "Test", "--content", value}); err == nil {
 			t.Fatalf("split option-like value unexpectedly accepted: %s", value)
+		}
+	}
+}
+
+// -E and --regex send the pattern as a regex; plain grep sends no regex field.
+func TestGrepRegexFlag(t *testing.T) {
+	for _, tc := range []struct {
+		argv  []string
+		regex any
+	}{
+		{[]string{"grep", "-E", "econn(refused|reset)", "--all-projects"}, true},
+		{[]string{"grep", "--all-projects", "--regex", "--", "-econn"}, true},
+		{[]string{"grep", "econn(refused|reset)", "--all-projects"}, nil},
+	} {
+		var sent map[string]any
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/v1/search" {
+				t.Errorf("path %s", r.URL.Path)
+			}
+			_ = json.NewDecoder(r.Body).Decode(&sent)
+			_ = json.NewEncoder(w).Encode(map[string]any{"data": map[string]any{"items": []any{}}, "server_time": "2026-01-01T00:00:00Z"})
+		}))
+		args, e := Parse(tc.argv)
+		if e != nil {
+			t.Fatal(tc.argv, e)
+		}
+		app := &App{Session: litclient.Session{Mapping: Mapping{ClientID: protocol.UUID()}, StateDir: t.TempDir(), Endpoint: server.URL, HTTP: server.Client(), Context: context.Background()}, Args: args, Err: new(bytes.Buffer)}
+		if _, e := app.grep(); e != nil {
+			t.Fatal(tc.argv, e)
+		}
+		server.Close()
+		if sent["regex"] != tc.regex || sent["query"] != args.Positionals[0] {
+			t.Errorf("%v sent %v", tc.argv, sent)
+		}
+	}
+	for _, argv := range [][]string{{"grep", "-E", "-E", "a"}, {"grep", "--regex=true", "a"}, {"grep", "-Ea", "b"}} {
+		if _, e := Parse(argv); e == nil {
+			t.Errorf("accepted %v", argv)
 		}
 	}
 }

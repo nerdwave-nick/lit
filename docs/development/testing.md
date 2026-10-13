@@ -16,9 +16,207 @@ embedded skills offline, and exercises sessions,
 claims, checkpoints, cross-checkout resume, and closure against a temporary service.
 It does not invoke paid models or start a persistent service.
 
+The end-to-end benchmark in `integration/bench` is gated and never runs in CI;
+plain `go test ./...` runs only its unit tests (percentiles, the pass/fail
+checks, the report and the corpus generator). Before a milestone merges, run it
+by hand on an otherwise idle machine and record the report on the milestone's
+final ticket:
+
+```sh
+LIT_BENCH=1 LIT_BENCH_DIR=~/.cache/lit-bench go test -run TestBenchmark -timeout 3h -v ./integration/bench/
+```
+
+It builds `lit-server` without the race detector, starts it on a temporary data
+directory and free port, seeds 100 projects of about 15 issues through the HTTP
+API in transactions of 1-5 operations, then measures p50/p95/p99 per operation,
+the database size and the startup time after a graceful stop (gated; the
+clean-shutdown marker skips the full integrity scan) and after kill -9
+(`startup.unclean`, informational; the full scan runs); it doubles the history with updates,
+runs 8 writing agents and 2 readers (grep and ranked search), grows to 1,000 projects, and fails
+on any missed target. `LIT_BENCH_DIR` should be on the filesystem lit-server
+really uses (tmpfs makes fsync free). The package documentation lists the other
+variables, and the report lists how each operation is measured.
+
 Installer and workflow-session regression tests live in
 `internal/workflow-skills` and `internal/workflowsession`. Protocol fixtures in
 `internal/protocol/testdata` pin canonical request bytes and hashes.
+
+`internal/storage` tests run against real SQLite databases in temporary
+directories, without mocks: the owner lock, connection settings, `BEGIN
+IMMEDIATE` and typed busy errors (a second connection holds the write lock),
+the write-lock and read-snapshot API, schema migrations (refusing a newer
+version, upgrading after a `VACUUM INTO` snapshot), schema constraints and
+the monotonic clock. `TestModuleSelectsTheDriversLibc` fails when `go.mod`
+selects a `modernc.org/libc` other than the one `modernc.org/sqlite` requires.
+The record tests write through `WriteTx.WriteRequest` and cover every typed
+read (records with computed membership lists, selectors, discovery-filter
+lists and keyset pages, neighbours, milestone progress inputs, the structural
+guard set and cycle queries), each rejected write and the late failure of a
+multi-record request, and history rebuilt from stored diffs.
+`TestHistoryMatchesTheLegacyHistoryAPI` replays requests recorded from the
+legacy file store in `internal/storage/testdata/history_compat.json` and
+compares the history output. The recording is fixed: the file store and the
+generator that wrote it are gone. Opening a directory that holds a legacy file
+store (its `service.json`) is refused before anything is written.
+The integrity tests damage real databases on purpose: an invalid b-tree page
+and a foreign-key violation fail the startup checks; an FTS5 table created in
+the test, stale against its content table or with damaged index blocks, is
+rebuilt, and one over a missing content table fails; a garbage file and an
+unparsable schema (`writable_schema`, then a schema cookie bump so open
+connections reload it) are `ErrFatal`. The `Verify` tests change rows and
+history behind the history (fields, bodies, sets, links, members, revisions,
+diffs, "before" values) and insert legacy membership-list history rows that
+must be skipped. The clean-shutdown tests (`clean_test.go`) require
+`CloseClean` to leave the marker that the next open consumes (`Open` and
+`OpenExisting` alike), a plain `Close` and a fresh database to leave none, a
+fatal error met while open to prevent it, and the marker to go stale when the
+database is written from outside, replaced by a snapshot (renamed or copied
+over in place), or the marker is deleted or damaged.
+
+The grep index tests cover the migration to schema version 2 (a version 1
+database with rows gets a filled `grep_text` and `grep_index` after its
+pre-migration snapshot), writes keeping both in step, the
+candidate scan (index `GLOB` from three folded characters, with literal `*`,
+`?` and `[`; a column scan below; no match across fields; NUL), its query plan,
+and the startup check rebuilding a stale `grep_index` and rewriting missing,
+stale and orphaned `grep_text` rows. In the service, `TestGrepThroughTheIndexMatchesTheScan` runs the
+search acceptance cases (`net/http`, `C++`, `Go`, `UI`, `strasse`/`Straße`,
+`cafe`, `foo.bar`, `a_b`, `100%`, `APP-123`, and folding hazards such as
+decomposed accents, `İ`, the Kelvin sign, NUL and GLOB's wildcards) folded and
+case-sensitive, with context lines, several page sizes and both scopes, and
+requires pages identical to a scan of every record with `searchExcerpt`;
+`TestGrepThroughTheIndexMatchesTheScanForRandomText` does the same for random
+text and queries over an alphabet of those hazards. `internal/textfold` checks
+`Scalar` against `cases.Fold` for every scalar and that `Grep` keeps
+substrings.
+
+Regex grep (`internal/service/regex_test.go`) has a table test of anchors,
+alternation, case, RE2's simple folding (`ss` is not `ß`, `ß` is `ẞ`), patterns
+without literals, matches that would cross a newline, excerpts, paging and
+invalid patterns (`validation_failed`), and a table of the literals extracted
+per pattern. `TestRegexGrepPrefilterMatchesTheScan` and its random-pattern
+twin require pages identical to a scan of every record without the
+prefilter, over the literal grep world plus case-folding hazards: Cherokee and
+the newest Latin letters, whose RE2 fold orbits lit's full fold maps to more
+than one string, the Kelvin sign and the long s. `internal/storage` tests
+`SearchScanAny` and its query plan (one index `GLOB` per literal);
+`integration/regex_test.go` drives `lit grep -E` end to end.
+
+The backup tests snapshot a tracker with history (`Backup`), restore the
+snapshot into a new data directory and require `OpenExisting` plus `Verify`
+and the startup checks to pass; a snapshot taken while a write transaction is
+open holds only committed data; a cancelled backup, or one into a read-only
+directory, leaves no file. Retention tests surround scheduled snapshots with
+pre-migration snapshots, near-miss names, a directory and a symlink, which
+must all survive. `cmd/lit-server` tests run the periodic job (failures and
+panics are logged and the job carries on; stop cancels a run and waits), the
+scheduled backups of a started service with retention and a restore through
+`lit-server verify`, and their absence with interval 0 and in degraded mode.
+`integration/backup_test.go` drives the binary with `LIT_BACKUP_*`, restores
+the newest snapshot as `docs/recovery.md` describes and reads the tracker back.
+
+`internal/export` tests write a small fixture tracker through the storage
+module with fixed IDs and times, then export it. `TestExportMatchesTheGoldenTree`
+compares the whole tree with `internal/export/testdata/golden` (regenerate with
+`go test ./internal/export -run TestExportMatchesTheGoldenTree -update` and
+review the diff). The other tests check that two exports give identical bytes
+apart from the export time, that every link and front-matter path resolves
+(goldmark parses each file; only the fixture's own author-written relative link
+may point outside the tree), that the front-matter writer round-trips through a
+YAML parser (a table of awkward strings plus a `testing/quick` property), that
+a write committed during an export is not exported (one snapshot), that a
+target that is not a previous export is refused, that a failed export leaves
+the previous tree, and that a second export into the same directory is refused.
+`storage.OpenReadOnly` is tested beside a running owner and without one.
+`cmd/lit-server` tests run the interval export: a run exports after a change
+and leaves the tree (manifest and directory inode) untouched when the newest
+transaction is the manifest's `last_transaction`, an export of another tracker
+is replaced, a started service exports at once and follows a later write,
+failed runs are logged while the service keeps serving without a database
+failure, and nothing is exported by default, with only a directory set, or in
+degraded mode.
+
+`cmd/lit-migrate` tests build legacy fixture stores with the frozen legacy
+writer (`cmd/lit-migrate/internal/legacy`: the legacy preparer and
+`recordTransaction`, claim operations with a controlled clock, client saves and
+disconnect): multi-owner transactions, entries that change only membership
+lists, links, a milestone, CRLF, Unicode and unterminated bodies, live, expired
+and released claims, and connected and disconnected clients. The importer tests
+run the full import with all nine checks, then compare claims, clients, records
+and history with the legacy reader; they cover dry runs (source and target
+untouched), a non-empty target, a store still owned by a legacy server,
+failures that must leave no database (an unlisted file, a record tampered
+behind its history, a claim time that is not canonical), a rerun after a
+failure, and determinism. `cmd/lit-server`'s `TestLitServerDoesNotLinkTheLegacyStore`
+keeps the frozen copy and `internal/store` out of lit-server.
+
+`internal/service` tests run the service against real SQLite databases in
+temporary directories. All-or-nothing behaviour is tested with real late
+failures: a request whose response exceeds the configured limit fails after all
+its writes, and the database, also after reopening, must be unchanged (multi-
+record batches, links, disconnect with live and expired claims, closing an
+issue that releases its claim, and every other mutation family); the same
+request then succeeds. `TestShutdownDrainsAdmittedTransaction` holds a commit
+open without a test hook: a second connection holds SQLite's write lock, so the
+admitted request waits inside its `BEGIN IMMEDIATE` (the test waits until a
+goroutine runs `storage.(*Writer).Begin`), `Stop` refuses new requests, and
+releasing the lock lets the admitted request commit. Lock contention outlasting
+the busy timeout answers `503 storage_busy`. `cmd/lit-server` tests start the service on
+damaged and healthy data directories (degraded mode, search index rebuild),
+check the startup log line of each path (a clean marker skips the scan, so a
+foreign-key violation behind it is served; a missing one runs it) and run
+`lit-server verify`, which leaves the marker only when the database verified;
+`integration/integrity_test.go` drives the binary in degraded mode, its exit
+on corruption met while serving (leaving no marker), and `verify` on a
+tracker written through the CLI. `integration/clean_shutdown_test.go` starts
+the binary, stops it gracefully and restarts it with the scan skipped, kills it
+with kill -9 and restarts it with the scan run, and restores an identical copy
+of the database, which is scanned.
+`cmd/lit-server` healthcheck tests serve a started service and degraded mode
+over loopback HTTP and run `lit-server healthcheck` against them, a closed port
+and foreign answers; the listen address comes from flags, environment or config,
+and the data directory is never touched. `packaging/compose_test.go` keeps
+`compose.yaml` and the `Dockerfile` within the deployment rules (host network,
+the default loopback listener, the restart policy, the named volume and bind
+mounts, an export directory below its mount, the exec-form healthcheck, a static
+non-root distroless image). Building and running the image is a manual check
+with Docker, recorded on the compose ticket; the suite needs no Docker.
+
+`internal/service/routes_test.go` checks the route table's classification of
+every route. `internal/service/concurrency_test.go` and `readcap_test.go` run
+reads concurrently with writes under the race detector. A request is held
+inside its transaction without a production hook: the tests' `claimClock`
+replacement is consulted once the request's snapshot or write transaction is
+open, so parking it parks the request (a slow read does not delay writes; a
+claim renewal racing a read stays correct for writers), and the second-
+connection lock holds a write inside `BEGIN IMMEDIATE` while reconciliation
+must wait for it. Holding read snapshots through `DB.Read` exhausts the read
+cap.
+
+`internal/service/search_limits_test.go` covers the search limits. A search
+parked through `claimClock` until its deadline has passed answers `504
+search_timeout` and frees its snapshot; a search waiting over the read cap past
+its deadline still succeeds, because the deadline starts when its snapshot
+opens; queries of 1,000 bytes pass and 1,001 bytes (also counted in multi-byte
+characters) are `validation_failed`. `integration/search_test.go` runs the same
+limits through the binaries with `LIT_SEARCH_TIMEOUT=1ns`.
+
+Ranked search (`lit search`) is covered at each layer. `internal/storage`
+`rank_index_test.go` checks schema version 3 (`rank_text` and `rank_index`),
+writes keeping both in step, the migration of a version 2 database with rows,
+the setup import (`Create` + `ImportRecords`) producing a complete index, and
+the startup check rebuilding a stale `rank_index` and rewriting missing, stale
+and orphaned `rank_text` rows. `rank_query_test.go` pins the search box parser
+(phrases, exclusions, `OR`, prefixes, unbalanced quotes, `C++`, `net/http`,
+FTS5 keywords and queries without words); `rank_search_test.go` checks
+ranking order on a fixture (title over body over comments), grouping of
+comments under their issue, projects and milestones as results, scope and
+state filters, rank-order paging, diacritics (`cafe` finds `Café`), byte
+offsets, text containing the highlight markers, and 300 random queries
+without an FTS5 error. `internal/service/ranked_search_test.go` covers
+snippets, the route's settled JSON shape, cursors, validation and the search
+deadline; `integration/ranked_search_test.go` runs `lit search` through the
+binaries.
 
 `integration/tui_dispatch_test.go` covers how `lit` finds and starts `lit-tui`
 (sibling first, then PATH, process replacement, endpoint pass-through, the missing
@@ -149,6 +347,13 @@ claim refusals at preview and at commit, revision fences and own claim tokens
 on the wire. The claims tests use leases of about a second;
 one renews a claim across several leases while the program's event loop is
 blocked inside Update.
+
+`internal/textdiff` tests the line diff shared by lit-tui and lit-server:
+byte-exact diffs and strict `Apply` for CRLF, lone CR, a missing final newline,
+empty bodies, Unicode and invalid UTF-8; refusals of another base and of
+malformed diffs; the property `Apply(Diff(a, b), a) == b` (`testing/quick` and a
+fuzz target whose seeds `go test` runs); and the LCS cell bound against 64 KB
+bodies. `go test -run '^$' -bench Diff64KB ./internal/textdiff` measures it.
 
 `cmd/lit/deps_test.go` uses `go list -deps` to prove that only `lit-tui` links the
 Charm, Glamour and chroma packages.

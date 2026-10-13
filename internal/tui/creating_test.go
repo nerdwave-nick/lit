@@ -70,7 +70,8 @@ func TestNewIssueCreatesATopLevelIssueAndSelectsIt(t *testing.T) {
 }
 
 // C creates a child of the selection: the preview lists the parent, whose
-// children change, and the new child is selected under its parent.
+// computed children change (it is read at its revision, not written), and
+// the new child is selected under its parent.
 func TestNewChildIsCreatedUnderTheSelection(t *testing.T) {
 	u := startCreating(t)
 	before := u.issue(u.root)
@@ -79,7 +80,7 @@ func TestNewChildIsCreatedUnderTheSelection(t *testing.T) {
 	u.typeText("Another child")
 	u.press("enter")
 	u.expect("the preview lists the parent", u.line("Create the new issue “Another child”?") != "" &&
-		u.line(fmt.Sprintf("issue “Root issue” at revision %d (changed)", before.Revision)) != "" &&
+		u.line(fmt.Sprintf("issue “Root issue” at revision %d (read)", before.Revision)) != "" &&
 		u.line("Creating it changes the children of “Root issue”") != "")
 	u.choose("Apply")
 	got := u.titled("Another child")
@@ -193,7 +194,7 @@ func TestNewChildPassesOnOwnClaimOnTheParent(t *testing.T) {
 	u.press("C")
 	u.typeText("Claimed parent's child")
 	u.press("enter")
-	u.expect("passed on", u.line(fmt.Sprintf("issue “Root issue” at revision %d (changed) · claimed by you: your claim is passed on", rev)) != "")
+	u.expect("passed on", u.line(fmt.Sprintf("issue “Root issue” at revision %d (read) · claimed by you: your claim is passed on", rev)) != "")
 	u.choose("Apply")
 	u.expect("created", u.line("Created “Claimed parent's child” under “Root issue”.") != "")
 	u.expect("still claimed", u.ours(u.root))

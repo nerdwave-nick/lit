@@ -108,6 +108,29 @@ A set of compatible requested changes applied together, or rejected together
 when any required condition fails. Repeated targets can contribute compatible
 changes without making argument order significant.
 
+**Degraded mode**:
+lit-server running but answering every request with `503 recovery_required`
+because its database could not be opened or failed the full integrity scan.
+Only an operator leaves it, by restoring a backup or repairing the database.
+
+**Clean shutdown**:
+A graceful lit-server stop after which the database closed without a failure,
+recorded in the data directory's clean-shutdown marker. The next start skips
+the full integrity scan, which otherwise runs after every unclean shutdown
+(crash, kill, database failure, degraded mode) and in `lit-server verify`.
+
+**Backup snapshot**:
+A complete copy of lit-server's database that lit-server writes itself with
+`VACUUM INTO`: scheduled ones at an interval, of which the newest few are kept,
+and one before each schema migration. Restoring one loses everything committed
+after it was taken.
+
+**Setup import**:
+The one-time conversion of a stopped legacy file store into a new, empty data
+directory by the separate `lit-migrate` binary, before the SQLite-backed
+lit-server first starts. lit-server itself never reads or converts a legacy
+store; it refuses a data directory that still holds one.
+
 **Saved plan**:
 A prepared durable transaction retained for explicit later application, bound
 to its tracker and logical client and to the original changes and preconditions.

@@ -11,7 +11,7 @@ import (
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 )
 
 // summaryService runs a real in-process lit-server with one project holding a
@@ -19,7 +19,7 @@ import (
 // a second, human client.
 func summaryService(t *testing.T) (*service.Server, *Session, string, string) {
 	t.Helper()
-	st, e := store.Open(t.TempDir())
+	st, e := storage.Open(t.TempDir())
 	if e != nil {
 		t.Fatal(e)
 	}
@@ -62,7 +62,7 @@ func summaryService(t *testing.T) (*service.Server, *Session, string, string) {
 		t.Fatal(e)
 	}
 	s := &Session{StateDir: t.TempDir(), Endpoint: ts.URL, HTTP: ts.Client(), Context: context.Background(),
-		Mapping: Mapping{SchemaVersion: 1, ClientID: human.ClientID, ServiceID: st.Identity.ServiceID, Endpoint: ts.URL}, Meta: srv.Meta(), Client: human}
+		Mapping: Mapping{SchemaVersion: 1, ClientID: human.ClientID, ServiceID: st.ServiceID(), Endpoint: ts.URL}, Meta: srv.Meta(), Client: human}
 	return srv, s, project, parent
 }
 

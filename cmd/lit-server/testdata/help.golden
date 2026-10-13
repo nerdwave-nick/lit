@@ -12,6 +12,12 @@ Existing JSON config must have schema_version: 1. Changes require a restart.
 Under systemd socket activation, the single inherited loopback socket replaces
 the listen address.
 
+lit-server export --to DIRECTORY writes a one-way Markdown export of the tracker;
+see lit-server export --help. lit-server verify checks the database of a stopped
+lit-server and replays its history; see lit-server verify --help.
+lit-server healthcheck checks that a running lit-server answers on its listen
+address, for container healthchecks; see lit-server healthcheck --help.
+
 Usage:
   lit-server [flags]
 

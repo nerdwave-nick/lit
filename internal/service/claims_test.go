@@ -9,7 +9,7 @@ import (
 func claimFixture(t *testing.T) (*Server, protocol.Client, string) {
 	t.Helper()
 	s, c := projectTestServer(t, t.TempDir())
-	t.Cleanup(func() { s.Store.Close() })
+	t.Cleanup(func() { s.DB.Close() })
 	pid, id := protocol.UUID(), protocol.UUID()
 	executeProjectTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: pid, Title: textPointer("feat/claims")}))
 	p, e := s.PrepareRecords(protocol.PrepareRequest{Operation: "issue.create", Project: pid, Items: []protocol.ProjectInput{{ID: id, Title: textPointer("Claim me")}}}, c)
@@ -165,7 +165,7 @@ func TestClaimsProtectMutationsAndExemptAppends(t *testing.T) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	_, _, e = s.recordTransaction(plan.Intent, plan.RequestHash, c, protocol.ClaimToken{IssueID: id, Token: protocol.UUID()})
+	e = dryRun(s, plan.Intent, plan.RequestHash, c, protocol.ClaimToken{IssueID: id, Token: protocol.UUID()})
 	if e == nil {
 		t.Fatal("stale token accepted on no-op")
 	}

@@ -1,17 +1,14 @@
 package service
 
 import (
-	"crypto/sha256"
-	"encoding/base64"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"net/http"
 	"net/url"
-	"sort"
 	"strconv"
 	"strings"
+
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 )
 
 func (q *ProjectQuery) UnmarshalJSON(b []byte) error {
@@ -83,13 +80,13 @@ func validateQueryFields(q ProjectQuery) error {
 func (s *Server) resolveRecord(typ, selector, project string) (any, error) {
 	switch typ {
 	case "projects":
-		return s.ResolveProject(selector)
+		return s.resolveProject(selector)
 	case "issues":
-		return s.ResolveIssue(selector, project)
+		return s.resolveIssue(selector, project)
 	case "comments":
-		return s.ResolveComment(selector)
+		return s.resolveComment(selector)
 	case "milestones":
-		return s.ResolveMilestone(selector, project)
+		return s.resolveMilestone(selector, project)
 	}
 	return nil, invalid("unsupported resource")
 }
@@ -150,10 +147,6 @@ func (s *Server) recordRoute(w http.ResponseWriter, r *http.Request, c protocol.
 			}
 			return true, e
 		}
-		hs, e := s.RecordHistory(typ, segments[0])
-		if e != nil {
-			return true, e
-		}
 		if len(segments) == 2 && segments[1] == "history" {
 			values := r.URL.Query()
 			// A milestone's project_id scopes the owner lookup above; it is not a
@@ -161,30 +154,12 @@ func (s *Server) recordRoute(w http.ResponseWriter, r *http.Request, c protocol.
 			if typ == "milestones" {
 				values.Del("project_id")
 			}
-			page, e := s.projectHistoryPage(typ+":"+segments[0], hs, values)
-			if e != nil {
-				return true, e
-			}
-			return true, s.writeReadPage(w, page)
+			return true, s.serveHistory(w, typ, segments[0], typ+":"+segments[0], values)
 		}
 		if len(segments) != 3 {
 			return true, invalid("request hash required")
 		}
-		for _, h := range hs {
-			if h.RequestHash == segments[2] {
-				if segments[1] == "requests" {
-					s.write(w, 200, map[string]any{"outcome": "recorded", "request_hash": h.RequestHash, "results": h.Results})
-				} else {
-					s.write(w, 200, h)
-				}
-				return true, nil
-			}
-		}
-		if segments[1] == "requests" {
-			s.write(w, 200, map[string]any{"outcome": "not_recorded_here", "revision": recordRevision(owner)})
-			return true, nil
-		}
-		return true, protocol.E(404, "not_found", "history entry not found")
+		return true, s.historyEntry(w, typ, segments[0], segments[2], segments[1] == "requests", recordRevision(owner))
 	}
 	owner, e := s.resolveRecord(typ, selector, project)
 	if e != nil {
@@ -243,211 +218,6 @@ func recordURLQuery(typ string, values url.Values) (ProjectQuery, error) {
 		return q, protocol.E(400, "unsupported_filter", e.Error())
 	}
 	return q, validateQueryFields(q)
-}
-
-// recordPage is the basic enumeration seam for dependency/discovery and grep.
-// It materializes accepted records under Server.Mu; later filters extend Query.
-func (s *Server) recordPage(q ProjectQuery) (ProjectPage, error) {
-	if e := validateQueryFields(q); e != nil {
-		return ProjectPage{}, e
-	}
-	if q.Type == "projects" {
-		if q.ProjectID != "" || q.IssueID != "" || q.AllProjects {
-			return ProjectPage{}, invalid("inapplicable project filters")
-		}
-	}
-	out := ProjectPage{Items: []any{}}
-	if q.Type != "issues" && q.Type != "comments" && q.Type != "projects" && q.Type != "milestones" {
-		return out, invalid("invalid query type")
-	}
-	if q.Type == "issues" {
-		if q.IssueID != "" || q.AllProjects && q.ProjectID != "" || (q.AllProjects || q.Fields["all_projects"]) && (q.MilestoneID != "" || q.Fields["milestone_id"]) {
-			return out, invalid("inapplicable issue scope")
-		}
-		if !q.AllProjects {
-			if q.ProjectID == "" {
-				return out, invalid("select a project or all_projects")
-			}
-			p, e := s.ResolveProject(q.ProjectID)
-			if e != nil {
-				return out, e
-			}
-			q.ProjectID = p.ID
-		}
-		if q.MilestoneID != "" {
-			if q.ProjectID == "" {
-				return out, invalid("milestone filter requires project scope")
-			}
-			m, e := s.ResolveMilestone(q.MilestoneID, q.ProjectID)
-			if e != nil {
-				return out, e
-			}
-			q.MilestoneID = m.ID
-		}
-		if q.Fields["milestone_id"] && q.MilestoneID == "" {
-			return out, invalid("milestone_id must not be empty")
-		}
-	} else if q.Type == "milestones" {
-		if q.AllProjects || q.Fields["all_projects"] || q.IssueID != "" || q.MilestoneID != "" || q.ParentID != nil || q.State != "" || len(q.LabelsAll)+len(q.LabelsAny)+len(q.LabelsNone) > 0 || q.Assignee != nil || q.Blocked != nil || q.Claimed != nil || q.OwnerClientID != "" || q.Author != "" || len(q.RepositoryRef) > 0 {
-			return out, invalid("inapplicable milestone filter")
-		}
-		if q.ProjectID == "" {
-			return out, invalid("select a project for milestone query")
-		}
-		p, e := s.ResolveProject(q.ProjectID)
-		if e != nil {
-			return out, e
-		}
-		q.ProjectID = p.ID
-	} else if q.Type == "comments" {
-		if q.ProjectID != "" || q.AllProjects {
-			return out, invalid("comments require issue scope")
-		}
-		if q.IssueID == "" {
-			return out, invalid("comments require issue_id")
-		}
-		p, e := s.ResolveIssue(q.IssueID, "")
-		if e != nil {
-			return out, e
-		}
-		q.IssueID = p.ID
-	}
-	if q.All && (q.Limit != 0 || q.Cursor != "" || q.Fields["limit"] || q.Fields["cursor"]) {
-		return out, invalid("all conflicts with pagination")
-	}
-	if q.Sort == "" {
-		q.Sort = "created_at"
-	}
-	q.Sort = strings.ReplaceAll(q.Sort, "-", "_")
-	if q.Sort != "created_at" && q.Sort != "updated_at" && (q.Sort != "title" || q.Type == "comments") {
-		return out, invalid("invalid sort")
-	}
-	if q.Direction == "" {
-		q.Direction = "asc"
-	}
-	if q.Direction != "asc" && q.Direction != "desc" {
-		return out, invalid("invalid direction")
-	}
-	if q.Fields["limit"] && q.Limit == 0 {
-		return out, invalid("limit must be positive")
-	}
-	if q.Limit == 0 {
-		q.Limit = s.Config.Limits.DefaultPage
-	}
-	if q.Limit < 1 || q.Limit > s.Config.Limits.MaxPage {
-		return out, invalid("invalid limit")
-	}
-	rs, e := s.Records(q.Type)
-	if e != nil {
-		return out, e
-	}
-	if e := validateDiscovery(q); e != nil {
-		return out, e
-	}
-	state, e := s.ReadRecordState()
-	if e != nil {
-		return out, e
-	}
-	filtered := []any{}
-	for _, r := range rs {
-		switch p := r.(type) {
-		case protocol.Issue:
-			if !q.AllProjects && p.ProjectID != q.ProjectID {
-				continue
-			}
-			if q.MilestoneID != "" {
-				m, ok := state[recordKey("milestones", q.MilestoneID)].(protocol.Milestone)
-				if !ok || !contains(m.IssueIDs, p.ID) {
-					continue
-				}
-			}
-		case protocol.Comment:
-			if p.IssueID != q.IssueID {
-				continue
-			}
-		case protocol.Milestone:
-			if p.ProjectID != q.ProjectID {
-				continue
-			}
-		}
-		match, e := s.matchesQuery(q, r, state)
-		if e != nil {
-			return out, e
-		}
-		if !match {
-			continue
-		}
-		filtered = append(filtered, r)
-	}
-	key := func(r any) string {
-		_, _, _, created, updated := recordIdentity(r)
-		if q.Sort == "updated_at" {
-			return updated
-		}
-		if q.Sort == "title" {
-			switch p := r.(type) {
-			case protocol.Issue:
-				return IssueTitleKey(p.Title)
-			case protocol.Project:
-				return strings.ToLower(p.Title)
-			case protocol.Milestone:
-				return IssueTitleKey(p.Title)
-			}
-		}
-		return created
-	}
-	sort.Slice(filtered, func(i, j int) bool {
-		a, b := key(filtered[i]), key(filtered[j])
-		if a == b {
-			_, a, _, _, _ = recordIdentity(filtered[i])
-			_, b, _, _, _ = recordIdentity(filtered[j])
-		}
-		if q.Direction == "desc" {
-			return a > b
-		}
-		return a < b
-	})
-	for _, set := range []*[]string{&q.ID, &q.RepositoryRef, &q.LabelsAll, &q.LabelsAny, &q.LabelsNone} {
-		*set = union(nil, *set)
-		sort.Strings(*set)
-	}
-	binding := q
-	binding.Fields = nil
-	binding.Cursor = ""
-	hashBytes := sha256.Sum256(mustJSON(binding))
-	hash := hex.EncodeToString(hashBytes[:])
-	var cursor struct {
-		Hash string `json:"hash"`
-		Key  string `json:"key"`
-		ID   string `json:"id"`
-	}
-	if q.Cursor != "" {
-		b, e := base64.RawURLEncoding.DecodeString(q.Cursor)
-		if e != nil || protocol.Decode(b, &cursor) != nil || cursor.Hash != hash || !protocol.ValidUUID(cursor.ID) || cursor.Key == "" {
-			return out, protocol.E(400, "invalid_cursor", "cursor does not match query")
-		}
-	}
-	for _, r := range filtered {
-		_, id, _, _, _ := recordIdentity(r)
-		k := key(r)
-		if cursor.ID != "" && (q.Direction == "asc" && (k < cursor.Key || k == cursor.Key && id <= cursor.ID) || q.Direction == "desc" && (k > cursor.Key || k == cursor.Key && id >= cursor.ID)) {
-			continue
-		}
-		if !q.All && len(out.Items) == q.Limit {
-			last := out.Items[len(out.Items)-1]
-			_, cursor.ID, _, _, _ = recordIdentity(last)
-			cursor.Key = key(last)
-			cursor.Hash = hash
-			v := base64.RawURLEncoding.EncodeToString(mustJSON(cursor))
-			out.NextCursor = &v
-			break
-		}
-		out.Items = append(out.Items, r)
-		if len(out.Items) > s.Config.Limits.ExpandedRecords {
-			return out, protocol.E(413, "limit_exceeded", "snapshot item limit exceeded")
-		}
-	}
-	return out, nil
 }
 
 func (p *ProjectSnapshot) UnmarshalJSON(b []byte) error {

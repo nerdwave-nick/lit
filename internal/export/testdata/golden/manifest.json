@@ -1,0 +1,16 @@
+{
+  "schema_version": 1,
+  "generator": "lit-server export",
+  "service_id": "50000000-0000-4000-8000-000000000001",
+  "exported_at": "2026-10-11T12:00:00.000000Z",
+  "last_transaction": {
+    "request_hash": "7dbf7deec1d0f0efe9e23fb5f463fc3bdf16c1c36e78d5b0391a121295ec037c",
+    "timestamp": "2026-10-11T09:00:09.000000Z"
+  },
+  "counts": {
+    "projects": 2,
+    "issues": 4,
+    "comments": 2,
+    "milestones": 1
+  }
+}

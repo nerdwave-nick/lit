@@ -163,6 +163,35 @@ JSON, defaults:
 | `--config` | `LIT_CONFIG_FILE` | selects the file |
 | `--data-dir` | `LIT_DATA_DIR` | `data_dir` |
 | `--listen` | `LIT_LISTEN` | `listen` |
+| none | `LIT_READ_CONCURRENCY` | `read_concurrency` |
+| none | `LIT_BACKUP_DIR` | `backup_dir` |
+| none | `LIT_BACKUP_INTERVAL` | `backup_interval` |
+| none | `LIT_BACKUP_KEEP` | `backup_keep` |
+| none | `LIT_EXPORT_DIR` | `export_dir` |
+| none | `LIT_EXPORT_INTERVAL` | `export_interval` |
+| none | `LIT_SEARCH_TIMEOUT` | `search_timeout` |
+
+`read_concurrency` caps how many read requests run at once (default 8, a
+positive integer); further reads wait until one finishes or their request ends.
+Writes are always serialized and do not count against it.
+
+`search_timeout` is the deadline of every search request (a positive Go
+duration such as `"10s"`, the default). It counts from the moment the search's
+read snapshot opens, so waiting for a read slot does not use it up. A search
+that reaches it fails with `504 search_timeout`; narrow the pattern or search
+one project instead of all projects. Patterns are at most 1,000 bytes.
+
+lit-server takes `VACUUM INTO` backup snapshots of its database into
+`backup_dir` (default `<data dir>/backup`) every `backup_interval` (a Go
+duration such as `"24h"`, the default; `"0"` turns scheduled snapshots off),
+keeping the newest `backup_keep` (default 14, a positive integer). See
+[backups](recovery.md#backups) and [restoring a snapshot](recovery.md#restore-a-snapshot).
+
+With `export_interval` set (a Go duration such as `"10m"`; the default `0`
+turns it off), lit-server writes the [Markdown export](export.md) into
+`export_dir` at that interval, skipping runs when nothing has committed since
+the last export. `export_dir` must then be set; it cannot be a mount point
+(mount its parent instead). See [interval exports](export.md#interval-exports).
 
 Changes require an explicit restart. Invalid/unknown configuration fields and
 unsupported format versions fail clearly. First explicit startup initializes an
@@ -301,6 +330,115 @@ does not exit when idle; it keeps running until stopped. Stopping only
 again. To turn activation off, run `systemctl --user disable --now lit.socket`
 and stop `lit.service`.
 
+## Docker Compose
+
+The repository's `compose.yaml` runs lit-server as a single container on Linux,
+next to the systemd units above, which remain the path without containers. The
+image is built locally from the repository's `Dockerfile`: a static binary
+(`CGO_ENABLED=0`) on `gcr.io/distroless/static`, running as a non-root user.
+Nothing is pulled from or published to a registry except the public Go and
+distroless base images. Docker with Compose v2 is required; Docker Desktop on
+macOS or Windows is not a supported server platform.
+
+From the repository root:
+
+```sh
+mkdir -p backup export
+printf 'LIT_UID=%s\nLIT_GID=%s\n' "$(id -u)" "$(id -g)" > .env   # optional, see below
+docker compose up -d --build
+docker compose ps            # STATUS shows (healthy) once lit-server answers
+docker compose logs -f lit-server
+```
+
+The stack:
+
+- **Network:** `network_mode: host`, and lit-server binds the host's
+  `127.0.0.1:7411` itself. The loopback-only listen rule is unchanged, so
+  nothing beyond the host can connect, and `lit` connects to the default
+  endpoint as usual. No ports are published. Stop a lit-server already running
+  on the host first, or the container cannot bind the address.
+- **Data:** the database, its WAL files and the lock file live in the named
+  volume `lit_lit-data` at `/data`. Keep SQLite on this volume, never on a
+  network filesystem or a bind mount.
+- **Backups and exports:** the host directories `./backup` (scheduled
+  `VACUUM INTO` snapshots and pre-migration snapshots, `LIT_BACKUP_DIR=/backup`)
+  and `./export` (the [interval Markdown export](export.md#interval-exports) in
+  `./export/tree`; the export directory cannot be a mount point itself). Create
+  both before the first start: the bind mounts use `create_host_path: false`,
+  so a missing directory fails with `bind source path does not exist` instead
+  of Docker creating it owned by root.
+- **User:** lit-server runs as `LIT_UID:LIT_GID`, by default distroless's
+  `nonroot` (65532:65532). It must be able to write `./backup` and `./export`:
+  either set `LIT_UID` and `LIT_GID` to your own IDs (in `.env`, as above, then
+  rebuild), so that you own the snapshots and exports, or give the directories
+  to 65532 (`sudo chown 65532:65532 backup export`). The IDs are build
+  arguments; the named volume takes the owner of the image's `/data` when it is
+  first created, so changing them later also needs a new volume or a `chown`
+  inside it.
+- **Restarts:** `restart: unless-stopped`. When lit-server exits, for example
+  after [damage met while serving](recovery.md#damage-while-serving) or a
+  crash, Docker starts it again; `docker compose stop` stops it until the next
+  `docker compose start` or `up`. SIGTERM gets the 30-second drain
+  (`stop_grace_period: 35s`); a stop that drains in time is a
+  [clean shutdown](recovery.md#clean-and-unclean-shutdowns), so the next start
+  skips the full integrity scan, while a restart after a crash runs it.
+- **Health:** an exec-form healthcheck runs `lit-server healthcheck`, which
+  calls `GET /v1/meta` on the configured listen address. It reports unhealthy
+  in [degraded mode](recovery.md#degraded-mode) (503 `recovery_required`), on
+  any other answer and when nothing answers. Docker does not restart unhealthy
+  containers; degraded mode needs an operator.
+- **Hardening:** a read-only root filesystem with a tmpfs `/tmp`, no Linux
+  capabilities and `no-new-privileges`.
+
+The settings are environment variables in `compose.yaml` (see the
+configuration table above): `LIT_LISTEN=127.0.0.1:7411`, `LIT_DATA_DIR=/data`,
+`LIT_BACKUP_DIR=/backup`, `LIT_BACKUP_INTERVAL=24h`, `LIT_BACKUP_KEEP=14`,
+`LIT_EXPORT_DIR=/export/tree` and `LIT_EXPORT_INTERVAL=15m` (runs are skipped
+while nothing changes; `0` turns interval exports off). Put local changes in a
+`compose.override.yaml` next to `compose.yaml`, which Compose merges in, for
+example:
+
+```yaml
+services:
+  lit-server:
+    environment:
+      LIT_LISTEN: 127.0.0.1:7412
+      LIT_EXPORT_INTERVAL: "0"
+```
+
+The listen address must stay a loopback IP; lit-server refuses anything else.
+`.env`, `compose.override.yaml`, `backup/` and `export/` are ignored by Git.
+
+Other lit-server commands run in the same container setup:
+
+```sh
+docker compose exec lit-server /lit-server healthcheck
+docker compose exec lit-server /lit-server export --to /export/manual
+docker compose stop lit-server
+docker compose run --rm --no-deps lit-server verify   # needs the stopped server
+docker compose start lit-server
+```
+
+To restore a snapshot ([restore a snapshot](recovery.md#restore-a-snapshot)),
+stop the service, move `lit.db`, `lit.db-wal` and `lit.db-shm` aside inside the
+volume and copy the snapshot from `./backup` in as `lit.db`, using any image
+with a shell as lit-server's user, then verify and start:
+
+```sh
+docker compose stop lit-server
+docker run --rm --user "$(id -u):$(id -g)" -v lit_lit-data:/data -v "$PWD/backup:/backup:ro" \
+  busybox sh -c 'set -e; old=/data/replaced-$(date -u +%Y%m%dT%H%M%SZ); mkdir "$old"
+    for f in lit.db lit.db-wal lit.db-shm; do [ ! -e "/data/$f" ] || mv "/data/$f" "$old/"; done
+    cp /backup/SNAPSHOT.db /data/lit.db'
+docker compose run --rm --no-deps lit-server verify
+docker compose start lit-server
+```
+
+Replace `SNAPSHOT.db` with the snapshot's name, and `--user` with the image's
+user when you did not set `LIT_UID`/`LIT_GID`. To upgrade, check out the new
+version and run `docker compose up -d --build`; lit-server takes a
+pre-migration snapshot into `./backup` before migrating the database.
+
 ## Manual updates
 
 Stop the foreground service or user service before replacing its executable.
@@ -312,8 +450,145 @@ scope/agent/path selection to update the installed skill bundle. Review any
 reported local edits before proceeding. Explicitly restart the service afterward
 (with socket activation, start `lit.socket` again).
 Service identity and records remain in the existing data directory. Unsupported
-persisted formats are refused without conversion; there is no automatic updater
-or tracker migration tool.
+persisted formats are refused without conversion; there is no automatic updater.
+The one conversion is the explicit, one-time setup import of a legacy file store
+below.
+
+## Setup import from a legacy file store
+
+lit-server keeps the tracker in one SQLite database, `lit.db`, in its data
+directory. Releases before it kept a file store (one directory per record, with
+a `service.json` identity file). lit-server never reads, detects or converts
+that store at runtime: on a data directory that still holds `service.json` it
+refuses to start and names this setup step. The conversion is a separate binary,
+`lit-migrate`, run once while the old lit-server is stopped and before the new
+lit-server first starts. It is Linux-only, like lit-server, is not part of the
+release archives, and is removed in a later release. Build it from the same
+checkout as the new lit-server:
+
+```sh
+go build -o ./bin/ ./cmd/lit-server ./cmd/lit-migrate
+```
+
+`lit-migrate --from COPY --to NEW [--config FILE] [--dry-run]`:
+
+- reads only a copy of the stopped store. It refuses a store that a running
+  lit-server still owns, never writes to `--from`, and runs the frozen legacy
+  reader on its own private copy of it, because that reader writes to the store
+  it opens (lock file, temporary files, journal replay, title index);
+- loads the legacy server's JSON config (`--config`, otherwise `LIT_CONFIG_FILE`
+  or the default config file), because legacy verification checks the
+  configured title prefixes. Its `data_dir` and `listen` are not used;
+- writes only into `NEW`, which must be missing or empty, and builds the
+  database as a temporary file in one transaction. It runs validation checks
+  1-9 (legacy verification of the copy, every legacy file imported or
+  allowlisted, counts, record, client and claim equality, body SHA-256
+  manifests, diff round trips and body chains, history read-back, the newest
+  stamp, and `lit-server verify`), and moves the database into `NEW` only after
+  all of them passed. A failure leaves no database, so the import can simply be
+  run again on the same copy; it is deterministic for a given copy;
+- keeps the service ID, every history entry (deduplicated by request hash into
+  transaction records, with whole-body hunks converted to verified diffs and
+  entries that changed only membership lists kept verbatim), every client, and
+  every non-null claim with its original times, expired ones included;
+- keeps the body SHA-256 manifest (type, ID, revision, body hash) as
+  `NEW/backup/lit-migrate-TIME-bodies.json` for audits: in the default backup
+  directory of a lit-server on `NEW`, whose retention removes only its own
+  scheduled snapshots, never this file. lit-migrate writes nothing outside
+  `NEW`, so it ignores a configured `backup_dir`; if you set one, move the
+  manifest there, or next to the frozen old directory;
+- with `--dry-run`, runs every step and check in a temporary directory
+  (`TMPDIR`), never touches `NEW`, and reports how long the import took.
+
+Exit status 0 means every check passed, 1 a failed import (nothing was
+written), 2 invalid arguments. Progress and the result of each check go to
+stderr; the summary with the duration goes to stdout. Ctrl-C stops an import
+and cleans up like any failure. Only a hard kill (`SIGKILL`, power loss) can
+leave a `.lit-migrate-*` staging directory and `lit.db.lock` in `NEW`, never a
+`lit.db`; delete `NEW` before running the import again.
+
+### Setup checklist
+
+The commands assume the default paths and the systemd user units; adapt them to
+your configuration.
+
+```sh
+OLD=${XDG_DATA_HOME:-$HOME/.local/share}/lit-server         # legacy store; stays untouched
+COPY=$HOME/lit-migrate/lit-server.copy                     # scratch copy for the import
+NEW=${XDG_DATA_HOME:-$HOME/.local/share}/lit-server-sqlite  # new, empty data directory
+CONFIG=${XDG_CONFIG_HOME:-$HOME/.config}/lit-server/config.json
+```
+
+1. **Freeze.** Announce a write freeze. Have agents finish or release their work
+   and claims. Resolve retained requests with `lit transactions status` in every
+   known client state directory (`LIT_STATE_DIR`), and keep its output. Capture
+   API baselines from the running old server for later comparison: full lists
+   (`lit projects list`, `lit issues list`, `lit milestones list` and
+   `lit comments list` with `--all`), the history of a few owners, and `lit grep`
+   on a fixed query set (at least `net/http`, `C++`, `Go`, `UI`, `strasse`,
+   `Straße`, `cafe`, `foo.bar`, `a_b`, `100%`, `APP-123`, plus multi-page and
+   `-C` context queries). Keep a copy of the old `lit-server` binary for
+   rollback.
+2. **Stop and disable the old server.** With systemd:
+   `systemctl --user disable --now lit.socket lit.service`, so socket activation
+   cannot start it again. Confirm the process exited:
+   `systemctl --user is-active lit.service` reports `inactive`, and
+   `pgrep -x lit-server` prints nothing. Stop a foreground server with Ctrl-C.
+3. **Copy.** `mkdir -p "$(dirname "$COPY")" && cp -a "$OLD" "$COPY"`. The original
+   `$OLD` is the frozen backup; never modify it. Optionally record its checksums:
+   `(cd "$OLD" && find . -type f -print0 | sort -z | xargs -0 sha256sum) > "$HOME/lit-migrate/old.sha256"`.
+4. **Dry run, then import.** First
+   `lit-migrate --from "$COPY" --to "$NEW" --config "$CONFIG" --dry-run`; it
+   reports `dry run passed all 9 checks in DURATION`. Then the real import:
+   `lit-migrate --from "$COPY" --to "$NEW" --config "$CONFIG"`.
+5. **Start the new lit-server on `$NEW`.** Install the new `lit-server`. Point it
+   at the new directory: set `data_dir` in `$CONFIG`, or `Environment=LIT_DATA_DIR=`
+   in the unit, or pass `--data-dir "$NEW"`. Then
+   `systemctl --user enable --now lit.socket` (or `lit.service`), or start it in
+   the foreground. Its full integrity scan runs first: an imported database
+   has no clean-shutdown marker. An old binary started on `$NEW`
+   refuses it, and the new binary refuses `$OLD`.
+6. **Smoke test.** `curl -s http://127.0.0.1:7411/v1/meta` shows the same
+   `service_id` as before; connect with an existing session (`lit connect`);
+   read an issue; run a `lit grep`; run `lit transactions status`; make one
+   write on a scratch issue in a test project. Then compare the API baselines
+   from step 1: the grep results byte for byte, the full lists and per-owner
+   history (excluding time-dependent claim projections), and the
+   `transactions status` output: requests that were `committed` stay
+   `committed` with equal results.
+7. **Lift the freeze.**
+
+### Accepted consequences
+
+- Retained requests that never committed before the import become a permanent
+  `uncertain` with `original_preconditions_no_longer_valid`, as
+  [recovery](recovery.md) allows. Resolve them in step 1 instead.
+- Saved plans prepared before the import must be prepared again.
+- Claims keep their original times. Leases keep running during the downtime and
+  may lapse; `claims renew` still tells `claim_expired` from a conflict.
+- Old history entries that changed only `issue_ids`, `child_ids` or
+  `comment_ids`, now computed lists, are kept verbatim; `lit-server verify`
+  skips those keys.
+- A claim time that the legacy server did not write itself (not canonical UTC
+  RFC3339Nano) cannot be copied exactly: the import stops and names the claim.
+  Release that claim on the old server before step 2, then repeat from step 3.
+- The estimated downtime is 15-30 minutes in total; the dry run measures the
+  import itself.
+
+### Rollback
+
+Record `lit transactions status` output in every client state directory first.
+Then stop and disable the new server (`systemctl --user disable --now lit.socket lit.service`),
+point the configuration back at `$OLD` and remove the fields the old binary
+does not know: `read_concurrency`, `backup_dir`, `backup_interval`,
+`backup_keep`, `export_dir`, `export_interval` and `search_timeout` (it refuses unknown fields;
+it ignores their `LIT_*` environment variables). Reinstall the old `lit-server`
+binary and start it: it verifies the untouched old directory as before (about
+30 seconds). Writes, clients and claims created after the import are lost,
+which is accepted. The old server writes no exports: an interval export tree
+keeps showing the new server's last state until you remove it or it is
+exported again after a later import. Keep `$NEW` for inspection, or delete it
+once you are done.
 
 ## Local checks
 

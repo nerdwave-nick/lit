@@ -38,7 +38,7 @@ func TestProjectAtomicTransaction(t *testing.T) {
 
 func TestProjectStrictSemanticInputs(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	id := protocol.UUID()
 	plan := prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: id, Title: textPointer("feat/a")})
 	executeProjectTest(t, s, c, plan)
@@ -78,7 +78,7 @@ func TestProjectStrictSemanticInputs(t *testing.T) {
 
 func TestProjectConcurrentPreparedWrites(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	id := protocol.UUID()
 	p := prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: id, Title: textPointer("feat/a")})
 	executeProjectTest(t, s, c, p)
@@ -95,7 +95,7 @@ func TestProjectConcurrentPreparedWrites(t *testing.T) {
 	if e != nil || p2.Revision != 2 {
 		t.Fatal(p2, e)
 	}
-	hs, _ := s.ProjectHistory(id)
+	hs, _ := s.RecordHistory("projects", id)
 	if len(hs) != 2 {
 		t.Fatal(hs)
 	}

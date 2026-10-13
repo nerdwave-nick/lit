@@ -3,7 +3,6 @@ package service
 import (
 	"encoding/json"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
 	"net/url"
 	"sort"
 	"strings"
@@ -23,7 +22,7 @@ type summaryFixture struct {
 func newSummaryFixture(t *testing.T) summaryFixture {
 	t.Helper()
 	s, c := projectTestServer(t, t.TempDir())
-	t.Cleanup(func() { s.Store.Close() })
+	t.Cleanup(func() { s.DB.Close() })
 	f := summaryFixture{s: s, c: c, project: protocol.UUID(), parent: protocol.UUID(), child: protocol.UUID(), bl: protocol.UUID()}
 	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: f.project, Title: textPointer("feat/summaries")}))
 	who := "nick"
@@ -295,19 +294,17 @@ func TestClaimStatusNamesOwnerActorWithoutClientRecords(t *testing.T) {
 	if code != 403 || errorCode(v) != "wrong_client" {
 		t.Fatal(code, v)
 	}
-	// The projection never enters the durable claim envelope.
-	b, e := s.Store.Read(claimPath(id))
-	if e != nil || strings.Contains(string(b), "owner_actor") || strings.Contains(string(b), "Claude") {
-		t.Fatal(string(b), e)
+	// The projection never enters the stored claim.
+	if stored := storedClaim(t, s, id); stored == nil || stored.OwnerActor != nil {
+		t.Fatal(stored)
 	}
 	target := time.Now().UTC().Add(45 * time.Minute).Format(time.RFC3339Nano)
 	renewed, e := s.ApplyClaims(protocol.ClaimOperation{Operation: "claims.renew", OwnerClientID: f.rival.ClientID, Selection: "explicit", Items: []protocol.ClaimItem{{IssueID: id, Token: mustLiveClaim(t, s, id).Token, ExtendTo: target}}}, f.rival)
 	if e != nil || renewed.Outcome != "applied" || len(renewed.Items) != 1 {
 		t.Fatal(renewed, e)
 	}
-	b, _ = s.Store.Read(claimPath(id))
-	if strings.Contains(string(b), "owner_actor") {
-		t.Fatal("renewal persisted projected owner", string(b))
+	if stored := storedClaim(t, s, id); stored == nil || stored.OwnerActor != nil {
+		t.Fatal("renewal persisted projected owner", stored)
 	}
 }
 
@@ -320,15 +317,18 @@ func mustLiveClaim(t *testing.T, s *Server, id string) *protocol.Claim {
 	return c
 }
 
-// A durable claim envelope carrying the read-only owner projection is invalid.
+// A stored claim never carries the read-only owner projection.
 func TestDurableClaimRejectsProjectedOwnerActor(t *testing.T) {
 	f := newSummaryFixture(t)
 	claim := *mustLiveClaim(t, f.s, f.parent)
 	claim.OwnerActor = &protocol.Actor{Name: "Claude", Kind: "agent"}
-	if e := f.s.Store.Commit([]store.Write{claimWrite(f.parent, &claim)}); e != nil {
-		t.Fatal(e)
+	_, e := inRequest(f.s, func(rs *Server) (struct{}, error) {
+		return struct{}{}, rs.commit(changes{claims: []protocol.Claim{claim}})
+	})
+	if e == nil {
+		t.Fatal("stored a claim with a projected owner actor")
 	}
-	if _, e := f.s.LiveClaim(f.parent); e == nil {
-		t.Fatal("durable claim accepted projected owner actor")
+	if stored := storedClaim(t, f.s, f.parent); stored == nil || stored.OwnerActor != nil {
+		t.Fatal(stored)
 	}
 }

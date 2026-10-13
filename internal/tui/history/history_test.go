@@ -41,8 +41,8 @@ func (g *gate) count() int {
 }
 
 // edited creates an issue in a new project and retitles it n times, then
-// comments on it and edits the comment: n+2 issue entries (creation, the
-// edits, the comment's creation) and two comment entries.
+// comments on it and edits the comment: n+1 issue entries (creation and the
+// edits; the comment does not change the issue) and two comment entries.
 func edited(t *testing.T, s *litclient.Session, project string, n int) (issue, comment string) {
 	t.Helper()
 	tuitest.Apply(t, s, litclient.CreateProject(project, "spec"))
@@ -94,7 +94,7 @@ func TestModelLoadsPagesOnDemandFollowingCursors(t *testing.T) {
 	limits.MaxPage, limits.DefaultPage = 2, 2
 	srv := tuitest.ServiceWithLimits(t, limits)
 	_, s := tuitest.Instance(t, t.TempDir(), srv.URL)
-	issue, _ := edited(t, s, "test/paged", 9) // 11 issue entries
+	issue, _ := edited(t, s, "test/paged", 9) // 10 issue entries
 	writes := srv.Count("POST /v1/transactions")
 	g := &gate{s: s}
 
@@ -118,15 +118,15 @@ func TestModelLoadsPagesOnDemandFollowingCursors(t *testing.T) {
 		screen(m, 80, 8)
 		drain(t, m, cmd)
 	}
-	if g.count() != 6 { // 11 entries in pages of 2
-		t.Fatalf("%d pages read for 11 entries", g.count())
+	if g.count() != 5 { // 10 entries in pages of 2
+		t.Fatalf("%d pages read for 10 entries", g.count())
 	}
 	all := screen(m, 80, 0)
-	if !strings.Contains(all, "11 entries") || strings.Contains(all, "so far") {
+	if !strings.Contains(all, "10 entries") || strings.Contains(all, "so far") {
 		t.Fatalf("complete view:\n%s", all)
 	}
 	last := -1
-	for i := 1; i <= 11; i++ {
+	for i := 1; i <= 10; i++ {
 		at := strings.Index(all, fmt.Sprintf("\n#%d · ", i))
 		if at <= last || strings.Count(all, fmt.Sprintf("\n#%d · ", i)) != 1 {
 			t.Fatalf("entry %d out of order or repeated:\n%s", i, all)
@@ -138,13 +138,13 @@ func TestModelLoadsPagesOnDemandFollowingCursors(t *testing.T) {
 			t.Fatalf("missing edit %d:\n%s", i, all)
 		}
 	}
-	if !strings.Contains(all, "comment create") || !strings.Contains(all, "tester (human)") {
-		t.Fatalf("comment creation or actor missing:\n%s", all)
+	if strings.Contains(all, "comment create") || !strings.Contains(all, "tester (human)") {
+		t.Fatalf("comment creation shown or actor missing:\n%s", all)
 	}
 	// Further scrolling reads nothing more; neither did anything write.
 	cmd, _ = m.Do(keys.Bottom)
 	drain(t, m, cmd)
-	if g.count() != 6 || srv.Count("POST /v1/transactions") != writes {
+	if g.count() != 5 || srv.Count("POST /v1/transactions") != writes {
 		t.Fatalf("calls %d, writes %d → %d", g.count(), writes, srv.Count("POST /v1/transactions"))
 	}
 }
@@ -170,7 +170,7 @@ func TestModelKeepsEntriesBeforeAnErrorAndRefreshes(t *testing.T) {
 	g.mu.Unlock()
 	cmd, _ = m.Do(keys.Refresh)
 	drain(t, m, cmd)
-	if v := screen(m, 80, 0); !strings.Contains(v, "6 entries") || strings.Contains(v, "stopped") || strings.Count(v, "\n#1 · ") != 1 {
+	if v := screen(m, 80, 0); !strings.Contains(v, "5 entries") || strings.Contains(v, "stopped") || strings.Count(v, "\n#1 · ") != 1 {
 		t.Fatalf("after refresh:\n%s", v)
 	}
 }
@@ -236,7 +236,7 @@ func TestModelWithOneTargetShowsItsHistory(t *testing.T) {
 		t.Fatalf("before the first page:\n%s", v)
 	}
 	drain(t, m, cmd)
-	if v := screen(m, 80, 0); !strings.Contains(v, "4 entries") || !strings.Contains(v, `title: "Edit 1" → "Edit 2"`) {
+	if v := screen(m, 80, 0); !strings.Contains(v, "3 entries") || !strings.Contains(v, `title: "Edit 1" → "Edit 2"`) {
 		t.Fatalf("history:\n%s", v)
 	}
 	if _, closed := m.Do(keys.Cancel); !closed {

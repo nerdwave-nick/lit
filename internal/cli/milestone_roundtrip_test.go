@@ -11,17 +11,17 @@ import (
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 )
 
 func TestMilestoneCLIRoundtripThroughService(t *testing.T) {
 	t.Chdir(t.TempDir())
-	storage, err := store.Open(t.TempDir())
+	db, err := storage.Open(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = storage.Close() })
-	backend, err := service.New(storage, service.Config{Limits: protocol.DefaultLimits(), TitlePrefixes: []string{"feat"}})
+	t.Cleanup(func() { _ = db.Close() })
+	backend, err := service.New(db, service.Config{Limits: protocol.DefaultLimits(), TitlePrefixes: []string{"feat"}})
 	if err != nil {
 		t.Fatal(err)
 	}

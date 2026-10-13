@@ -1,0 +1,39 @@
+Import a legacy lit file store, once, into a new SQLite database for lit-server.
+Run it during the setup step described in docs/installation.md, after the old
+lit-server is stopped and before the new lit-server first starts.
+
+--from names a copy of the stopped legacy data directory; lit-migrate refuses a
+store that a running lit-server still owns. It never writes to --from: it copies
+it into a private staging directory and reads only that copy with the frozen
+legacy reader, which verifies it as the legacy lit-server did at startup.
+--to names the new data directory; it must be missing or empty. The database is
+written to a temporary file in one transaction, checked (legacy verification,
+complete file consumption, counts, record, body, diff, history and stamp
+equality, then lit-server verify), and moved into --to only after every check
+passed. A failure leaves no database, so the import can be run again. The
+service ID carries over unchanged, and the body SHA-256 manifest is kept in
+--to/backup for audits.
+
+--config names the legacy lit-server's JSON config, whose title prefixes legacy
+verification checks; it defaults to the lit-server config file
+(LIT_CONFIG_FILE or ${XDG_CONFIG_HOME:-$HOME/.config}/lit-server/config.json).
+--dry-run runs every step and check in a temporary directory, never touches
+--to, and reports how long the import takes.
+
+Exit status: 0 when the import (or dry run) passed every check, 1 when it
+failed, 2 for invalid arguments.
+
+Usage:
+  lit-migrate [flags]
+
+Examples:
+  lit-migrate --from /scratch/lit-server.copy --to ~/.local/share/lit-server.db --dry-run
+  lit-migrate --from /scratch/lit-server.copy --to ~/.local/share/lit-server.db --config ~/.config/lit-server/config.json
+
+Flags:
+      --config FILE      Optional legacy lit-server JSON config FILE (or LIT_CONFIG_FILE)
+      --dry-run          Run and check the import without touching --to
+      --from DIRECTORY   Required copy of the stopped legacy data DIRECTORY
+  -h, --help             help for lit-migrate
+      --to DIRECTORY     Required new, empty data DIRECTORY for lit-server
+  -v, --version          version for lit-migrate

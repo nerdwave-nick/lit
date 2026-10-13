@@ -62,6 +62,10 @@ func parseArgs(argv []string) (Args, error) {
 			a.Command = "grep"
 			return parseSearchArgs(argv, a)
 		}
+		if v == "search" {
+			a.Command = "search"
+			return parseRankedSearchArgs(argv, a)
+		}
 		break
 	}
 	for i := 0; i < len(argv); i++ {

@@ -17,3 +17,9 @@ __pycache__/
 !/.codex/.lit-skills.json
 !/.codex/skills/
 /.lit/
+
+# Docker Compose: local settings and the bind-mounted backup and export directories
+/.env
+/compose.override.yaml
+/backup/
+/export/

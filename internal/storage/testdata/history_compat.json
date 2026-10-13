@@ -1,0 +1,3452 @@
+{
+ "requests": [
+  {
+   "hash": "7b0ac47aee6bab1e4198717a85084a30acf3c444c816e60b1bf27685e811297a",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "projects",
+      "id": "fc9d4f5f-a288-48b8-b4d4-75aa48567148",
+      "kind": "create",
+      "set": {
+       "title": "feat/compat-one",
+       "description": "Line one\r\nline two\r\n",
+       "repository_refs": [
+        "https://example.org/one"
+       ]
+      },
+      "add": {},
+      "remove": {}
+     }
+    ],
+    "targets": [
+     {
+      "type": "projects",
+      "id": "fc9d4f5f-a288-48b8-b4d4-75aa48567148",
+      "expected_revision": null
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.756918Z",
+   "results": [
+    {
+     "type": "projects",
+     "id": "fc9d4f5f-a288-48b8-b4d4-75aa48567148",
+     "before_revision": 0,
+     "revision": 1
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "fc9d4f5f-a288-48b8-b4d4-75aa48567148",
+     "revision": 1,
+     "created_at": "2026-10-11T15:29:32.756918Z",
+     "updated_at": "2026-10-11T15:29:32.756918Z",
+     "title": "feat/compat-one",
+     "description": "Line one\r\nline two\r\n",
+     "repository_refs": [
+      "https://example.org/one"
+     ],
+     "issue_ids": []
+    }
+   ]
+  },
+  {
+   "hash": "404060315892d3283b28ad5200fc2e7132188acbd518b6ae1c5580794c5023fa",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "projects",
+      "id": "fc9d4f5f-a288-48b8-b4d4-75aa48567148",
+      "kind": "update",
+      "set": {
+       "description": "Line one\r\nline 2\r\nline three"
+      },
+      "add": {
+       "repository_refs": [
+        "https://example.org/two"
+       ]
+      },
+      "remove": {}
+     }
+    ],
+    "targets": [
+     {
+      "type": "projects",
+      "id": "fc9d4f5f-a288-48b8-b4d4-75aa48567148",
+      "expected_revision": 1
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.761067Z",
+   "results": [
+    {
+     "type": "projects",
+     "id": "fc9d4f5f-a288-48b8-b4d4-75aa48567148",
+     "before_revision": 1,
+     "revision": 2
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "fc9d4f5f-a288-48b8-b4d4-75aa48567148",
+     "revision": 2,
+     "created_at": "2026-10-11T15:29:32.756918Z",
+     "updated_at": "2026-10-11T15:29:32.761067Z",
+     "title": "feat/compat-one",
+     "description": "Line one\r\nline 2\r\nline three",
+     "repository_refs": [
+      "https://example.org/one",
+      "https://example.org/two"
+     ],
+     "issue_ids": []
+    }
+   ]
+  },
+  {
+   "hash": "1f38408f0bfa88e448c7b9dbbbd00899be144ce3f4c4db61c0f64c90f07dbae7",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "kind": "create",
+      "set": {
+       "title": "feat/compat-two",
+       "repository_refs": []
+      },
+      "add": {},
+      "remove": {}
+     }
+    ],
+    "targets": [
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "expected_revision": null
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.764117Z",
+   "results": [
+    {
+     "type": "projects",
+     "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "before_revision": 0,
+     "revision": 1
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "revision": 1,
+     "created_at": "2026-10-11T15:29:32.764117Z",
+     "updated_at": "2026-10-11T15:29:32.764117Z",
+     "title": "feat/compat-two",
+     "description": "",
+     "repository_refs": [],
+     "issue_ids": []
+    }
+   ]
+  },
+  {
+   "hash": "5cde7a2a2438af0abcaa08fe02150d82c1862e10d5344b5632dc6470b7be58ad",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "kind": "create",
+      "set": {
+       "title": "Straße",
+       "body": "alpha\nbeta\ngamma\ndelta\nepsilon\nzeta\neta\n",
+       "labels": [
+        "bug"
+       ],
+       "assignee": "nick",
+       "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2"
+      },
+      "add": {},
+      "remove": {}
+     }
+    ],
+    "targets": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "expected_revision": null
+     },
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "expected_revision": 1
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.768646Z",
+   "results": [
+    {
+     "type": "issues",
+     "id": "286eddbd-3389-4287-bc9b-84733a090648",
+     "before_revision": 0,
+     "revision": 1
+    },
+    {
+     "type": "projects",
+     "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "before_revision": 1,
+     "revision": 2
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "286eddbd-3389-4287-bc9b-84733a090648",
+     "revision": 1,
+     "created_at": "2026-10-11T15:29:32.768646Z",
+     "updated_at": "2026-10-11T15:29:32.768646Z",
+     "title": "Straße",
+     "body": "alpha\nbeta\ngamma\ndelta\nepsilon\nzeta\neta\n",
+     "state": "open",
+     "labels": [
+      "bug"
+     ],
+     "assignee": "nick",
+     "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "parent_id": null,
+     "child_ids": [],
+     "comment_ids": [],
+     "blocks": [],
+     "blocked_by": [],
+     "related": []
+    },
+    {
+     "schema_version": 1,
+     "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "revision": 2,
+     "created_at": "2026-10-11T15:29:32.764117Z",
+     "updated_at": "2026-10-11T15:29:32.768646Z",
+     "title": "feat/compat-two",
+     "description": "",
+     "repository_refs": [],
+     "issue_ids": [
+      "286eddbd-3389-4287-bc9b-84733a090648"
+     ]
+    }
+   ]
+  },
+  {
+   "hash": "2033e29e3d02da83bd7b689181539651355b4e24fccd0dd2eed5385440c74b97",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "kind": "create",
+      "set": {
+       "title": "Second",
+       "labels": [],
+       "assignee": null,
+       "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2"
+      },
+      "add": {},
+      "remove": {}
+     }
+    ],
+    "targets": [
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "expected_revision": null
+     },
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "expected_revision": 2
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.778325Z",
+   "results": [
+    {
+     "type": "issues",
+     "id": "30aa7bca-072c-426e-9729-939ec593b100",
+     "before_revision": 0,
+     "revision": 1
+    },
+    {
+     "type": "projects",
+     "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "before_revision": 2,
+     "revision": 3
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "30aa7bca-072c-426e-9729-939ec593b100",
+     "revision": 1,
+     "created_at": "2026-10-11T15:29:32.778325Z",
+     "updated_at": "2026-10-11T15:29:32.778325Z",
+     "title": "Second",
+     "body": "",
+     "state": "open",
+     "labels": [],
+     "assignee": null,
+     "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "parent_id": null,
+     "child_ids": [],
+     "comment_ids": [],
+     "blocks": [],
+     "blocked_by": [],
+     "related": []
+    },
+    {
+     "schema_version": 1,
+     "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "revision": 3,
+     "created_at": "2026-10-11T15:29:32.764117Z",
+     "updated_at": "2026-10-11T15:29:32.778325Z",
+     "title": "feat/compat-two",
+     "description": "",
+     "repository_refs": [],
+     "issue_ids": [
+      "286eddbd-3389-4287-bc9b-84733a090648",
+      "30aa7bca-072c-426e-9729-939ec593b100"
+     ]
+    }
+   ]
+  },
+  {
+   "hash": "e7873e56d5b03f7e9a1c318381ffb10b27d8c9be026e3514fbd65c8e7437a7f7",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "kind": "update",
+      "set": {
+       "title": "Strasse renamed",
+       "body": "alpha\r\nbeta\ngamma\ndelta\nepsilon\nZETA\neta\ntheta"
+      },
+      "add": {},
+      "remove": {}
+     }
+    ],
+    "targets": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "expected_revision": 1
+     }
+    ],
+    "guards": [
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "expected_revision": 3
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.786345Z",
+   "results": [
+    {
+     "type": "issues",
+     "id": "286eddbd-3389-4287-bc9b-84733a090648",
+     "before_revision": 1,
+     "revision": 2
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "286eddbd-3389-4287-bc9b-84733a090648",
+     "revision": 2,
+     "created_at": "2026-10-11T15:29:32.768646Z",
+     "updated_at": "2026-10-11T15:29:32.786345Z",
+     "title": "Strasse renamed",
+     "body": "alpha\r\nbeta\ngamma\ndelta\nepsilon\nZETA\neta\ntheta",
+     "state": "open",
+     "labels": [
+      "bug"
+     ],
+     "assignee": "nick",
+     "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "parent_id": null,
+     "child_ids": [],
+     "comment_ids": [],
+     "blocks": [],
+     "blocked_by": [],
+     "related": []
+    }
+   ]
+  },
+  {
+   "hash": "9d7ed04eb9d127b91a9eb4bc9f0e999dc3d5b90dd1d7e3d8a603c7e9159cf8d6",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "kind": "update",
+      "set": {},
+      "add": {
+       "blocks": [
+        "30aa7bca-072c-426e-9729-939ec593b100"
+       ]
+      },
+      "remove": {}
+     },
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "kind": "update",
+      "set": {},
+      "add": {
+       "blocked_by": [
+        "286eddbd-3389-4287-bc9b-84733a090648"
+       ]
+      },
+      "remove": {}
+     }
+    ],
+    "targets": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "expected_revision": 2
+     },
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "expected_revision": 1
+     }
+    ],
+    "guards": [
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "expected_revision": 3
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.796071Z",
+   "results": [
+    {
+     "type": "issues",
+     "id": "286eddbd-3389-4287-bc9b-84733a090648",
+     "before_revision": 2,
+     "revision": 3
+    },
+    {
+     "type": "issues",
+     "id": "30aa7bca-072c-426e-9729-939ec593b100",
+     "before_revision": 1,
+     "revision": 2
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "286eddbd-3389-4287-bc9b-84733a090648",
+     "revision": 3,
+     "created_at": "2026-10-11T15:29:32.768646Z",
+     "updated_at": "2026-10-11T15:29:32.796071Z",
+     "title": "Strasse renamed",
+     "body": "alpha\r\nbeta\ngamma\ndelta\nepsilon\nZETA\neta\ntheta",
+     "state": "open",
+     "labels": [
+      "bug"
+     ],
+     "assignee": "nick",
+     "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "parent_id": null,
+     "child_ids": [],
+     "comment_ids": [],
+     "blocks": [
+      "30aa7bca-072c-426e-9729-939ec593b100"
+     ],
+     "blocked_by": [],
+     "related": []
+    },
+    {
+     "schema_version": 1,
+     "id": "30aa7bca-072c-426e-9729-939ec593b100",
+     "revision": 2,
+     "created_at": "2026-10-11T15:29:32.778325Z",
+     "updated_at": "2026-10-11T15:29:32.796071Z",
+     "title": "Second",
+     "body": "",
+     "state": "open",
+     "labels": [],
+     "assignee": null,
+     "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "parent_id": null,
+     "child_ids": [],
+     "comment_ids": [],
+     "blocks": [],
+     "blocked_by": [
+      "286eddbd-3389-4287-bc9b-84733a090648"
+     ],
+     "related": []
+    }
+   ]
+  },
+  {
+   "hash": "cf00157ca3c4583396bea476df94a1e9df97ad9d9fb01cc64939925dc14ac231",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "kind": "update",
+      "set": {
+       "assignee": null
+      },
+      "add": {
+       "labels": [
+        "ui"
+       ]
+      },
+      "remove": {
+       "labels": [
+        "bug"
+       ]
+      }
+     }
+    ],
+    "targets": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "expected_revision": 3
+     }
+    ],
+    "guards": [
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "expected_revision": 2
+     },
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "expected_revision": 3
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.806151Z",
+   "results": [
+    {
+     "type": "issues",
+     "id": "286eddbd-3389-4287-bc9b-84733a090648",
+     "before_revision": 3,
+     "revision": 4
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "286eddbd-3389-4287-bc9b-84733a090648",
+     "revision": 4,
+     "created_at": "2026-10-11T15:29:32.768646Z",
+     "updated_at": "2026-10-11T15:29:32.806151Z",
+     "title": "Strasse renamed",
+     "body": "alpha\r\nbeta\ngamma\ndelta\nepsilon\nZETA\neta\ntheta",
+     "state": "open",
+     "labels": [
+      "ui"
+     ],
+     "assignee": null,
+     "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "parent_id": null,
+     "child_ids": [],
+     "comment_ids": [],
+     "blocks": [
+      "30aa7bca-072c-426e-9729-939ec593b100"
+     ],
+     "blocked_by": [],
+     "related": []
+    }
+   ]
+  },
+  {
+   "hash": "09349bd952506d113d42c09723ea5a6fa597d2257ee8d5ac74236d56b1fa42ba",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "kind": "update",
+      "set": {
+       "state": "closed"
+      },
+      "add": {},
+      "remove": {}
+     }
+    ],
+    "targets": [
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "expected_revision": 2
+     }
+    ],
+    "guards": [
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "expected_revision": 3
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.815516Z",
+   "results": [
+    {
+     "type": "issues",
+     "id": "30aa7bca-072c-426e-9729-939ec593b100",
+     "before_revision": 2,
+     "revision": 3
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "30aa7bca-072c-426e-9729-939ec593b100",
+     "revision": 3,
+     "created_at": "2026-10-11T15:29:32.778325Z",
+     "updated_at": "2026-10-11T15:29:32.815516Z",
+     "title": "Second",
+     "body": "",
+     "state": "closed",
+     "labels": [],
+     "assignee": null,
+     "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "parent_id": null,
+     "child_ids": [],
+     "comment_ids": [],
+     "blocks": [],
+     "blocked_by": [
+      "286eddbd-3389-4287-bc9b-84733a090648"
+     ],
+     "related": []
+    }
+   ]
+  },
+  {
+   "hash": "8834372454526ee0c05622cff9f869a86465659eb9ff93ae03be0f838b4128b5",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "issues",
+      "id": "27462214-486b-422d-9469-9de871bf47a7",
+      "kind": "create",
+      "set": {
+       "title": "Holder",
+       "labels": [],
+       "assignee": null,
+       "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2"
+      },
+      "add": {},
+      "remove": {}
+     }
+    ],
+    "targets": [
+     {
+      "type": "issues",
+      "id": "27462214-486b-422d-9469-9de871bf47a7",
+      "expected_revision": null
+     },
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "expected_revision": 3
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.822125Z",
+   "results": [
+    {
+     "type": "issues",
+     "id": "27462214-486b-422d-9469-9de871bf47a7",
+     "before_revision": 0,
+     "revision": 1
+    },
+    {
+     "type": "projects",
+     "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "before_revision": 3,
+     "revision": 4
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "27462214-486b-422d-9469-9de871bf47a7",
+     "revision": 1,
+     "created_at": "2026-10-11T15:29:32.822125Z",
+     "updated_at": "2026-10-11T15:29:32.822125Z",
+     "title": "Holder",
+     "body": "",
+     "state": "open",
+     "labels": [],
+     "assignee": null,
+     "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "parent_id": null,
+     "child_ids": [],
+     "comment_ids": [],
+     "blocks": [],
+     "blocked_by": [],
+     "related": []
+    },
+    {
+     "schema_version": 1,
+     "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "revision": 4,
+     "created_at": "2026-10-11T15:29:32.764117Z",
+     "updated_at": "2026-10-11T15:29:32.822125Z",
+     "title": "feat/compat-two",
+     "description": "",
+     "repository_refs": [],
+     "issue_ids": [
+      "27462214-486b-422d-9469-9de871bf47a7",
+      "286eddbd-3389-4287-bc9b-84733a090648",
+      "30aa7bca-072c-426e-9729-939ec593b100"
+     ]
+    }
+   ]
+  },
+  {
+   "hash": "0ca901b481a570e3a774c0d2838f5c237843a2f940408a6fed72956b6d445ba9",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "comments",
+      "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+      "kind": "create",
+      "set": {
+       "body": "first\n",
+       "author": "Recorder",
+       "issue_id": "27462214-486b-422d-9469-9de871bf47a7"
+      },
+      "add": {},
+      "remove": {}
+     }
+    ],
+    "targets": [
+     {
+      "type": "comments",
+      "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+      "expected_revision": null
+     },
+     {
+      "type": "issues",
+      "id": "27462214-486b-422d-9469-9de871bf47a7",
+      "expected_revision": 1
+     }
+    ],
+    "guards": [
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "expected_revision": 4
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.832468Z",
+   "results": [
+    {
+     "type": "comments",
+     "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+     "before_revision": 0,
+     "revision": 1
+    },
+    {
+     "type": "issues",
+     "id": "27462214-486b-422d-9469-9de871bf47a7",
+     "before_revision": 1,
+     "revision": 2
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+     "revision": 1,
+     "created_at": "2026-10-11T15:29:32.832468Z",
+     "updated_at": "2026-10-11T15:29:32.832468Z",
+     "body": "first\n",
+     "author": "Recorder",
+     "issue_id": "27462214-486b-422d-9469-9de871bf47a7"
+    },
+    {
+     "schema_version": 1,
+     "id": "27462214-486b-422d-9469-9de871bf47a7",
+     "revision": 2,
+     "created_at": "2026-10-11T15:29:32.822125Z",
+     "updated_at": "2026-10-11T15:29:32.832468Z",
+     "title": "Holder",
+     "body": "",
+     "state": "open",
+     "labels": [],
+     "assignee": null,
+     "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "parent_id": null,
+     "child_ids": [],
+     "comment_ids": [
+      "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806"
+     ],
+     "blocks": [],
+     "blocked_by": [],
+     "related": []
+    }
+   ]
+  },
+  {
+   "hash": "6f36e3485f2a7242e7fcd1455848995caf0abf10eb36d0ca6e86fe25881c90e7",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "comments",
+      "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+      "kind": "update",
+      "set": {
+       "body": "first\nsecond"
+      },
+      "add": {},
+      "remove": {}
+     }
+    ],
+    "targets": [
+     {
+      "type": "comments",
+      "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+      "expected_revision": 1
+     }
+    ],
+    "guards": [
+     {
+      "type": "issues",
+      "id": "27462214-486b-422d-9469-9de871bf47a7",
+      "expected_revision": 2
+     },
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "expected_revision": 4
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.844034Z",
+   "results": [
+    {
+     "type": "comments",
+     "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+     "before_revision": 1,
+     "revision": 2
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+     "revision": 2,
+     "created_at": "2026-10-11T15:29:32.832468Z",
+     "updated_at": "2026-10-11T15:29:32.844034Z",
+     "body": "first\nsecond",
+     "author": "Recorder",
+     "issue_id": "27462214-486b-422d-9469-9de871bf47a7"
+    }
+   ]
+  },
+  {
+   "hash": "3f6fa21de2858c0fb85d1ecf16eeb2427a01e350dc0fa1c553712563b709105f",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "milestones",
+      "id": "add608f8-5523-4e46-8790-ac6774417ebb",
+      "kind": "create",
+      "set": {
+       "title": "M1",
+       "body": "goal\n",
+       "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "issue_ids": [
+        "286eddbd-3389-4287-bc9b-84733a090648",
+        "30aa7bca-072c-426e-9729-939ec593b100"
+       ]
+      },
+      "add": {},
+      "remove": {}
+     }
+    ],
+    "targets": [
+     {
+      "type": "milestones",
+      "id": "add608f8-5523-4e46-8790-ac6774417ebb",
+      "expected_revision": null
+     }
+    ],
+    "guards": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "expected_revision": 4
+     },
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "expected_revision": 3
+     },
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "expected_revision": 4
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.852525Z",
+   "results": [
+    {
+     "type": "milestones",
+     "id": "add608f8-5523-4e46-8790-ac6774417ebb",
+     "before_revision": 0,
+     "revision": 1
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "add608f8-5523-4e46-8790-ac6774417ebb",
+     "revision": 1,
+     "created_at": "2026-10-11T15:29:32.852525Z",
+     "updated_at": "2026-10-11T15:29:32.852525Z",
+     "title": "M1",
+     "body": "goal\n",
+     "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "issue_ids": [
+      "286eddbd-3389-4287-bc9b-84733a090648",
+      "30aa7bca-072c-426e-9729-939ec593b100"
+     ]
+    }
+   ]
+  },
+  {
+   "hash": "902ec35e5778bd7b33882e9f4b748559bf3308e662b96c21c9ad5d07d5d61e7c",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "milestones",
+      "id": "add608f8-5523-4e46-8790-ac6774417ebb",
+      "kind": "update",
+      "set": {
+       "body": "goal\nnow more\n"
+      },
+      "add": {},
+      "remove": {
+       "issue_ids": [
+        "30aa7bca-072c-426e-9729-939ec593b100"
+       ]
+      }
+     }
+    ],
+    "targets": [
+     {
+      "type": "milestones",
+      "id": "add608f8-5523-4e46-8790-ac6774417ebb",
+      "expected_revision": 1
+     }
+    ],
+    "guards": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "expected_revision": 4
+     },
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "expected_revision": 3
+     },
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "expected_revision": 4
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.864000Z",
+   "results": [
+    {
+     "type": "milestones",
+     "id": "add608f8-5523-4e46-8790-ac6774417ebb",
+     "before_revision": 1,
+     "revision": 2
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "add608f8-5523-4e46-8790-ac6774417ebb",
+     "revision": 2,
+     "created_at": "2026-10-11T15:29:32.852525Z",
+     "updated_at": "2026-10-11T15:29:32.864000Z",
+     "title": "M1",
+     "body": "goal\nnow more\n",
+     "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "issue_ids": [
+      "286eddbd-3389-4287-bc9b-84733a090648"
+     ]
+    }
+   ]
+  },
+  {
+   "hash": "f66e00503821e43fca512b955dc4c01df091b64b49cb0239748bfe30e782c469",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "kind": "update",
+      "set": {
+       "body": ""
+      },
+      "add": {},
+      "remove": {}
+     }
+    ],
+    "targets": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "expected_revision": 4
+     }
+    ],
+    "guards": [
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "expected_revision": 3
+     },
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "expected_revision": 4
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.873433Z",
+   "results": [
+    {
+     "type": "issues",
+     "id": "286eddbd-3389-4287-bc9b-84733a090648",
+     "before_revision": 4,
+     "revision": 5
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "286eddbd-3389-4287-bc9b-84733a090648",
+     "revision": 5,
+     "created_at": "2026-10-11T15:29:32.768646Z",
+     "updated_at": "2026-10-11T15:29:32.873433Z",
+     "title": "Strasse renamed",
+     "body": "",
+     "state": "open",
+     "labels": [
+      "ui"
+     ],
+     "assignee": null,
+     "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "parent_id": null,
+     "child_ids": [],
+     "comment_ids": [],
+     "blocks": [
+      "30aa7bca-072c-426e-9729-939ec593b100"
+     ],
+     "blocked_by": [],
+     "related": []
+    }
+   ]
+  },
+  {
+   "hash": "66c6bd6a99d761775dca752ac5728b6e051da1e81582df79a55034f5f960a790",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "kind": "update",
+      "set": {},
+      "add": {},
+      "remove": {
+       "blocks": [
+        "30aa7bca-072c-426e-9729-939ec593b100"
+       ]
+      }
+     },
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "kind": "update",
+      "set": {},
+      "add": {},
+      "remove": {
+       "blocked_by": [
+        "286eddbd-3389-4287-bc9b-84733a090648"
+       ]
+      }
+     }
+    ],
+    "targets": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "expected_revision": 5
+     },
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "expected_revision": 3
+     }
+    ],
+    "guards": [
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "expected_revision": 4
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.886536Z",
+   "results": [
+    {
+     "type": "issues",
+     "id": "286eddbd-3389-4287-bc9b-84733a090648",
+     "before_revision": 5,
+     "revision": 6
+    },
+    {
+     "type": "issues",
+     "id": "30aa7bca-072c-426e-9729-939ec593b100",
+     "before_revision": 3,
+     "revision": 4
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "286eddbd-3389-4287-bc9b-84733a090648",
+     "revision": 6,
+     "created_at": "2026-10-11T15:29:32.768646Z",
+     "updated_at": "2026-10-11T15:29:32.886536Z",
+     "title": "Strasse renamed",
+     "body": "",
+     "state": "open",
+     "labels": [
+      "ui"
+     ],
+     "assignee": null,
+     "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "parent_id": null,
+     "child_ids": [],
+     "comment_ids": [],
+     "blocks": [],
+     "blocked_by": [],
+     "related": []
+    },
+    {
+     "schema_version": 1,
+     "id": "30aa7bca-072c-426e-9729-939ec593b100",
+     "revision": 4,
+     "created_at": "2026-10-11T15:29:32.778325Z",
+     "updated_at": "2026-10-11T15:29:32.886536Z",
+     "title": "Second",
+     "body": "",
+     "state": "closed",
+     "labels": [],
+     "assignee": null,
+     "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "parent_id": null,
+     "child_ids": [],
+     "comment_ids": [],
+     "blocks": [],
+     "blocked_by": [],
+     "related": []
+    }
+   ]
+  },
+  {
+   "hash": "40eb7f6d49c36a2cb1c53eba45d6c50d872c3363dc03a606527e97f3e3d7ccc4",
+   "intent": {
+    "schema_version": 1,
+    "operation": "transaction",
+    "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+    "actor": {
+     "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+     "name": "Recorder",
+     "kind": "agent"
+    },
+    "operations": [
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "kind": "update",
+      "set": {
+       "state": "open"
+      },
+      "add": {},
+      "remove": {}
+     }
+    ],
+    "targets": [
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "expected_revision": 4
+     }
+    ],
+    "guards": [
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "expected_revision": 4
+     }
+    ]
+   },
+   "timestamp": "2026-10-11T15:29:32.899164Z",
+   "results": [
+    {
+     "type": "issues",
+     "id": "30aa7bca-072c-426e-9729-939ec593b100",
+     "before_revision": 4,
+     "revision": 5
+    }
+   ],
+   "records": [
+    {
+     "schema_version": 1,
+     "id": "30aa7bca-072c-426e-9729-939ec593b100",
+     "revision": 5,
+     "created_at": "2026-10-11T15:29:32.778325Z",
+     "updated_at": "2026-10-11T15:29:32.899164Z",
+     "title": "Second",
+     "body": "",
+     "state": "open",
+     "labels": [],
+     "assignee": null,
+     "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+     "parent_id": null,
+     "child_ids": [],
+     "comment_ids": [],
+     "blocks": [],
+     "blocked_by": [],
+     "related": []
+    }
+   ]
+  }
+ ],
+ "histories": {
+  "comments/b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806": [
+   {
+    "schema_version": 1,
+    "owner_id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+    "before_revision": 0,
+    "revision": 1,
+    "timestamp": "2026-10-11T15:29:32.832468Z",
+    "request_hash": "0ca901b481a570e3a774c0d2838f5c237843a2f940408a6fed72956b6d445ba9",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "comments",
+       "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+       "kind": "create",
+       "set": {
+        "body": "first\n",
+        "author": "Recorder",
+        "issue_id": "27462214-486b-422d-9469-9de871bf47a7"
+       },
+       "add": {},
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "comments",
+       "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+       "expected_revision": null
+      },
+      {
+       "type": "issues",
+       "id": "27462214-486b-422d-9469-9de871bf47a7",
+       "expected_revision": 1
+      }
+     ],
+     "guards": [
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 4
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "comments",
+      "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+      "before_revision": 0,
+      "revision": 1
+     },
+     {
+      "type": "issues",
+      "id": "27462214-486b-422d-9469-9de871bf47a7",
+      "before_revision": 1,
+      "revision": 2
+     }
+    ],
+    "differences": {
+     "author": {
+      "before": null,
+      "after": "Recorder"
+     },
+     "created_at": {
+      "before": null,
+      "after": "2026-10-11T15:29:32.832468Z"
+     },
+     "id": {
+      "before": null,
+      "after": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806"
+     },
+     "issue_id": {
+      "before": null,
+      "after": "27462214-486b-422d-9469-9de871bf47a7"
+     },
+     "revision": {
+      "before": null,
+      "after": 1
+     },
+     "schema_version": {
+      "before": null,
+      "after": 1
+     },
+     "updated_at": {
+      "before": null,
+      "after": "2026-10-11T15:29:32.832468Z"
+     }
+    },
+    "body_hunks": [
+     {
+      "before": "",
+      "after": "first\n"
+     }
+    ]
+   },
+   {
+    "schema_version": 1,
+    "owner_id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+    "before_revision": 1,
+    "revision": 2,
+    "timestamp": "2026-10-11T15:29:32.844034Z",
+    "request_hash": "6f36e3485f2a7242e7fcd1455848995caf0abf10eb36d0ca6e86fe25881c90e7",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "comments",
+       "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+       "kind": "update",
+       "set": {
+        "body": "first\nsecond"
+       },
+       "add": {},
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "comments",
+       "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+       "expected_revision": 1
+      }
+     ],
+     "guards": [
+      {
+       "type": "issues",
+       "id": "27462214-486b-422d-9469-9de871bf47a7",
+       "expected_revision": 2
+      },
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 4
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "comments",
+      "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+      "before_revision": 1,
+      "revision": 2
+     }
+    ],
+    "differences": {
+     "revision": {
+      "before": 1,
+      "after": 2
+     },
+     "updated_at": {
+      "before": "2026-10-11T15:29:32.832468Z",
+      "after": "2026-10-11T15:29:32.844034Z"
+     }
+    },
+    "body_hunks": [
+     {
+      "before": "first\n",
+      "after": "first\nsecond"
+     }
+    ]
+   }
+  ],
+  "issues/27462214-486b-422d-9469-9de871bf47a7": [
+   {
+    "schema_version": 1,
+    "owner_id": "27462214-486b-422d-9469-9de871bf47a7",
+    "before_revision": 0,
+    "revision": 1,
+    "timestamp": "2026-10-11T15:29:32.822125Z",
+    "request_hash": "8834372454526ee0c05622cff9f869a86465659eb9ff93ae03be0f838b4128b5",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "issues",
+       "id": "27462214-486b-422d-9469-9de871bf47a7",
+       "kind": "create",
+       "set": {
+        "title": "Holder",
+        "labels": [],
+        "assignee": null,
+        "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2"
+       },
+       "add": {},
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "issues",
+       "id": "27462214-486b-422d-9469-9de871bf47a7",
+       "expected_revision": null
+      },
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 3
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "issues",
+      "id": "27462214-486b-422d-9469-9de871bf47a7",
+      "before_revision": 0,
+      "revision": 1
+     },
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "before_revision": 3,
+      "revision": 4
+     }
+    ],
+    "differences": {
+     "blocked_by": {
+      "before": null,
+      "after": []
+     },
+     "blocks": {
+      "before": null,
+      "after": []
+     },
+     "child_ids": {
+      "before": null,
+      "after": []
+     },
+     "comment_ids": {
+      "before": null,
+      "after": []
+     },
+     "created_at": {
+      "before": null,
+      "after": "2026-10-11T15:29:32.822125Z"
+     },
+     "id": {
+      "before": null,
+      "after": "27462214-486b-422d-9469-9de871bf47a7"
+     },
+     "labels": {
+      "before": null,
+      "after": []
+     },
+     "project_id": {
+      "before": null,
+      "after": "e7565e84-0a6e-4e4d-90f6-793c890e19c2"
+     },
+     "related": {
+      "before": null,
+      "after": []
+     },
+     "revision": {
+      "before": null,
+      "after": 1
+     },
+     "schema_version": {
+      "before": null,
+      "after": 1
+     },
+     "state": {
+      "before": null,
+      "after": "open"
+     },
+     "title": {
+      "before": null,
+      "after": "Holder"
+     },
+     "updated_at": {
+      "before": null,
+      "after": "2026-10-11T15:29:32.822125Z"
+     }
+    },
+    "body_hunks": []
+   },
+   {
+    "schema_version": 1,
+    "owner_id": "27462214-486b-422d-9469-9de871bf47a7",
+    "before_revision": 1,
+    "revision": 2,
+    "timestamp": "2026-10-11T15:29:32.832468Z",
+    "request_hash": "0ca901b481a570e3a774c0d2838f5c237843a2f940408a6fed72956b6d445ba9",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "comments",
+       "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+       "kind": "create",
+       "set": {
+        "body": "first\n",
+        "author": "Recorder",
+        "issue_id": "27462214-486b-422d-9469-9de871bf47a7"
+       },
+       "add": {},
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "comments",
+       "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+       "expected_revision": null
+      },
+      {
+       "type": "issues",
+       "id": "27462214-486b-422d-9469-9de871bf47a7",
+       "expected_revision": 1
+      }
+     ],
+     "guards": [
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 4
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "comments",
+      "id": "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806",
+      "before_revision": 0,
+      "revision": 1
+     },
+     {
+      "type": "issues",
+      "id": "27462214-486b-422d-9469-9de871bf47a7",
+      "before_revision": 1,
+      "revision": 2
+     }
+    ],
+    "differences": {
+     "comment_ids": {
+      "before": [],
+      "after": [
+       "b0b23cda-7b3d-4bd6-a1b6-b1a3f2569806"
+      ]
+     },
+     "revision": {
+      "before": 1,
+      "after": 2
+     },
+     "updated_at": {
+      "before": "2026-10-11T15:29:32.822125Z",
+      "after": "2026-10-11T15:29:32.832468Z"
+     }
+    },
+    "body_hunks": []
+   }
+  ],
+  "issues/286eddbd-3389-4287-bc9b-84733a090648": [
+   {
+    "schema_version": 1,
+    "owner_id": "286eddbd-3389-4287-bc9b-84733a090648",
+    "before_revision": 0,
+    "revision": 1,
+    "timestamp": "2026-10-11T15:29:32.768646Z",
+    "request_hash": "5cde7a2a2438af0abcaa08fe02150d82c1862e10d5344b5632dc6470b7be58ad",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "kind": "create",
+       "set": {
+        "title": "Straße",
+        "body": "alpha\nbeta\ngamma\ndelta\nepsilon\nzeta\neta\n",
+        "labels": [
+         "bug"
+        ],
+        "assignee": "nick",
+        "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2"
+       },
+       "add": {},
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "expected_revision": null
+      },
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 1
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "before_revision": 0,
+      "revision": 1
+     },
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "before_revision": 1,
+      "revision": 2
+     }
+    ],
+    "differences": {
+     "assignee": {
+      "before": null,
+      "after": "nick"
+     },
+     "blocked_by": {
+      "before": null,
+      "after": []
+     },
+     "blocks": {
+      "before": null,
+      "after": []
+     },
+     "child_ids": {
+      "before": null,
+      "after": []
+     },
+     "comment_ids": {
+      "before": null,
+      "after": []
+     },
+     "created_at": {
+      "before": null,
+      "after": "2026-10-11T15:29:32.768646Z"
+     },
+     "id": {
+      "before": null,
+      "after": "286eddbd-3389-4287-bc9b-84733a090648"
+     },
+     "labels": {
+      "before": null,
+      "after": [
+       "bug"
+      ]
+     },
+     "project_id": {
+      "before": null,
+      "after": "e7565e84-0a6e-4e4d-90f6-793c890e19c2"
+     },
+     "related": {
+      "before": null,
+      "after": []
+     },
+     "revision": {
+      "before": null,
+      "after": 1
+     },
+     "schema_version": {
+      "before": null,
+      "after": 1
+     },
+     "state": {
+      "before": null,
+      "after": "open"
+     },
+     "title": {
+      "before": null,
+      "after": "Straße"
+     },
+     "updated_at": {
+      "before": null,
+      "after": "2026-10-11T15:29:32.768646Z"
+     }
+    },
+    "body_hunks": [
+     {
+      "before": "",
+      "after": "alpha\nbeta\ngamma\ndelta\nepsilon\nzeta\neta\n"
+     }
+    ]
+   },
+   {
+    "schema_version": 1,
+    "owner_id": "286eddbd-3389-4287-bc9b-84733a090648",
+    "before_revision": 1,
+    "revision": 2,
+    "timestamp": "2026-10-11T15:29:32.786345Z",
+    "request_hash": "e7873e56d5b03f7e9a1c318381ffb10b27d8c9be026e3514fbd65c8e7437a7f7",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "kind": "update",
+       "set": {
+        "title": "Strasse renamed",
+        "body": "alpha\r\nbeta\ngamma\ndelta\nepsilon\nZETA\neta\ntheta"
+       },
+       "add": {},
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "expected_revision": 1
+      }
+     ],
+     "guards": [
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 3
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "before_revision": 1,
+      "revision": 2
+     }
+    ],
+    "differences": {
+     "revision": {
+      "before": 1,
+      "after": 2
+     },
+     "title": {
+      "before": "Straße",
+      "after": "Strasse renamed"
+     },
+     "updated_at": {
+      "before": "2026-10-11T15:29:32.768646Z",
+      "after": "2026-10-11T15:29:32.786345Z"
+     }
+    },
+    "body_hunks": [
+     {
+      "before": "alpha\nbeta\ngamma\ndelta\nepsilon\nzeta\neta\n",
+      "after": "alpha\r\nbeta\ngamma\ndelta\nepsilon\nZETA\neta\ntheta"
+     }
+    ]
+   },
+   {
+    "schema_version": 1,
+    "owner_id": "286eddbd-3389-4287-bc9b-84733a090648",
+    "before_revision": 2,
+    "revision": 3,
+    "timestamp": "2026-10-11T15:29:32.796071Z",
+    "request_hash": "9d7ed04eb9d127b91a9eb4bc9f0e999dc3d5b90dd1d7e3d8a603c7e9159cf8d6",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "kind": "update",
+       "set": {},
+       "add": {
+        "blocks": [
+         "30aa7bca-072c-426e-9729-939ec593b100"
+        ]
+       },
+       "remove": {}
+      },
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "kind": "update",
+       "set": {},
+       "add": {
+        "blocked_by": [
+         "286eddbd-3389-4287-bc9b-84733a090648"
+        ]
+       },
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "expected_revision": 2
+      },
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "expected_revision": 1
+      }
+     ],
+     "guards": [
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 3
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "before_revision": 2,
+      "revision": 3
+     },
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "before_revision": 1,
+      "revision": 2
+     }
+    ],
+    "differences": {
+     "blocks": {
+      "before": [],
+      "after": [
+       "30aa7bca-072c-426e-9729-939ec593b100"
+      ]
+     },
+     "revision": {
+      "before": 2,
+      "after": 3
+     },
+     "updated_at": {
+      "before": "2026-10-11T15:29:32.786345Z",
+      "after": "2026-10-11T15:29:32.796071Z"
+     }
+    },
+    "body_hunks": []
+   },
+   {
+    "schema_version": 1,
+    "owner_id": "286eddbd-3389-4287-bc9b-84733a090648",
+    "before_revision": 3,
+    "revision": 4,
+    "timestamp": "2026-10-11T15:29:32.806151Z",
+    "request_hash": "cf00157ca3c4583396bea476df94a1e9df97ad9d9fb01cc64939925dc14ac231",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "kind": "update",
+       "set": {
+        "assignee": null
+       },
+       "add": {
+        "labels": [
+         "ui"
+        ]
+       },
+       "remove": {
+        "labels": [
+         "bug"
+        ]
+       }
+      }
+     ],
+     "targets": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "expected_revision": 3
+      }
+     ],
+     "guards": [
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "expected_revision": 2
+      },
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 3
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "before_revision": 3,
+      "revision": 4
+     }
+    ],
+    "differences": {
+     "assignee": {
+      "before": "nick",
+      "after": null
+     },
+     "labels": {
+      "before": [
+       "bug"
+      ],
+      "after": [
+       "ui"
+      ]
+     },
+     "revision": {
+      "before": 3,
+      "after": 4
+     },
+     "updated_at": {
+      "before": "2026-10-11T15:29:32.796071Z",
+      "after": "2026-10-11T15:29:32.806151Z"
+     }
+    },
+    "body_hunks": []
+   },
+   {
+    "schema_version": 1,
+    "owner_id": "286eddbd-3389-4287-bc9b-84733a090648",
+    "before_revision": 4,
+    "revision": 5,
+    "timestamp": "2026-10-11T15:29:32.873433Z",
+    "request_hash": "f66e00503821e43fca512b955dc4c01df091b64b49cb0239748bfe30e782c469",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "kind": "update",
+       "set": {
+        "body": ""
+       },
+       "add": {},
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "expected_revision": 4
+      }
+     ],
+     "guards": [
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "expected_revision": 3
+      },
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 4
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "before_revision": 4,
+      "revision": 5
+     }
+    ],
+    "differences": {
+     "revision": {
+      "before": 4,
+      "after": 5
+     },
+     "updated_at": {
+      "before": "2026-10-11T15:29:32.806151Z",
+      "after": "2026-10-11T15:29:32.873433Z"
+     }
+    },
+    "body_hunks": [
+     {
+      "before": "alpha\r\nbeta\ngamma\ndelta\nepsilon\nZETA\neta\ntheta",
+      "after": ""
+     }
+    ]
+   },
+   {
+    "schema_version": 1,
+    "owner_id": "286eddbd-3389-4287-bc9b-84733a090648",
+    "before_revision": 5,
+    "revision": 6,
+    "timestamp": "2026-10-11T15:29:32.886536Z",
+    "request_hash": "66c6bd6a99d761775dca752ac5728b6e051da1e81582df79a55034f5f960a790",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "kind": "update",
+       "set": {},
+       "add": {},
+       "remove": {
+        "blocks": [
+         "30aa7bca-072c-426e-9729-939ec593b100"
+        ]
+       }
+      },
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "kind": "update",
+       "set": {},
+       "add": {},
+       "remove": {
+        "blocked_by": [
+         "286eddbd-3389-4287-bc9b-84733a090648"
+        ]
+       }
+      }
+     ],
+     "targets": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "expected_revision": 5
+      },
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "expected_revision": 3
+      }
+     ],
+     "guards": [
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 4
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "before_revision": 5,
+      "revision": 6
+     },
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "before_revision": 3,
+      "revision": 4
+     }
+    ],
+    "differences": {
+     "blocks": {
+      "before": [
+       "30aa7bca-072c-426e-9729-939ec593b100"
+      ],
+      "after": []
+     },
+     "revision": {
+      "before": 5,
+      "after": 6
+     },
+     "updated_at": {
+      "before": "2026-10-11T15:29:32.873433Z",
+      "after": "2026-10-11T15:29:32.886536Z"
+     }
+    },
+    "body_hunks": []
+   }
+  ],
+  "issues/30aa7bca-072c-426e-9729-939ec593b100": [
+   {
+    "schema_version": 1,
+    "owner_id": "30aa7bca-072c-426e-9729-939ec593b100",
+    "before_revision": 0,
+    "revision": 1,
+    "timestamp": "2026-10-11T15:29:32.778325Z",
+    "request_hash": "2033e29e3d02da83bd7b689181539651355b4e24fccd0dd2eed5385440c74b97",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "kind": "create",
+       "set": {
+        "title": "Second",
+        "labels": [],
+        "assignee": null,
+        "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2"
+       },
+       "add": {},
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "expected_revision": null
+      },
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 2
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "before_revision": 0,
+      "revision": 1
+     },
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "before_revision": 2,
+      "revision": 3
+     }
+    ],
+    "differences": {
+     "blocked_by": {
+      "before": null,
+      "after": []
+     },
+     "blocks": {
+      "before": null,
+      "after": []
+     },
+     "child_ids": {
+      "before": null,
+      "after": []
+     },
+     "comment_ids": {
+      "before": null,
+      "after": []
+     },
+     "created_at": {
+      "before": null,
+      "after": "2026-10-11T15:29:32.778325Z"
+     },
+     "id": {
+      "before": null,
+      "after": "30aa7bca-072c-426e-9729-939ec593b100"
+     },
+     "labels": {
+      "before": null,
+      "after": []
+     },
+     "project_id": {
+      "before": null,
+      "after": "e7565e84-0a6e-4e4d-90f6-793c890e19c2"
+     },
+     "related": {
+      "before": null,
+      "after": []
+     },
+     "revision": {
+      "before": null,
+      "after": 1
+     },
+     "schema_version": {
+      "before": null,
+      "after": 1
+     },
+     "state": {
+      "before": null,
+      "after": "open"
+     },
+     "title": {
+      "before": null,
+      "after": "Second"
+     },
+     "updated_at": {
+      "before": null,
+      "after": "2026-10-11T15:29:32.778325Z"
+     }
+    },
+    "body_hunks": []
+   },
+   {
+    "schema_version": 1,
+    "owner_id": "30aa7bca-072c-426e-9729-939ec593b100",
+    "before_revision": 1,
+    "revision": 2,
+    "timestamp": "2026-10-11T15:29:32.796071Z",
+    "request_hash": "9d7ed04eb9d127b91a9eb4bc9f0e999dc3d5b90dd1d7e3d8a603c7e9159cf8d6",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "kind": "update",
+       "set": {},
+       "add": {
+        "blocks": [
+         "30aa7bca-072c-426e-9729-939ec593b100"
+        ]
+       },
+       "remove": {}
+      },
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "kind": "update",
+       "set": {},
+       "add": {
+        "blocked_by": [
+         "286eddbd-3389-4287-bc9b-84733a090648"
+        ]
+       },
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "expected_revision": 2
+      },
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "expected_revision": 1
+      }
+     ],
+     "guards": [
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 3
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "before_revision": 2,
+      "revision": 3
+     },
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "before_revision": 1,
+      "revision": 2
+     }
+    ],
+    "differences": {
+     "blocked_by": {
+      "before": [],
+      "after": [
+       "286eddbd-3389-4287-bc9b-84733a090648"
+      ]
+     },
+     "revision": {
+      "before": 1,
+      "after": 2
+     },
+     "updated_at": {
+      "before": "2026-10-11T15:29:32.778325Z",
+      "after": "2026-10-11T15:29:32.796071Z"
+     }
+    },
+    "body_hunks": []
+   },
+   {
+    "schema_version": 1,
+    "owner_id": "30aa7bca-072c-426e-9729-939ec593b100",
+    "before_revision": 2,
+    "revision": 3,
+    "timestamp": "2026-10-11T15:29:32.815516Z",
+    "request_hash": "09349bd952506d113d42c09723ea5a6fa597d2257ee8d5ac74236d56b1fa42ba",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "kind": "update",
+       "set": {
+        "state": "closed"
+       },
+       "add": {},
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "expected_revision": 2
+      }
+     ],
+     "guards": [
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 3
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "before_revision": 2,
+      "revision": 3
+     }
+    ],
+    "differences": {
+     "revision": {
+      "before": 2,
+      "after": 3
+     },
+     "state": {
+      "before": "open",
+      "after": "closed"
+     },
+     "updated_at": {
+      "before": "2026-10-11T15:29:32.796071Z",
+      "after": "2026-10-11T15:29:32.815516Z"
+     }
+    },
+    "body_hunks": []
+   },
+   {
+    "schema_version": 1,
+    "owner_id": "30aa7bca-072c-426e-9729-939ec593b100",
+    "before_revision": 3,
+    "revision": 4,
+    "timestamp": "2026-10-11T15:29:32.886536Z",
+    "request_hash": "66c6bd6a99d761775dca752ac5728b6e051da1e81582df79a55034f5f960a790",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "kind": "update",
+       "set": {},
+       "add": {},
+       "remove": {
+        "blocks": [
+         "30aa7bca-072c-426e-9729-939ec593b100"
+        ]
+       }
+      },
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "kind": "update",
+       "set": {},
+       "add": {},
+       "remove": {
+        "blocked_by": [
+         "286eddbd-3389-4287-bc9b-84733a090648"
+        ]
+       }
+      }
+     ],
+     "targets": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "expected_revision": 5
+      },
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "expected_revision": 3
+      }
+     ],
+     "guards": [
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 4
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "before_revision": 5,
+      "revision": 6
+     },
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "before_revision": 3,
+      "revision": 4
+     }
+    ],
+    "differences": {
+     "blocked_by": {
+      "before": [
+       "286eddbd-3389-4287-bc9b-84733a090648"
+      ],
+      "after": []
+     },
+     "revision": {
+      "before": 3,
+      "after": 4
+     },
+     "updated_at": {
+      "before": "2026-10-11T15:29:32.815516Z",
+      "after": "2026-10-11T15:29:32.886536Z"
+     }
+    },
+    "body_hunks": []
+   },
+   {
+    "schema_version": 1,
+    "owner_id": "30aa7bca-072c-426e-9729-939ec593b100",
+    "before_revision": 4,
+    "revision": 5,
+    "timestamp": "2026-10-11T15:29:32.899164Z",
+    "request_hash": "40eb7f6d49c36a2cb1c53eba45d6c50d872c3363dc03a606527e97f3e3d7ccc4",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "kind": "update",
+       "set": {
+        "state": "open"
+       },
+       "add": {},
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "expected_revision": 4
+      }
+     ],
+     "guards": [
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 4
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "before_revision": 4,
+      "revision": 5
+     }
+    ],
+    "differences": {
+     "revision": {
+      "before": 4,
+      "after": 5
+     },
+     "state": {
+      "before": "closed",
+      "after": "open"
+     },
+     "updated_at": {
+      "before": "2026-10-11T15:29:32.886536Z",
+      "after": "2026-10-11T15:29:32.899164Z"
+     }
+    },
+    "body_hunks": []
+   }
+  ],
+  "milestones/add608f8-5523-4e46-8790-ac6774417ebb": [
+   {
+    "schema_version": 1,
+    "owner_id": "add608f8-5523-4e46-8790-ac6774417ebb",
+    "before_revision": 0,
+    "revision": 1,
+    "timestamp": "2026-10-11T15:29:32.852525Z",
+    "request_hash": "3f6fa21de2858c0fb85d1ecf16eeb2427a01e350dc0fa1c553712563b709105f",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "milestones",
+       "id": "add608f8-5523-4e46-8790-ac6774417ebb",
+       "kind": "create",
+       "set": {
+        "title": "M1",
+        "body": "goal\n",
+        "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+        "issue_ids": [
+         "286eddbd-3389-4287-bc9b-84733a090648",
+         "30aa7bca-072c-426e-9729-939ec593b100"
+        ]
+       },
+       "add": {},
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "milestones",
+       "id": "add608f8-5523-4e46-8790-ac6774417ebb",
+       "expected_revision": null
+      }
+     ],
+     "guards": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "expected_revision": 4
+      },
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "expected_revision": 3
+      },
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 4
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "milestones",
+      "id": "add608f8-5523-4e46-8790-ac6774417ebb",
+      "before_revision": 0,
+      "revision": 1
+     }
+    ],
+    "differences": {
+     "created_at": {
+      "before": null,
+      "after": "2026-10-11T15:29:32.852525Z"
+     },
+     "id": {
+      "before": null,
+      "after": "add608f8-5523-4e46-8790-ac6774417ebb"
+     },
+     "issue_ids": {
+      "before": null,
+      "after": [
+       "286eddbd-3389-4287-bc9b-84733a090648",
+       "30aa7bca-072c-426e-9729-939ec593b100"
+      ]
+     },
+     "project_id": {
+      "before": null,
+      "after": "e7565e84-0a6e-4e4d-90f6-793c890e19c2"
+     },
+     "revision": {
+      "before": null,
+      "after": 1
+     },
+     "schema_version": {
+      "before": null,
+      "after": 1
+     },
+     "title": {
+      "before": null,
+      "after": "M1"
+     },
+     "updated_at": {
+      "before": null,
+      "after": "2026-10-11T15:29:32.852525Z"
+     }
+    },
+    "body_hunks": [
+     {
+      "before": "",
+      "after": "goal\n"
+     }
+    ]
+   },
+   {
+    "schema_version": 1,
+    "owner_id": "add608f8-5523-4e46-8790-ac6774417ebb",
+    "before_revision": 1,
+    "revision": 2,
+    "timestamp": "2026-10-11T15:29:32.864000Z",
+    "request_hash": "902ec35e5778bd7b33882e9f4b748559bf3308e662b96c21c9ad5d07d5d61e7c",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "milestones",
+       "id": "add608f8-5523-4e46-8790-ac6774417ebb",
+       "kind": "update",
+       "set": {
+        "body": "goal\nnow more\n"
+       },
+       "add": {},
+       "remove": {
+        "issue_ids": [
+         "30aa7bca-072c-426e-9729-939ec593b100"
+        ]
+       }
+      }
+     ],
+     "targets": [
+      {
+       "type": "milestones",
+       "id": "add608f8-5523-4e46-8790-ac6774417ebb",
+       "expected_revision": 1
+      }
+     ],
+     "guards": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "expected_revision": 4
+      },
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "expected_revision": 3
+      },
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 4
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "milestones",
+      "id": "add608f8-5523-4e46-8790-ac6774417ebb",
+      "before_revision": 1,
+      "revision": 2
+     }
+    ],
+    "differences": {
+     "issue_ids": {
+      "before": [
+       "286eddbd-3389-4287-bc9b-84733a090648",
+       "30aa7bca-072c-426e-9729-939ec593b100"
+      ],
+      "after": [
+       "286eddbd-3389-4287-bc9b-84733a090648"
+      ]
+     },
+     "revision": {
+      "before": 1,
+      "after": 2
+     },
+     "updated_at": {
+      "before": "2026-10-11T15:29:32.852525Z",
+      "after": "2026-10-11T15:29:32.864000Z"
+     }
+    },
+    "body_hunks": [
+     {
+      "before": "goal\n",
+      "after": "goal\nnow more\n"
+     }
+    ]
+   }
+  ],
+  "projects/e7565e84-0a6e-4e4d-90f6-793c890e19c2": [
+   {
+    "schema_version": 1,
+    "owner_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+    "before_revision": 0,
+    "revision": 1,
+    "timestamp": "2026-10-11T15:29:32.764117Z",
+    "request_hash": "1f38408f0bfa88e448c7b9dbbbd00899be144ce3f4c4db61c0f64c90f07dbae7",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "kind": "create",
+       "set": {
+        "title": "feat/compat-two",
+        "repository_refs": []
+       },
+       "add": {},
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": null
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "before_revision": 0,
+      "revision": 1
+     }
+    ],
+    "differences": {
+     "created_at": {
+      "before": null,
+      "after": "2026-10-11T15:29:32.764117Z"
+     },
+     "id": {
+      "before": null,
+      "after": "e7565e84-0a6e-4e4d-90f6-793c890e19c2"
+     },
+     "issue_ids": {
+      "before": null,
+      "after": []
+     },
+     "repository_refs": {
+      "before": null,
+      "after": []
+     },
+     "revision": {
+      "before": null,
+      "after": 1
+     },
+     "schema_version": {
+      "before": null,
+      "after": 1
+     },
+     "title": {
+      "before": null,
+      "after": "feat/compat-two"
+     },
+     "updated_at": {
+      "before": null,
+      "after": "2026-10-11T15:29:32.764117Z"
+     }
+    },
+    "body_hunks": []
+   },
+   {
+    "schema_version": 1,
+    "owner_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+    "before_revision": 1,
+    "revision": 2,
+    "timestamp": "2026-10-11T15:29:32.768646Z",
+    "request_hash": "5cde7a2a2438af0abcaa08fe02150d82c1862e10d5344b5632dc6470b7be58ad",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "kind": "create",
+       "set": {
+        "title": "Straße",
+        "body": "alpha\nbeta\ngamma\ndelta\nepsilon\nzeta\neta\n",
+        "labels": [
+         "bug"
+        ],
+        "assignee": "nick",
+        "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2"
+       },
+       "add": {},
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "issues",
+       "id": "286eddbd-3389-4287-bc9b-84733a090648",
+       "expected_revision": null
+      },
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 1
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "issues",
+      "id": "286eddbd-3389-4287-bc9b-84733a090648",
+      "before_revision": 0,
+      "revision": 1
+     },
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "before_revision": 1,
+      "revision": 2
+     }
+    ],
+    "differences": {
+     "issue_ids": {
+      "before": [],
+      "after": [
+       "286eddbd-3389-4287-bc9b-84733a090648"
+      ]
+     },
+     "revision": {
+      "before": 1,
+      "after": 2
+     },
+     "updated_at": {
+      "before": "2026-10-11T15:29:32.764117Z",
+      "after": "2026-10-11T15:29:32.768646Z"
+     }
+    },
+    "body_hunks": []
+   },
+   {
+    "schema_version": 1,
+    "owner_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+    "before_revision": 2,
+    "revision": 3,
+    "timestamp": "2026-10-11T15:29:32.778325Z",
+    "request_hash": "2033e29e3d02da83bd7b689181539651355b4e24fccd0dd2eed5385440c74b97",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "kind": "create",
+       "set": {
+        "title": "Second",
+        "labels": [],
+        "assignee": null,
+        "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2"
+       },
+       "add": {},
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "issues",
+       "id": "30aa7bca-072c-426e-9729-939ec593b100",
+       "expected_revision": null
+      },
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 2
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "issues",
+      "id": "30aa7bca-072c-426e-9729-939ec593b100",
+      "before_revision": 0,
+      "revision": 1
+     },
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "before_revision": 2,
+      "revision": 3
+     }
+    ],
+    "differences": {
+     "issue_ids": {
+      "before": [
+       "286eddbd-3389-4287-bc9b-84733a090648"
+      ],
+      "after": [
+       "286eddbd-3389-4287-bc9b-84733a090648",
+       "30aa7bca-072c-426e-9729-939ec593b100"
+      ]
+     },
+     "revision": {
+      "before": 2,
+      "after": 3
+     },
+     "updated_at": {
+      "before": "2026-10-11T15:29:32.768646Z",
+      "after": "2026-10-11T15:29:32.778325Z"
+     }
+    },
+    "body_hunks": []
+   },
+   {
+    "schema_version": 1,
+    "owner_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+    "before_revision": 3,
+    "revision": 4,
+    "timestamp": "2026-10-11T15:29:32.822125Z",
+    "request_hash": "8834372454526ee0c05622cff9f869a86465659eb9ff93ae03be0f838b4128b5",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "issues",
+       "id": "27462214-486b-422d-9469-9de871bf47a7",
+       "kind": "create",
+       "set": {
+        "title": "Holder",
+        "labels": [],
+        "assignee": null,
+        "project_id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2"
+       },
+       "add": {},
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "issues",
+       "id": "27462214-486b-422d-9469-9de871bf47a7",
+       "expected_revision": null
+      },
+      {
+       "type": "projects",
+       "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+       "expected_revision": 3
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "issues",
+      "id": "27462214-486b-422d-9469-9de871bf47a7",
+      "before_revision": 0,
+      "revision": 1
+     },
+     {
+      "type": "projects",
+      "id": "e7565e84-0a6e-4e4d-90f6-793c890e19c2",
+      "before_revision": 3,
+      "revision": 4
+     }
+    ],
+    "differences": {
+     "issue_ids": {
+      "before": [
+       "286eddbd-3389-4287-bc9b-84733a090648",
+       "30aa7bca-072c-426e-9729-939ec593b100"
+      ],
+      "after": [
+       "27462214-486b-422d-9469-9de871bf47a7",
+       "286eddbd-3389-4287-bc9b-84733a090648",
+       "30aa7bca-072c-426e-9729-939ec593b100"
+      ]
+     },
+     "revision": {
+      "before": 3,
+      "after": 4
+     },
+     "updated_at": {
+      "before": "2026-10-11T15:29:32.778325Z",
+      "after": "2026-10-11T15:29:32.822125Z"
+     }
+    },
+    "body_hunks": []
+   }
+  ],
+  "projects/fc9d4f5f-a288-48b8-b4d4-75aa48567148": [
+   {
+    "schema_version": 1,
+    "owner_id": "fc9d4f5f-a288-48b8-b4d4-75aa48567148",
+    "before_revision": 0,
+    "revision": 1,
+    "timestamp": "2026-10-11T15:29:32.756918Z",
+    "request_hash": "7b0ac47aee6bab1e4198717a85084a30acf3c444c816e60b1bf27685e811297a",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "projects",
+       "id": "fc9d4f5f-a288-48b8-b4d4-75aa48567148",
+       "kind": "create",
+       "set": {
+        "title": "feat/compat-one",
+        "description": "Line one\r\nline two\r\n",
+        "repository_refs": [
+         "https://example.org/one"
+        ]
+       },
+       "add": {},
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "projects",
+       "id": "fc9d4f5f-a288-48b8-b4d4-75aa48567148",
+       "expected_revision": null
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "projects",
+      "id": "fc9d4f5f-a288-48b8-b4d4-75aa48567148",
+      "before_revision": 0,
+      "revision": 1
+     }
+    ],
+    "differences": {
+     "created_at": {
+      "before": null,
+      "after": "2026-10-11T15:29:32.756918Z"
+     },
+     "id": {
+      "before": null,
+      "after": "fc9d4f5f-a288-48b8-b4d4-75aa48567148"
+     },
+     "issue_ids": {
+      "before": null,
+      "after": []
+     },
+     "repository_refs": {
+      "before": null,
+      "after": [
+       "https://example.org/one"
+      ]
+     },
+     "revision": {
+      "before": null,
+      "after": 1
+     },
+     "schema_version": {
+      "before": null,
+      "after": 1
+     },
+     "title": {
+      "before": null,
+      "after": "feat/compat-one"
+     },
+     "updated_at": {
+      "before": null,
+      "after": "2026-10-11T15:29:32.756918Z"
+     }
+    },
+    "body_hunks": [
+     {
+      "before": "",
+      "after": "Line one\r\nline two\r\n"
+     }
+    ]
+   },
+   {
+    "schema_version": 1,
+    "owner_id": "fc9d4f5f-a288-48b8-b4d4-75aa48567148",
+    "before_revision": 1,
+    "revision": 2,
+    "timestamp": "2026-10-11T15:29:32.761067Z",
+    "request_hash": "404060315892d3283b28ad5200fc2e7132188acbd518b6ae1c5580794c5023fa",
+    "intent": {
+     "schema_version": 1,
+     "operation": "transaction",
+     "service_id": "d6304064-8ea4-400f-9d17-1a65141f1557",
+     "actor": {
+      "client_id": "0d03860b-4fb0-45ea-b46e-0143c31bb7ad",
+      "name": "Recorder",
+      "kind": "agent"
+     },
+     "operations": [
+      {
+       "type": "projects",
+       "id": "fc9d4f5f-a288-48b8-b4d4-75aa48567148",
+       "kind": "update",
+       "set": {
+        "description": "Line one\r\nline 2\r\nline three"
+       },
+       "add": {
+        "repository_refs": [
+         "https://example.org/two"
+        ]
+       },
+       "remove": {}
+      }
+     ],
+     "targets": [
+      {
+       "type": "projects",
+       "id": "fc9d4f5f-a288-48b8-b4d4-75aa48567148",
+       "expected_revision": 1
+      }
+     ]
+    },
+    "results": [
+     {
+      "type": "projects",
+      "id": "fc9d4f5f-a288-48b8-b4d4-75aa48567148",
+      "before_revision": 1,
+      "revision": 2
+     }
+    ],
+    "differences": {
+     "repository_refs": {
+      "before": [
+       "https://example.org/one"
+      ],
+      "after": [
+       "https://example.org/one",
+       "https://example.org/two"
+      ]
+     },
+     "revision": {
+      "before": 1,
+      "after": 2
+     },
+     "updated_at": {
+      "before": "2026-10-11T15:29:32.756918Z",
+      "after": "2026-10-11T15:29:32.761067Z"
+     }
+    },
+    "body_hunks": [
+     {
+      "before": "Line one\r\nline two\r\n",
+      "after": "Line one\r\nline 2\r\nline three"
+     }
+    ]
+   }
+  ]
+ }
+}

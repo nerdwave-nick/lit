@@ -7,7 +7,7 @@ import (
 
 func TestLinksMirroredFinalState(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	p, q := protocol.UUID(), protocol.UUID()
 	executeProjectTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: p, Title: textPointer("feat/links")}, protocol.ProjectInput{ID: q, Title: textPointer("feat/other")}))
 	a, b := protocol.UUID(), protocol.UUID()
@@ -34,14 +34,11 @@ func TestLinksMirroredFinalState(t *testing.T) {
 	if len(ai.Blocks) != 1 || ai.Blocks[0] != b || len(bi.BlockedBy) != 1 || bi.BlockedBy[0] != a {
 		t.Fatal(ai, bi)
 	}
-	if e := s.InitRecords(); e != nil {
-		t.Fatal(e)
-	}
 }
 
 func TestLinkRejectionLimitsAndCanonicalEquivalence(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	p := protocol.UUID()
 	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: p, Title: textPointer("feat/limits")}))
 	a, b, d := protocol.UUID(), protocol.UUID(), protocol.UUID()
@@ -67,11 +64,11 @@ func TestLinkRejectionLimitsAndCanonicalEquivalence(t *testing.T) {
 		t.Fatal("two edges expand to three records", e)
 	}
 	executeRecordTest(t, s, c, plan)
-	before, _ := s.ReadRecordState()
+	before, _ := allRecords(s)
 	if _, e = req(protocol.ProjectInput{From: d, To: []string{a}, Relation: "blocks"}, protocol.ProjectInput{From: a, To: []string{d}, Relation: "related"}); e == nil {
 		t.Fatal("cyclic batch accepted")
 	}
-	after, _ := s.ReadRecordState()
+	after, _ := allRecords(s)
 	if !same(before, after) {
 		t.Fatal("rejected batch changed state")
 	}
@@ -83,7 +80,7 @@ func TestLinkRejectionLimitsAndCanonicalEquivalence(t *testing.T) {
 
 func TestRelationshipConvenienceRoute(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	p, a, b, d := protocol.UUID(), protocol.UUID(), protocol.UUID(), protocol.UUID()
 	executeRecordTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: p, Title: textPointer("feat/routes")}))
 	executeRecordTest(t, s, c, prepareRecordTest(t, s, c, p, "issue.create", protocol.ProjectInput{ID: a, Title: textPointer("A")}, protocol.ProjectInput{ID: b, Title: textPointer("B")}, protocol.ProjectInput{ID: d, Title: textPointer("D")}))

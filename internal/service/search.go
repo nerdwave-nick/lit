@@ -5,34 +5,37 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"sort"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/textfold"
 	"golang.org/x/text/cases"
 )
 
 // Fold each scalar with its source position: expanding folds (ß -> ss) must
-// never shift excerpt positions or change the original displayed content.
+// never shift excerpt positions or change the original displayed content. The
+// folded text is textfold.Grep(body), which the search index stores.
 func searchExcerpt(field, body, query string, sensitive bool, context int) (protocol.SearchExcerpt, bool) {
 	source := []rune(body)
 	hay := body
 	needle := query
 	positions := []int{}
 	if !sensitive {
-		fold := cases.Fold()
 		var b strings.Builder
 		for i, r := range source {
-			f := fold.String(string(r))
+			f := textfold.Scalar(r)
 			b.WriteString(f)
 			for range []rune(f) {
 				positions = append(positions, i)
 			}
 		}
 		hay = b.String()
-		needle = fold.String(query)
+		needle = grepNeedle(query, false)
 	}
 	index := strings.Index(hay, needle)
 	if index < 0 {
@@ -44,6 +47,13 @@ func searchExcerpt(field, body, query string, sensitive bool, context int) (prot
 		last = positions[last-1] + 1
 		first = positions[first]
 	}
+	return excerptAround(field, source, first, last, context), true
+}
+
+// excerptAround is the excerpt of the match source[first:last] in field: its
+// lines and context lines around them, centered on the match within at most
+// 400 scalars.
+func excerptAround(field string, source []rune, first, last, context int) protocol.SearchExcerpt {
 	lineStart := first
 	for lineStart > 0 && source[lineStart-1] != '\n' {
 		lineStart--
@@ -79,8 +89,24 @@ func searchExcerpt(field, body, query string, sensitive bool, context int) (prot
 			left = right - 400
 		}
 	}
-	return protocol.SearchExcerpt{Field: field, Text: string(source[left:right]), StartLine: 1 + strings.Count(string(source[:left]), "\n"), MatchLine: 1 + strings.Count(string(source[:first]), "\n"), ExcerptTruncated: left > wantLeft || right < wantRight}, true
+	return protocol.SearchExcerpt{Field: field, Text: string(source[left:right]), StartLine: 1 + strings.Count(string(source[:left]), "\n"), MatchLine: 1 + strings.Count(string(source[:first]), "\n"), ExcerptTruncated: left > wantLeft || right < wantRight}
 }
+
+// grepNeedle is the folded text that the textfold.Grep fold of a field
+// contains whenever searchExcerpt matches query in that field: the query's
+// whole-string fold, which searchExcerpt looks for in the folded field, or,
+// case-sensitively, the query's own Grep fold, since a substring of a field
+// folds to a substring of its fold.
+func grepNeedle(query string, sensitive bool) string {
+	if sensitive {
+		return textfold.Grep(query)
+	}
+	return cases.Fold().String(query)
+}
+
+// errEnoughMatches stops the search scan once a page and its successor's
+// first match are found: the scan reads records in result order.
+var errEnoughMatches = errors.New("search page is full")
 
 type searchCursor struct {
 	QueryHash string `json:"query_hash"`
@@ -93,6 +119,13 @@ func (s *Server) searchPage(q protocol.SearchRequest, c protocol.Client) (Projec
 	if q.Query == "" || !utf8.ValidString(q.Query) || q.ContextLines < 0 {
 		return out, invalid("query must be nonempty UTF-8 and context_lines nonnegative")
 	}
+	if e := checkSearchText("query", q.Query); e != nil {
+		return out, e
+	}
+	m, e := newGrepMatcher(q)
+	if e != nil {
+		return out, e
+	}
 	if q.Scope.AllProjects && q.Scope.ProjectID != "" {
 		return out, invalid("conflicting search scope")
 	}
@@ -103,7 +136,7 @@ func (s *Server) searchPage(q protocol.SearchRequest, c protocol.Client) (Projec
 		if q.Scope.ProjectID == "" {
 			return out, invalid("select a project or all_projects")
 		}
-		p, e := s.ResolveProject(q.Scope.ProjectID)
+		p, e := s.resolveProject(q.Scope.ProjectID)
 		if e != nil {
 			return out, e
 		}
@@ -136,51 +169,34 @@ func (s *Server) searchPage(q protocol.SearchRequest, c protocol.Client) (Projec
 		}
 		after = cursor.After
 	}
-	state, e := s.ReadRecordState()
-	if e != nil {
-		return out, e
-	}
+	// The storage module reads only the records whose folded text may contain
+	// the query (through its trigram index); searchExcerpt decides on the
+	// original text, so results are those of a scan of every record.
 	matches := []protocol.SearchResult{}
-	for _, record := range state {
-		typ, id, rev, _, _ := recordIdentity(record)
-		result := protocol.SearchResult{Type: typ, ID: id, Revision: rev, Excerpts: []protocol.SearchExcerpt{}}
-		fields := [][2]string{}
-		switch v := record.(type) {
-		case protocol.Project:
-			result.ProjectID = v.ID
-			fields = append(fields, [2]string{"description", v.Description})
-		case protocol.Issue:
-			result.ProjectID = v.ProjectID
-			result.IssueID = v.ID
-			result.IssueTitle = v.Title
-			fields = append(fields, [2]string{"title", v.Title}, [2]string{"body", v.Body})
-		case protocol.Comment:
-			owner, ok := state[recordKey("issues", v.IssueID)].(protocol.Issue)
-			if !ok {
-				return out, invalid("comment owner missing")
-			}
-			result.ProjectID = owner.ProjectID
-			result.IssueID = owner.ID
-			result.IssueTitle = owner.Title
-			fields = append(fields, [2]string{"body", v.Body})
-		case protocol.Milestone:
-			result.ProjectID = v.ProjectID
-			fields = append(fields, [2]string{"title", v.Title}, [2]string{"body", v.Body})
-		}
-		if !q.Scope.AllProjects && result.ProjectID != q.Scope.ProjectID {
-			continue
-		}
+	scope := ""
+	if !q.Scope.AllProjects {
+		scope = q.Scope.ProjectID
+	}
+	e = m.scan(s.ctx(), s.q(), scope, func(record storage.SearchRecord) error {
+		result := protocol.SearchResult{Type: record.Type, ID: record.ID, ProjectID: record.ProjectID, IssueID: record.IssueID, IssueTitle: record.IssueTitle, Revision: record.Revision, Excerpts: []protocol.SearchExcerpt{}}
 		if searchKey(result) <= after {
-			continue
+			return nil
 		}
-		for _, field := range fields {
-			if ex, ok := searchExcerpt(field[0], field[1], q.Query, q.CaseSensitive, q.ContextLines); ok {
+		for _, field := range record.Fields {
+			if ex, ok := m.match(field); ok {
 				result.Excerpts = append(result.Excerpts, ex)
 			}
 		}
 		if len(result.Excerpts) > 0 {
 			matches = append(matches, result)
 		}
+		if len(matches) > q.Limit {
+			return errEnoughMatches
+		}
+		return nil
+	})
+	if e != nil && !errors.Is(e, errEnoughMatches) {
+		return out, e
 	}
 	sort.Slice(matches, func(i, j int) bool { return searchKey(matches[i]) < searchKey(matches[j]) })
 	if len(matches) > q.Limit {

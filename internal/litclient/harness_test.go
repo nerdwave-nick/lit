@@ -12,7 +12,7 @@ import (
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 )
 
 // harness is a real temporary lit service behind a counting front, so tests can
@@ -31,12 +31,12 @@ type harness struct {
 
 func newHarness(t *testing.T) *harness {
 	t.Helper()
-	storage, err := store.Open(t.TempDir())
+	db, err := storage.Open(t.TempDir())
 	if err != nil {
 		t.Fatal(err)
 	}
-	t.Cleanup(func() { _ = storage.Close() })
-	backend, err := service.New(storage, service.Config{Limits: protocol.DefaultLimits(), TitlePrefixes: []string{"test"}})
+	t.Cleanup(func() { _ = db.Close() })
+	backend, err := service.New(db, service.Config{Limits: protocol.DefaultLimits(), TitlePrefixes: []string{"test"}})
 	if err != nil {
 		t.Fatal(err)
 	}

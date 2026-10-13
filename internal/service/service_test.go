@@ -2,31 +2,62 @@ package service
 
 import (
 	"bytes"
+	"context"
+	"database/sql"
 	"encoding/json"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
 )
 
 func fixture(t *testing.T) (*Server, *httptest.Server) {
 	t.Helper()
-	s, e := store.Open(t.TempDir())
-	if e != nil {
-		t.Fatal(e)
-	}
-	t.Cleanup(func() { s.Close() })
-	v, e := New(s, Config{Limits: protocol.DefaultLimits(), TitlePrefixes: []string{"feat"}})
-	if e != nil {
-		t.Fatal(e)
-	}
+	v := openTestServer(t, t.TempDir(), Config{Limits: protocol.DefaultLimits(), TitlePrefixes: []string{"feat"}})
 	h := httptest.NewServer(v)
 	t.Cleanup(h.Close)
 	return v, h
+}
+
+// outside opens a second, independent connection to the service's database,
+// as another process would.
+func outside(t *testing.T, s *Server) *sql.DB {
+	t.Helper()
+	db, e := sql.Open("sqlite", "file:"+filepath.Join(s.DB.Dir(), storage.DatabaseFile)+"?_pragma=busy_timeout(5000)")
+	if e != nil {
+		t.Fatal(e)
+	}
+	db.SetMaxOpenConns(1)
+	t.Cleanup(func() { db.Close() })
+	return db
+}
+
+func countClients(t *testing.T, s *Server) int {
+	t.Helper()
+	var n int
+	if e := outside(t, s).QueryRow("SELECT count(*) FROM clients").Scan(&n); e != nil {
+		t.Fatal(e)
+	}
+	return n
+}
+
+// waitInStack waits until some goroutine runs the named function.
+func waitInStack(t *testing.T, function string) {
+	t.Helper()
+	buf := make([]byte, 1<<20)
+	for deadline := time.Now().Add(4 * time.Second); time.Now().Before(deadline); time.Sleep(10 * time.Millisecond) {
+		if bytes.Contains(buf[:runtime.Stack(buf, true)], []byte(function)) {
+			return
+		}
+	}
+	t.Fatalf("no goroutine reached %s", function)
 }
 func request(t *testing.T, h *httptest.Server, method, path, body, id, revision string) (int, map[string]any) {
 	t.Helper()
@@ -153,21 +184,32 @@ func TestResponseLimitRejectsBeforeRegistration(t *testing.T) {
 	if status != 413 {
 		t.Fatal(status, v)
 	}
-	entries, e := s.Store.List("clients")
-	if e != nil || len(entries) != 0 {
-		t.Fatal("rejected registration committed", entries, e)
+	if n := countClients(t, s); n != 0 {
+		t.Fatal("rejected registration committed", n)
 	}
 }
+
+// An admitted request finishes its transaction after Stop, while new requests
+// are refused. Another connection holds SQLite's write lock, so the admitted
+// request waits inside its BEGIN IMMEDIATE until that lock is released.
 func TestShutdownDrainsAdmittedTransaction(t *testing.T) {
 	s, h := fixture(t)
-	entered, release := make(chan struct{}), make(chan struct{})
-	s.Store.Fault = func(point string) error {
-		if point == "before_commit" {
-			close(entered)
-			<-release
-		}
-		return nil
+	held, e := outside(t, s).Conn(context.Background())
+	if e != nil {
+		t.Fatal(e)
 	}
+	if _, e = held.ExecContext(context.Background(), "BEGIN IMMEDIATE"); e != nil {
+		t.Fatal(e)
+	}
+	released := false
+	release := func() {
+		if !released {
+			released = true
+			held.ExecContext(context.Background(), "ROLLBACK")
+			held.Close()
+		}
+	}
+	defer release()
 	done := make(chan int, 1)
 	go func() {
 		r, e := http.Post(h.URL+"/v1/connect", "application/json", strings.NewReader(`{"actor":{"name":"A","kind":"human"}}`))
@@ -178,25 +220,22 @@ func TestShutdownDrainsAdmittedTransaction(t *testing.T) {
 		r.Body.Close()
 		done <- r.StatusCode
 	}()
-	<-entered
+	waitInStack(t, "storage.(*Writer).Begin")
 	s.Stop()
 	resp, e := http.Get(h.URL + "/v1/meta")
 	if e != nil {
-		close(release)
 		t.Fatal(e)
 	}
 	resp.Body.Close()
 	if resp.StatusCode != 503 {
-		close(release)
 		t.Fatal("admitted request during shutdown", resp.StatusCode)
 	}
-	close(release)
+	release()
 	if status := <-done; status != 201 {
 		t.Fatal("did not finish admitted transaction", status)
 	}
-	entries, e := s.Store.List("clients")
-	if e != nil || len(entries) != 1 {
-		t.Fatal("lost drained transaction", entries, e)
+	if n := countClients(t, s); n != 1 {
+		t.Fatal("lost drained transaction", n)
 	}
 }
 func TestResponseLimitRejectsBeforeSessionChanges(t *testing.T) {
@@ -234,5 +273,32 @@ func TestTransportErrorCodes(t *testing.T) {
 		if status != tc.status || v["error"].(map[string]any)["code"] != tc.code {
 			t.Fatal(status, v)
 		}
+	}
+}
+
+// Lock contention from outside lit-server that outlasts the busy timeout is a
+// retryable storage_busy, never a storage_error, and commits nothing.
+func TestStorageContentionIsBusy(t *testing.T) {
+	if testing.Short() {
+		t.Skip("waits for the five-second busy timeout")
+	}
+	s, h := fixture(t)
+	held, e := outside(t, s).Conn(context.Background())
+	if e != nil {
+		t.Fatal(e)
+	}
+	defer held.Close()
+	if _, e = held.ExecContext(context.Background(), "BEGIN IMMEDIATE"); e != nil {
+		t.Fatal(e)
+	}
+	status, v := request(t, h, "POST", "/v1/connect", `{"actor":{"name":"A","kind":"human"}}`, "", "")
+	if status != 503 || v["error"].(map[string]any)["code"] != "storage_busy" {
+		t.Fatal(status, v)
+	}
+	if _, e = held.ExecContext(context.Background(), "ROLLBACK"); e != nil {
+		t.Fatal(e)
+	}
+	if n := countClients(t, s); n != 0 {
+		t.Fatal("busy request committed", n)
 	}
 }

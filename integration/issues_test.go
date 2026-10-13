@@ -40,8 +40,9 @@ func TestIssuesCommentsCLI(t *testing.T) {
 	if len(r["items"].([]any)) != 2 {
 		t.Fatal(r)
 	}
+	// Creation, update, close and reopen; comments do not change the issue.
 	r = run(t, cwd, state, 0, "issues", "history", id)
-	if len(r["items"].([]any)) != 5 {
+	if len(r["items"].([]any)) != 4 {
 		t.Fatal(r)
 	}
 	s.stop(t)

@@ -13,7 +13,8 @@ Command in that isolated checkout:
 The empty runtime lock file was removed after shutdown. All application files,
 UUIDs, timestamps, canonical intent hashes, and history bytes are unchanged.
 
-This historical fixture now verifies rejection: the test copies these files to a
-temporary store and requires startup to fail without changing any fixture bytes.
-The former JSON frontmatter representation is unsupported. The fixture is test
-data, not a user store or migration artifact.
+This historical fixture now verifies that lit-server refuses a legacy file
+store: `TestLegacyFileStoreIsRefused` copies these files to a temporary data
+directory and requires opening it to fail, naming the setup import, without
+changing or adding any file. The fixture is test data, not a user store or
+migration artifact.

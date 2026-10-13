@@ -9,8 +9,8 @@ import (
 
 func TestReconcileClientCurrentEffectNotHistoricalAcceptance(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
-	q := protocol.ReconcileRequest{ServiceID: s.Store.Identity.ServiceID, ClientID: c.ClientID, Method: "POST", Path: "/v1/disconnect", Body: json.RawMessage(`{}`), Headers: map[string]string{"If-Match": fmt.Sprintf("\"client:%d\"", c.StateRevision)}}
+	defer s.DB.Close()
+	q := protocol.ReconcileRequest{ServiceID: s.DB.ServiceID(), ClientID: c.ClientID, Method: "POST", Path: "/v1/disconnect", Body: json.RawMessage(`{}`), Headers: map[string]string{"If-Match": fmt.Sprintf("\"client:%d\"", c.StateRevision)}}
 	v, e := s.Reconcile(q, c)
 	if e != nil || v.Status != "uncommitted" {
 		t.Fatal(v, e)
@@ -47,7 +47,7 @@ func TestReconcileClaimEmptyReleaseAndDisconnectedNoop(t *testing.T) {
 	s, c, id := claimFixture(t)
 	op := protocol.ClaimOperation{Operation: "claims.release", OwnerClientID: c.ClientID, Selection: "explicit", Items: []protocol.ClaimItem{{IssueID: id}}}
 	b, _ := json.Marshal(op)
-	q := protocol.ReconcileRequest{ServiceID: s.Store.Identity.ServiceID, ClientID: c.ClientID, Method: "POST", Path: "/v1/operations", Body: b}
+	q := protocol.ReconcileRequest{ServiceID: s.DB.ServiceID(), ClientID: c.ClientID, Method: "POST", Path: "/v1/operations", Body: b}
 	v, e := s.Reconcile(q, c)
 	if e != nil || v.Status != "already_satisfied" || v.Outcome != "no_active_claim" {
 		t.Fatal(v, e)

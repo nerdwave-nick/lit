@@ -58,7 +58,7 @@ func (s *Server) issueSummaryRoute(w http.ResponseWriter, r *http.Request, c pro
 
 // publicClaim is the live claim as exposed to clients, naming its owner's actor.
 func (s *Server) publicClaim(id string) (*protocol.Claim, error) {
-	claim, e := s.LiveClaim(id)
+	claim, e := s.liveClaim(id)
 	if e != nil {
 		return nil, e
 	}
@@ -71,7 +71,7 @@ func (s *Server) withOwnerActor(claim *protocol.Claim) (*protocol.Claim, error) 
 	if claim == nil {
 		return nil, nil
 	}
-	owner, e := s.Client(claim.OwnerClientID)
+	owner, e := s.client(claim.OwnerClientID)
 	if e != nil {
 		return nil, e
 	}

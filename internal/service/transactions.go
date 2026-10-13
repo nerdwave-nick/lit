@@ -1,16 +1,15 @@
 package service
 
 import (
-	"encoding/json"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
 	"net/http"
 	"sort"
 	"strings"
+
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 )
 
 func invalid(msg string) error { return protocol.E(422, "validation_failed", msg) }
-func (s *Server) PrepareProjects(req protocol.PrepareRequest, c protocol.Client) (protocol.Prepared, error) {
+func (s *Server) prepareProjects(req protocol.PrepareRequest, c protocol.Client) (protocol.Prepared, error) {
 	var out protocol.Prepared
 	if req.SchemaVersion != 0 && req.SchemaVersion != 1 {
 		return out, invalid("unsupported schema_version")
@@ -25,7 +24,7 @@ func (s *Server) PrepareProjects(req protocol.PrepareRequest, c protocol.Client)
 	if len(req.Items) > s.Config.Limits.ExplicitItems {
 		return out, protocol.E(413, "limit_exceeded", "too many explicit items")
 	}
-	intent := protocol.Intent{Force: req.Force, SchemaVersion: 1, Operation: "transaction", ServiceID: s.Store.Identity.ServiceID, Actor: protocol.DurableActor{ClientID: c.ClientID, Name: c.Actor.Name, Kind: c.Actor.Kind}}
+	intent := protocol.Intent{Force: req.Force, SchemaVersion: 1, Operation: "transaction", ServiceID: s.DB.ServiceID(), Actor: protocol.DurableActor{ClientID: c.ClientID, Name: c.Actor.Name, Kind: c.Actor.Kind}}
 	ops := map[string]protocol.Operation{}
 	refs := map[string]protocol.ObjectRef{}
 	for _, item := range req.Items {
@@ -47,7 +46,7 @@ func (s *Server) PrepareProjects(req protocol.PrepareRequest, c protocol.Client)
 			if id != "" || item.Title != nil || item.Content != nil || item.RepositoryRefs != nil {
 				return out, invalid("invalid project update fields")
 			}
-			p, e := s.ResolveProject(item.Target)
+			p, e := s.resolveProject(item.Target)
 			if e != nil {
 				return out, e
 			}
@@ -112,10 +111,10 @@ func (s *Server) PrepareProjects(req protocol.PrepareRequest, c protocol.Client)
 	if e = protocol.Decode(b, &intent); e != nil {
 		return out, e
 	}
-	if _, _, e = s.projectTransaction(intent, h, c); e != nil {
+	if _, _, e = s.recordTransaction(intent, h, c); e != nil {
 		return out, e
 	}
-	return protocol.Prepared{SchemaVersion: 1, ServiceID: s.Store.Identity.ServiceID, ClientID: c.ClientID, Intent: intent, CanonicalJSON: string(b), RequestHash: h, RequiredClaims: []protocol.RequiredClaim{}}, nil
+	return protocol.Prepared{SchemaVersion: 1, ServiceID: s.DB.ServiceID(), ClientID: c.ClientID, Intent: intent, CanonicalJSON: string(b), RequestHash: h, RequiredClaims: []protocol.RequiredClaim{}}, nil
 }
 func mergeProjectOperation(a, b protocol.Operation) (protocol.Operation, error) {
 	if a.Kind != b.Kind {
@@ -161,28 +160,22 @@ func union(a, b []string) []string {
 	return out
 }
 
-// projectTransaction validates the complete proposed final state before producing any writes.
-// The caller holds Server.Mu; this same engine serves preparation and execution.
-func (s *Server) projectTransaction(i protocol.Intent, hash string, c protocol.Client) ([]store.Write, protocol.MutationResult, error) {
-	return s.recordTransaction(i, hash, c)
-}
 func (s *Server) executeProjects(w http.ResponseWriter, r *http.Request, c protocol.Client, routeID, kind string) error {
-	var req protocol.DurableRequest
-	if e := s.Body(r, &req); e != nil {
-		return e
+	d := s.durable(r)
+	if d.bodyErr != nil {
+		return d.bodyErr
 	}
+	req := d.req
 	if req.SchemaVersion != 0 && req.SchemaVersion != 1 {
 		return invalid("unsupported schema_version")
 	}
-	b, hash, e := protocol.Canonical(req.Intent)
-	if e != nil {
-		return invalid(e.Error())
+	if d.canonErr != nil {
+		return invalid(d.canonErr.Error())
 	}
+	hash, i := d.hash, d.intent
 	if hash != req.RequestHash {
 		return protocol.E(422, "request_hash_mismatch", "canonical intent hash differs")
 	}
-	var i protocol.Intent
-	protocol.Decode(b, &i)
 	if kind == "relationships" {
 		if e := validateRelationshipRoute(i.Operations, routeID); e != nil {
 			return e
@@ -196,7 +189,7 @@ func (s *Server) executeProjects(w http.ResponseWriter, r *http.Request, c proto
 			return invalid("route does not match intent")
 		}
 	}
-	writes, result, e := s.recordTransaction(i, hash, c, req.Claims...)
+	cs, result, e := s.recordTransaction(i, hash, c, req.Claims...)
 	if e != nil {
 		return e
 	}
@@ -204,24 +197,5 @@ func (s *Server) executeProjects(w http.ResponseWriter, r *http.Request, c proto
 	if kind == "create" {
 		status = 201
 	}
-	return s.commitDurableResponse(w, result, writes, status)
-}
-func (s *Server) commitDurableResponse(w http.ResponseWriter, data any, writes []store.Write, status int) error {
-	b, e := json.Marshal(protocol.Response{Data: data, ServerTime: s.responseTime()})
-	if e != nil {
-		return e
-	}
-	b = append(b, '\n')
-	if int64(len(b)) > s.Config.Limits.SnapshotBytes {
-		return protocol.E(413, "limit_exceeded", "response exceeds snapshot limit")
-	}
-	if len(writes) > 0 {
-		if e = s.Store.Commit(writes); e != nil {
-			return e
-		}
-	}
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(status)
-	_, e = w.Write(b)
-	return e
+	return s.commitResponse(w, status, result, cs)
 }

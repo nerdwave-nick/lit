@@ -1,115 +1,29 @@
 package service
 
 import (
-	"encoding/json"
-	"fmt"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/store"
-	"os"
 	"sort"
 	"time"
+
+	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
 )
 
-// ClaimEnvelope keeps terminal release state versioned without creating history.
-type ClaimEnvelope struct {
-	SchemaVersion int             `json:"schema_version"`
-	IssueID       string          `json:"issue_id"`
-	Claim         *protocol.Claim `json:"claim"`
+// liveClaim is the claim on an issue that is live at the request time.
+func (s *Server) liveClaim(id string) (*protocol.Claim, error) {
+	return s.q().LiveClaim(s.ctx(), id, s.claimNow())
 }
 
-func claimPath(id string) string { return "issues/" + id + "/claim.json" }
-func (s *Server) claimNow() time.Time {
-	if s.requestTime != nil {
-		return *s.requestTime
-	}
-	if s.claimClock != nil {
-		return s.claimClock().UTC()
-	}
-	return time.Now().UTC()
-}
-func (s *Server) readClaim(id string) (*protocol.Claim, error) {
-	b, e := s.Store.Read(claimPath(id))
-	if os.IsNotExist(e) {
-		return nil, nil
-	}
-	if e != nil {
-		return nil, e
-	}
-	var fields map[string]json.RawMessage
-	if e = protocol.Decode(b, &fields); e != nil {
-		return nil, e
-	}
-	if _, ok := fields["claim"]; !ok {
-		return nil, fmt.Errorf("missing claim authority field")
-	}
-	var v ClaimEnvelope
-	if e = protocol.Decode(b, &v); e != nil {
-		return nil, fmt.Errorf("invalid claim record: %w", e)
-	}
-	if v.SchemaVersion != 1 || v.IssueID != id {
-		return nil, fmt.Errorf("invalid claim envelope")
-	}
-	if v.Claim == nil {
-		return nil, nil
-	}
-	c := v.Claim
-	acquired, ea := time.Parse(time.RFC3339Nano, c.AcquiredAt)
-	expires, ee := time.Parse(time.RFC3339Nano, c.ExpiresAt)
-	if c.SchemaVersion != 1 || c.IssueID != id || c.OwnerActor != nil || !protocol.ValidUUID(c.OwnerClientID) || !protocol.ValidUUID(c.Token) || ea != nil || ee != nil || !expires.After(acquired) || acquired.Location() != time.UTC || expires.Location() != time.UTC {
-		return nil, fmt.Errorf("invalid claim record")
-	}
-	owner, e := s.Client(c.OwnerClientID)
-	if e != nil {
-		return nil, fmt.Errorf("claim owner: %w", e)
-	}
-	if owner.Status != "connected" {
-		return nil, fmt.Errorf("claim belongs to disconnected client")
-	}
-	return c, nil
-}
-
-// LiveClaim and Claims must be called under Server.Mu (or during startup).
-func (s *Server) LiveClaim(id string) (*protocol.Claim, error) {
-	c, e := s.readClaim(id)
-	if e != nil || c == nil {
-		return c, e
-	}
-	expires, _ := time.Parse(time.RFC3339Nano, c.ExpiresAt)
-	if !expires.After(s.claimNow()) {
-		return nil, nil
-	}
-	return c, nil
-}
-func (s *Server) Claims(owner string) ([]protocol.Claim, error) {
-	out := []protocol.Claim{}
-	issues, e := s.Issues()
-	if e != nil {
-		return nil, e
-	}
-	now := s.claimNow()
-	for _, p := range issues {
-		c, e := s.readClaim(p.ID)
-		if e != nil {
-			return nil, e
-		}
-		if c == nil {
-			continue
-		}
-		expires, _ := time.Parse(time.RFC3339Nano, c.ExpiresAt)
-		if expires.After(now) && (owner == "" || c.OwnerClientID == owner) {
-			out = append(out, *c)
-		}
-	}
+// liveClaims lists the live claims of owner (of everyone when empty) in issue order.
+func (s *Server) liveClaims(owner string) ([]protocol.Claim, error) {
+	out, e := s.q().LiveClaims(s.ctx(), owner, s.claimNow())
 	sort.Slice(out, func(i, j int) bool { return out[i].IssueID < out[j].IssueID })
-	return out, nil
+	return out, e
 }
-func (s *Server) InitClaims() error { _, e := s.Claims(""); return e }
-func claimWrite(id string, c *protocol.Claim) store.Write {
-	return store.JSONWrite(claimPath(id), ClaimEnvelope{1, id, c})
-}
-func (s *Server) claimTransaction(op protocol.ClaimOperation, client protocol.Client) ([]store.Write, protocol.ClaimResult, error) {
+
+// claimTransaction validates a claim operation against the current claims and
+// returns its writes without applying them.
+func (s *Server) claimTransaction(op protocol.ClaimOperation, client protocol.Client) (changes, protocol.ClaimResult, error) {
 	result := protocol.ClaimResult{Outcome: "already_satisfied", Items: []protocol.RequiredClaim{}}
-	fail := func(e error) ([]store.Write, protocol.ClaimResult, error) { return nil, result, e }
+	fail := func(e error) (changes, protocol.ClaimResult, error) { return changes{}, result, e }
 	if op.SchemaVersion != 0 && op.SchemaVersion != 1 {
 		return fail(invalid("unsupported schema_version"))
 	}
@@ -152,7 +66,7 @@ func (s *Server) claimTransaction(op protocol.ClaimOperation, client protocol.Cl
 		}
 	}
 	if op.Selection == "all_owned" {
-		claims, e := s.Claims(client.ClientID)
+		claims, e := s.liveClaims(client.ClientID)
 		if e != nil {
 			return fail(e)
 		}
@@ -166,12 +80,12 @@ func (s *Server) claimTransaction(op protocol.ClaimOperation, client protocol.Cl
 		}
 	}
 	now := s.claimNow()
-	writes := []store.Write{}
+	var cs changes
 	for _, item := range op.Items {
-		if _, e := s.Issue(item.IssueID); e != nil {
+		if _, e := s.issue(item.IssueID); e != nil {
 			return fail(e)
 		}
-		current, e := s.readClaim(item.IssueID)
+		current, e := s.q().Claim(s.ctx(), item.IssueID)
 		if e != nil {
 			return fail(e)
 		}
@@ -230,15 +144,19 @@ func (s *Server) claimTransaction(op protocol.ClaimOperation, client protocol.Cl
 				}
 			}
 		}
-		writes = append(writes, claimWrite(item.IssueID, next))
+		if next == nil {
+			cs.release = append(cs.release, item.IssueID)
+		} else {
+			cs.claims = append(cs.claims, *next)
+		}
 		result.Items = append(result.Items, protocol.RequiredClaim{IssueID: item.IssueID, Claim: next})
 	}
-	if len(writes) > 0 {
+	if !cs.empty() {
 		result.Outcome = "applied"
 	} else if op.Operation == "claims.release" && len(op.Items) > 0 {
 		result.Outcome = "no_active_claim"
 	}
-	return writes, result, nil
+	return cs, result, nil
 }
 func claimExpiry(value string, now time.Time, acquire bool) (time.Time, error) {
 	if value == "" && acquire {
@@ -259,15 +177,3 @@ func claimExpiry(value string, now time.Time, acquire bool) (time.Time, error) {
 	}
 	return expiry, nil
 }
-
-// ApplyClaims is the in-process test/integration seam. HTTP prebounds its response
-// before committing the same transaction, so no validation error follows a write.
-func (s *Server) ApplyClaims(op protocol.ClaimOperation, c protocol.Client) (protocol.ClaimResult, error) {
-	writes, result, e := s.claimTransaction(op, c)
-	if e == nil && len(writes) > 0 {
-		e = s.Store.Commit(writes)
-	}
-	return result, e
-}
-
-func (s *Server) responseTime() string { return s.claimNow().Format(time.RFC3339Nano) }

@@ -35,7 +35,7 @@ func TestSearchExcerpt(t *testing.T) {
 
 func TestSearchLivePagesAndLimits(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	p := protocol.UUID()
 	executeProjectTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: p, Title: textPointer("feat/search")}))
 	ids := []string{"00000000-0000-4000-8000-000000000001", "00000000-0000-4000-8000-000000000003"}
@@ -49,44 +49,44 @@ func TestSearchLivePagesAndLimits(t *testing.T) {
 	}
 	mutate("issue.create", protocol.ProjectInput{ID: ids[0], Title: textPointer("First"), Content: textPointer("needle")}, protocol.ProjectInput{ID: ids[1], Title: textPointer("Third"), Content: textPointer("needle")})
 	q := protocol.SearchRequest{Scope: protocol.SearchScope{ProjectID: p}, Query: "needle", Limit: 1}
-	first, e := s.searchPage(q, c)
+	first, e := searchPageOf(s, q, c)
 	if e != nil || first.NextCursor == nil {
 		t.Fatal(first, e)
 	}
 	q.Cursor = *first.NextCursor
 	mutate("issue.update", protocol.ProjectInput{Target: ids[1], Set: protocol.ProjectSet{Body: textPointer("removed")}})
 	mutate("issue.create", protocol.ProjectInput{ID: "00000000-0000-4000-8000-000000000002", Title: textPointer("Second"), Content: textPointer("needle")})
-	next, e := s.searchPage(q, c)
+	next, e := searchPageOf(s, q, c)
 	if e != nil || len(next.Items) != 1 || next.Items[0].(protocol.SearchResult).IssueTitle != "Second" || next.NextCursor != nil {
 		t.Fatal(next, e)
 	}
 	for _, change := range []func(*protocol.SearchRequest){func(q *protocol.SearchRequest) { q.Query = "other" }, func(q *protocol.SearchRequest) { q.CaseSensitive = true }, func(q *protocol.SearchRequest) { q.ContextLines = 1 }, func(q *protocol.SearchRequest) { q.Scope = protocol.SearchScope{AllProjects: true} }, func(q *protocol.SearchRequest) { q.Limit = 2 }} {
 		bad := q
 		change(&bad)
-		if _, e := s.searchPage(bad, c); e == nil {
+		if _, e := searchPageOf(s, bad, c); e == nil {
 			t.Fatal("accepted mismatched cursor", bad)
 		}
 	}
 	q.Cursor = ""
 	q.Limit = 1001
-	if _, e := s.searchPage(q, c); e == nil {
+	if _, e := searchPageOf(s, q, c); e == nil {
 		t.Fatal("accepted oversized page")
 	}
 	q.Limit = 100
 	q.ContextLines = -1
-	if _, e := s.searchPage(q, c); e == nil {
+	if _, e := searchPageOf(s, q, c); e == nil {
 		t.Fatal("accepted negative context")
 	}
 	q.ContextLines = 0
 	q.Query = ""
-	if _, e := s.searchPage(q, c); e == nil {
+	if _, e := searchPageOf(s, q, c); e == nil {
 		t.Fatal("accepted empty query")
 	}
 }
 
 func TestSearchHTTPBoundsAndShape(t *testing.T) {
 	s, c := projectTestServer(t, t.TempDir())
-	defer s.Store.Close()
+	defer s.DB.Close()
 	p := protocol.UUID()
 	executeProjectTest(t, s, c, prepareProjectTest(t, s, c, "create", protocol.ProjectInput{ID: p, Title: textPointer("feat/search"), Content: textPointer(strings.Repeat("雪", 500) + " needle " + strings.Repeat("x", 500))}))
 	c.ProjectID = &p
