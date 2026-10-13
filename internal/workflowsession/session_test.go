@@ -75,7 +75,9 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, "controlled stderr")
 		os.Exit(7)
 	}
-	os.Exit(m.Run())
+	code := m.Run()
+	removeBuiltLit()
+	os.Exit(code)
 }
 func TestSubprocessIsolationAndExit(t *testing.T) {
 	t.Setenv("LIT_SESSION_SUBPROCESS_FIXTURE", "1")
