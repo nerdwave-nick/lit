@@ -73,8 +73,8 @@ Tab on a command that takes no operands, such as `lit projects list`, offers
 that command's flags with descriptions; flags already given are omitted unless
 they are repeatable. `--session` offers saved logical session names (described
 by their endpoint), `--endpoint` offers the default and saved sessions' endpoints,
-and `--for` offers common lease lengths, all from local state without contacting
-the service. Only path-valued flags (`--file`, `--content-file`, `--cli`, and
+`--for` offers common lease lengths, and `--stage` offers the standard workflow
+stages, all from local state without contacting the service. Only path-valued flags (`--file`, `--content-file`, `--cli`, and
 directory-valued `--path`) complete file names. Free-form values such as titles,
 labels, limits, timestamps and search patterns offer no suggestions.
 
@@ -242,3 +242,15 @@ selector disambiguation does not resolve mutation uncertainty.
 `lit session get` shows both the selected logical session name (`logical_session`)
 and its client UUID (`client_id`). The `--session-id` property selector retains its
 client UUID meaning; property-filtered results contain only the selected fields.
+
+A session can carry a workflow stage, the workflow skill it is currently running,
+so the status line and other agents can see it. `lit session set --stage impl`
+sets it, `lit session unset --stage` removes it, and `lit session get` shows it as
+`Stage` in CLI and Markdown output and as `stage` in JSON (`null` when none is
+set); `lit session get --stage` selects only the stage. lit-server stores it with
+the client, so it survives `workflow-session resume`, and changing it is a session
+update, not issue history. A stage is a lowercase label of letters, digits and
+single hyphens, starting with a letter, at most 32 characters. It is checked for
+that shape only, not against the standard stages (planner, clarify, research,
+prototype, to-spec, to-tickets, triage, impl, orchestrate), which completion
+suggests: the skills own that list and a label mismatch must not stop a workflow.

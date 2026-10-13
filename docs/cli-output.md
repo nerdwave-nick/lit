@@ -13,6 +13,7 @@ new commands should use the three public names above.
 - `claims list` shows issue IDs, owning clients and expiry times.
 - Details, session commands, history and mutation results use labeled fields.
   Multiline bodies are indented; history differences show before/after values.
+  `session get` includes the session's `Stage`, or `none` when it has none.
 
 IDs are never shortened. List tables show line breaks as `\n` and shorten free
 text beyond 60 display columns, with an ellipsis and a `get` hint. Fetch the
