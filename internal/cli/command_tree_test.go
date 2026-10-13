@@ -141,7 +141,7 @@ func TestClaimsAllAndHiddenIrrelevantFlags(t *testing.T) {
 			t.Fatalf("%d %s %s", code, &out, &err)
 		}
 	}
-	for _, path := range [][]string{{"setup-skills"}, {"workflow-session"}, {"workflow-session", "fresh"}, {"workflow-session", "run"}} {
+	for _, path := range [][]string{{"setup-workflows"}, {"workflow-session"}, {"workflow-session", "fresh"}, {"workflow-session", "run"}} {
 		var out, err bytes.Buffer
 		if code := Run(append(path, "--help"), &out, &err); code != 0 {
 			t.Fatal(code, &err)

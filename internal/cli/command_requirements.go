@@ -19,8 +19,8 @@ func requirementsFor(path string) (string, string) {
 		return "Required flag when LIT_SESSION is unset: --session NAME.\n" + sessionRequirement, prefix + " [--session NAME]"
 	case "version":
 		return "Required flags: none. No session or service is needed.", prefix
-	case "setup-skills":
-		return "Required flags: --scope and --agent.\n--path is required with custom scope and forbidden with local or user scope.\nNo tracker session or service is needed.", prefix + " --scope local|user --agent codex|claude|both\n" + prefix + " --scope custom --path DIRECTORY --agent codex|claude|both"
+	case "setup-workflows":
+		return "Required flags: --agent, and --scope or --config-dir.\n--scope and --config-dir are mutually exclusive; --config-dir takes exactly one --agent (codex or claude).\nNo tracker session or service is needed.", prefix + " --scope local|user --agent codex|claude|both\n" + prefix + " --agent codex|claude --config-dir DIRECTORY"
 	case "tui":
 		return "Required flags: none. No session is needed; lit-tui must be installed next to lit or on PATH.\nlit tui needs an interactive terminal; lit-tui refuses to start without one.", prefix + " [--endpoint URL]\nlit [--endpoint URL]  # on a terminal"
 	case "transactions status":
@@ -203,10 +203,10 @@ func workflowRequirements(action string) (string, string) {
 func flagRequirements(path string) map[string]string {
 	m := map[string]string{}
 	switch path {
-	case "setup-skills":
-		m["scope"] = "Required"
+	case "setup-workflows":
+		m["scope"] = "Required unless --config-dir is given; conflicts with --config-dir"
 		m["agent"] = "Required"
-		m["path"] = "Required with --scope custom; forbidden otherwise"
+		m["config-dir"] = "Required unless --scope is given; conflicts with --scope"
 	case "session set", "session unset":
 		for _, name := range []string{"project", "output-format", "runtime-vendor", "runtime-session-id"} {
 			m[name] = "Optional individually; select at least one property"

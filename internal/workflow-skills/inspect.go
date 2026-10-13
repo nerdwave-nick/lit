@@ -9,39 +9,27 @@ import (
 	"unicode/utf8"
 )
 
-type inventory struct {
-	Version int               `json:"schema_version"`
-	Host    string            `json:"host"`
-	Entries map[string]string `json:"entries"`
-}
-
 type plan struct {
-	previous         inventory
+	previous         owned
 	instruction      string
 	instructionBytes []byte
 }
 
 func inspect(root, host string) (plan, error) {
-	p := plan{previous: inventory{Version: 1, Host: host, Entries: map[string]string{}}, instruction: "AGENTS.md"}
+	p := plan{instruction: "AGENTS.md"}
 	if host == "claude" {
 		p.instruction = "CLAUDE.md"
 	}
-	for _, f := range []string{root, filepath.Join(root, "skills"), filepath.Join(root, ".lit-skills.json"), filepath.Join(root, p.instruction)} {
+	for _, f := range []string{root, filepath.Join(root, "skills"), filepath.Join(root, recordName), filepath.Join(root, legacyRecordName), filepath.Join(root, p.instruction)} {
 		if e := safe(f); e != nil {
 			return p, e
 		}
 	}
-	manifest := filepath.Join(root, ".lit-skills.json")
-	if exists(manifest) {
-		p.previous = inventory{}
-		if e := readJSON(manifest, &p.previous); e != nil {
-			return p, e
-		}
-		if p.previous.Version != 1 || p.previous.Host != host || p.previous.Entries == nil {
-			return p, errors.New("invalid installation manifest")
-		}
+	var e error
+	if p.previous, e = readOwned(root, host); e != nil {
+		return p, e
 	}
-	for n, v := range p.previous.Entries {
+	for n, v := range p.previous.skills {
 		if !allowed(n) || !validHash(ptr(v)) {
 			return p, errors.New("invalid manifest entry")
 		}
@@ -51,7 +39,7 @@ func inspect(root, host string) (plan, error) {
 		}
 	}
 	for _, n := range suite {
-		if _, ok := p.previous.Entries[n]; !ok && exists(filepath.Join(root, "skills", n)) {
+		if _, ok := p.previous.skills[n]; !ok && exists(filepath.Join(root, "skills", n)) {
 			return p, fmt.Errorf("unowned skill collision: %s", n)
 		}
 	}
@@ -66,7 +54,7 @@ func inspect(root, host string) (plan, error) {
 	if strings.Count(original, start) != strings.Count(original, end) || strings.Count(original, start) > 1 || strings.Index(original, start) > strings.Index(original, end) {
 		return p, errors.New("malformed managed instruction block")
 	}
-	if strings.Contains(original, start) && !exists(manifest) {
+	if strings.Contains(original, start) && !p.previous.exists {
 		return p, errors.New("unowned managed instruction block")
 	}
 	template, e := assets.ReadFile("AGENTS_MD_TEMPLATE.md")

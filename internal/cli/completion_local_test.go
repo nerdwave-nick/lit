@@ -48,7 +48,7 @@ func TestCompletionNeverFallsBackToFilesExceptPathFlags(t *testing.T) {
 				return
 			}
 			_, directive := completion(t, append(argv, "--"+f.Name, "")...)
-			want := map[string]string{"file": ":0", "content-file": ":0", "cli": ":0", "path": ":16"}[f.Name]
+			want := map[string]string{"file": ":0", "content-file": ":0", "cli": ":0", "path": ":16", "config-dir": ":16"}[f.Name]
 			if want == "" && (directive == ":0" || directive == ":16") || want != "" && directive != want {
 				t.Errorf("%v --%s: directive %s, want %s", path, f.Name, directive, map[bool]string{true: "no file completion", false: want}[want == ""])
 			}

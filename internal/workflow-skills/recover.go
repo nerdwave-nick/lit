@@ -7,6 +7,11 @@ import (
 	"path/filepath"
 )
 
+// journalVersion is the journal schema written by this installer. Version 1
+// journals were written by setup-skills and covered the instruction file and
+// the old ownership file; they still recover.
+const journalVersion = 2
+
 type journal struct {
 	Version     int                `json:"schema_version"`
 	Touched     []string           `json:"touched"`
@@ -45,8 +50,8 @@ func recoverInstallation(root string, dry bool) error {
 	if e := readJSON(filepath.Join(tx, "journal.json"), &j); e != nil {
 		return fmt.Errorf("interrupted staging: %w", e)
 	}
-	names := []string{j.Instruction, ".lit-skills.json"}
-	if j.Version != 1 || j.Touched == nil || (j.Instruction != "AGENTS.md" && j.Instruction != "CLAUDE.md") || !exact(j.Backups, j.Touched) || !exact(j.AfterSkills, j.Touched) || !exact(j.Files, names) || !exact(j.AfterFiles, names) {
+	names, ok := journalFiles(j)
+	if !ok || j.Touched == nil || !exact(j.Backups, j.Touched) || !exact(j.AfterSkills, j.Touched) {
 		return errors.New("invalid recovery inventory")
 	}
 	seen := map[string]bool{}
@@ -151,13 +156,36 @@ func recoverInstallation(root string, dry bool) error {
 	return os.RemoveAll(tx)
 }
 
+// journalFiles returns the files a journal covers: the instruction file and
+// the ownership records. Version 1 covers the old record; version 2 the
+// current one, plus the old record when the transaction adopts it. Files and
+// AfterFiles must name exactly that set.
+func journalFiles(j journal) ([]string, bool) {
+	if j.Instruction != "AGENTS.md" && j.Instruction != "CLAUDE.md" {
+		return nil, false
+	}
+	var sets [][]string
+	switch j.Version {
+	case 1:
+		sets = [][]string{{j.Instruction, legacyRecordName}}
+	case journalVersion:
+		sets = [][]string{{j.Instruction, recordName}, {j.Instruction, recordName, legacyRecordName}}
+	}
+	for _, names := range sets {
+		if exact(j.Files, names) && exact(j.AfterFiles, names) {
+			return names, true
+		}
+	}
+	return nil, false
+}
+
 // Copy only managed recovery inputs, never unrelated host configuration trees.
 func copyRecoveryView(root, dst, host string) error {
 	instruction := "AGENTS.md"
 	if host == "claude" {
 		instruction = "CLAUDE.md"
 	}
-	for _, n := range []string{instruction, ".lit-skills.json"} {
+	for _, n := range []string{instruction, recordName, legacyRecordName} {
 		p := filepath.Join(root, n)
 		if !exists(p) {
 			continue

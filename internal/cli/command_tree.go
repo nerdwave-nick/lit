@@ -47,13 +47,13 @@ func Run(argv []string, out, errOut io.Writer) int {
 			return argumentError(argv, out, errOut, err)
 		}
 		return 0
-	case "setup-skills", "workflow-session":
+	case "setup-workflows", "workflow-session":
 		p, err := grammar.Parse(argv)
 		if err != nil {
 			return argumentError(argv, out, errOut, err)
 		}
-		if r.Path[0] == "setup-skills" {
-			return runSetupSkills(flagArgs(p, "scope", "agent", "path"), out, errOut)
+		if r.Path[0] == "setup-workflows" {
+			return runSetupWorkflows(p, out, errOut)
 		}
 		return runWorkflow(p, out, errOut)
 	}

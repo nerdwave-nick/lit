@@ -2,6 +2,8 @@ package integration
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io/fs"
@@ -46,8 +48,9 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 	home := filepath.Join(root, "home")
 	repo1 := filepath.Join(root, "producer")
 	repo2 := filepath.Join(root, "consumer")
-	custom := filepath.Join(root, "custom parent")
-	for _, p := range []string{home, repo1, repo2, custom} {
+	claudeConfig := filepath.Join(root, "claude work")
+	codexConfig := filepath.Join(root, "codex personal")
+	for _, p := range []string{home, repo1, repo2, claudeConfig, codexConfig} {
 		if err := os.MkdirAll(p, 0700); err != nil {
 			t.Fatal(err)
 		}
@@ -98,92 +101,139 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 	if out, err := exec.Command(filepath.Join(bin, "lit-tui"), "--version").CombinedOutput(); err != nil || strings.TrimSpace(string(out)) != strings.TrimSpace(string(litVersion)) {
 		t.Fatalf("lit-tui --version: %v: %s, lit version: %s", err, out, litVersion)
 	}
-	// Setup has no service available and no usable inherited tracker selection.
-	for _, args := range [][]string{{"--scope", "local", "--agent", "both"}, {"--scope", "user", "--agent", "both"}, {"--scope", "custom", "--path", custom, "--agent", "both"}} {
-		for repeat := 0; repeat < 2; repeat++ {
-			call(append([]string{"setup-skills"}, args...)...)
+	// The claude configuration holds an install of the removed setup-skills
+	// command, which setup-workflows adopts in its first run.
+	legacySkill := []byte("an older lit skill\n")
+	legacyFingerprint := sha256.New()
+	legacyFingerprint.Write(append(append([]byte("SKILL.md\x00"), legacySkill...), 0))
+	for name, content := range map[string]string{
+		filepath.Join("skills", "lit", "SKILL.md"): string(legacySkill),
+		".lit-skills.json":                         `{"schema_version":1,"host":"claude","entries":{"lit":"` + hex.EncodeToString(legacyFingerprint.Sum(nil)) + `"}}`,
+		"CLAUDE.md":                                "mine\n<!-- BEGIN lit managed -->\nold\n<!-- END lit managed -->\n",
+	} {
+		if err := os.MkdirAll(filepath.Dir(filepath.Join(claudeConfig, name)), 0700); err != nil {
+			t.Fatal(err)
+		}
+		if err := os.WriteFile(filepath.Join(claudeConfig, name), []byte(content), 0600); err != nil {
+			t.Fatal(err)
 		}
 	}
+	// Setup has no service available and no usable inherited tracker selection.
+	type target struct{ host, root string }
+	targets := []target{}
+	for _, tc := range []struct {
+		args    []string
+		targets []target
+		adopt   bool
+	}{
+		{[]string{"--scope", "local", "--agent", "both"}, []target{{"codex", filepath.Join(repo1, ".codex")}, {"claude", filepath.Join(repo1, ".claude")}}, false},
+		{[]string{"--scope", "user", "--agent", "both"}, []target{{"codex", filepath.Join(home, ".codex")}, {"claude", filepath.Join(home, ".claude")}}, false},
+		{[]string{"--agent", "claude", "--config-dir", claudeConfig}, []target{{"claude", claudeConfig}}, true},
+		{[]string{"--agent", "codex", "--config-dir", codexConfig}, []target{{"codex", codexConfig}}, false},
+	} {
+		for repeat := 0; repeat < 2; repeat++ {
+			receipt := call(append([]string{"setup-workflows"}, tc.args...)...)["installed"].([]any)
+			if len(receipt) != len(tc.targets) {
+				t.Fatalf("%v receipt: %v", tc.args, receipt)
+			}
+			for i, want := range tc.targets {
+				got := receipt[i].(map[string]any)
+				if got["agent"] != want.host || got["directory"] != want.root || got["adopted"] != (tc.adopt && repeat == 0) {
+					t.Fatalf("%v run %d receipt %v, want %v (adopted %v)", tc.args, repeat, got, want, tc.adopt && repeat == 0)
+				}
+			}
+		}
+		targets = append(targets, tc.targets...)
+	}
 	expected := []string{"lit", "planner", "clarify", "modeling", "challenge", "consult", "research", "prototype", "to-spec", "to-tickets", "impl", "triage", "codebase", "what", "i-have-adhd", "orchestrate"}
-	for _, parent := range []string{repo1, home, custom} {
-		for _, host := range []string{"codex", "claude"} {
-			hostRoot := filepath.Join(parent, "."+host)
-			skills := filepath.Join(hostRoot, "skills")
-			entries, err := os.ReadDir(skills)
-			if err != nil || len(entries) != len(expected) {
-				t.Fatalf("suite %s: %d %v", skills, len(entries), err)
+	for _, tg := range targets {
+		host, hostRoot := tg.host, tg.root
+		skills := filepath.Join(hostRoot, "skills")
+		var record struct {
+			Host   string            `json:"host"`
+			Skills map[string]string `json:"skills"`
+		}
+		recordJSON, err := os.ReadFile(filepath.Join(hostRoot, ".lit-workflows.json"))
+		if err != nil || json.Unmarshal(recordJSON, &record) != nil || record.Host != host || len(record.Skills) != len(expected) {
+			t.Fatalf("ownership record of %s: %v %s", hostRoot, err, recordJSON)
+		}
+		if _, err := os.Stat(filepath.Join(hostRoot, ".lit-skills.json")); !os.IsNotExist(err) {
+			t.Fatalf("%s keeps the old ownership file: %v", hostRoot, err)
+		}
+		entries, err := os.ReadDir(skills)
+		if err != nil || len(entries) != len(expected) {
+			t.Fatalf("suite %s: %d %v", skills, len(entries), err)
+		}
+		for _, name := range expected {
+			b, err := os.ReadFile(filepath.Join(skills, name, "SKILL.md"))
+			if err != nil || len(b) == 0 {
+				t.Fatalf("skill %s: %v", name, err)
 			}
-			for _, name := range expected {
-				b, err := os.ReadFile(filepath.Join(skills, name, "SKILL.md"))
-				if err != nil || len(b) == 0 {
-					t.Fatalf("skill %s: %v", name, err)
-				}
+		}
+		if err := fs.WalkDir(workflowskills.Bundle(), "skills/orchestrate", func(name string, entry fs.DirEntry, err error) error {
+			if err != nil {
+				return err
 			}
-			if err := fs.WalkDir(workflowskills.Bundle(), "skills/orchestrate", func(name string, entry fs.DirEntry, err error) error {
-				if err != nil {
-					return err
-				}
-				if entry.IsDir() {
-					return nil
-				}
-				rel := strings.TrimPrefix(name, "skills/orchestrate/")
-				want, err := fs.ReadFile(workflowskills.Bundle(), name)
-				if err != nil {
-					return err
-				}
-				got, err := os.ReadFile(filepath.Join(skills, "orchestrate", filepath.FromSlash(rel)))
-				if err != nil {
-					return err
-				}
-				if !bytes.Equal(got, want) {
-					return fmt.Errorf("installed orchestrate resource differs from bundle: %s", rel)
-				}
+			if entry.IsDir() {
 				return nil
-			}); err != nil {
-				t.Fatal(err)
 			}
-			for _, name := range []string{"what", "i-have-adhd"} {
-				b, err := os.ReadFile(filepath.Join(skills, name, "SKILL.md"))
-				if err != nil || !bytes.Contains(b, []byte("disable-model-invocation: true")) {
-					t.Fatalf("Claude policy %s: %v", name, err)
-				}
-				b, err = os.ReadFile(filepath.Join(skills, name, "agents", "openai.yaml"))
-				if err != nil || !bytes.Contains(b, []byte("allow_implicit_invocation: false")) {
-					t.Fatalf("Codex policy %s: %v", name, err)
-				}
+			rel := strings.TrimPrefix(name, "skills/orchestrate/")
+			want, err := fs.ReadFile(workflowskills.Bundle(), name)
+			if err != nil {
+				return err
 			}
-			for _, name := range []string{"planner", "to-spec", "to-tickets", "triage"} {
-				b, err := os.ReadFile(filepath.Join(skills, name, "SKILL.md"))
-				if err != nil || bytes.Contains(b, []byte("disable-model-invocation: true")) || !bytes.Contains(b, []byte("Run this skill only when the user requested it.")) {
-					t.Fatalf("Claude confirmation-gated policy %s: %v", name, err)
-				}
-				b, err = os.ReadFile(filepath.Join(skills, name, "agents", "openai.yaml"))
-				if err != nil || bytes.Contains(b, []byte("allow_implicit_invocation: false")) {
-					t.Fatalf("Codex confirmation-gated policy %s: %v", name, err)
-				}
+			got, err := os.ReadFile(filepath.Join(skills, "orchestrate", filepath.FromSlash(rel)))
+			if err != nil {
+				return err
 			}
-			if err := filepath.WalkDir(hostRoot, func(path string, d fs.DirEntry, err error) error {
+			if !bytes.Equal(got, want) {
+				return fmt.Errorf("installed orchestrate resource differs from bundle: %s", rel)
+			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
+		}
+		for _, name := range []string{"what", "i-have-adhd"} {
+			b, err := os.ReadFile(filepath.Join(skills, name, "SKILL.md"))
+			if err != nil || !bytes.Contains(b, []byte("disable-model-invocation: true")) {
+				t.Fatalf("Claude policy %s: %v", name, err)
+			}
+			b, err = os.ReadFile(filepath.Join(skills, name, "agents", "openai.yaml"))
+			if err != nil || !bytes.Contains(b, []byte("allow_implicit_invocation: false")) {
+				t.Fatalf("Codex policy %s: %v", name, err)
+			}
+		}
+		for _, name := range []string{"planner", "to-spec", "to-tickets", "triage"} {
+			b, err := os.ReadFile(filepath.Join(skills, name, "SKILL.md"))
+			if err != nil || bytes.Contains(b, []byte("disable-model-invocation: true")) || !bytes.Contains(b, []byte("Run this skill only when the user requested it.")) {
+				t.Fatalf("Claude confirmation-gated policy %s: %v", name, err)
+			}
+			b, err = os.ReadFile(filepath.Join(skills, name, "agents", "openai.yaml"))
+			if err != nil || bytes.Contains(b, []byte("allow_implicit_invocation: false")) {
+				t.Fatalf("Codex confirmation-gated policy %s: %v", name, err)
+			}
+		}
+		if err := filepath.WalkDir(hostRoot, func(path string, d fs.DirEntry, err error) error {
+			if err != nil {
+				return err
+			}
+			if strings.HasSuffix(path, ".py") || strings.Contains(path, "__pycache__") {
+				t.Errorf("installed Python dependency %s", path)
+			}
+			if !d.IsDir() && (strings.HasSuffix(path, ".md") || strings.HasSuffix(path, ".yaml")) {
+				content, err := os.ReadFile(path)
 				if err != nil {
 					return err
 				}
-				if strings.HasSuffix(path, ".py") || strings.Contains(path, "__pycache__") {
-					t.Errorf("installed Python dependency %s", path)
-				}
-				if !d.IsDir() && (strings.HasSuffix(path, ".md") || strings.HasSuffix(path, ".yaml")) {
-					content, err := os.ReadFile(path)
-					if err != nil {
-						return err
-					}
-					for _, obsolete := range []string{"lit-cli", "litd"} {
-						if bytes.Contains(content, []byte(obsolete)) {
-							t.Errorf("installed active instruction %s names obsolete executable %s", path, obsolete)
-						}
+				for _, obsolete := range []string{"lit-cli", "litd"} {
+					if bytes.Contains(content, []byte(obsolete)) {
+						t.Errorf("installed active instruction %s names obsolete executable %s", path, obsolete)
 					}
 				}
-				return nil
-			}); err != nil {
-				t.Fatal(err)
 			}
+			return nil
+		}); err != nil {
+			t.Fatal(err)
 		}
 	}
 	s := start(t, filepath.Join(root, "data"), "HOME="+home, "PATH="+bin, "XDG_CONFIG_HOME="+filepath.Join(root, "config"), "LIT_CONFIG_FILE=", "LIT_DATA_DIR=", "LIT_LISTEN=")

@@ -19,7 +19,7 @@ var topSummaries = map[string]string{
 	"session": "Inspect or change session preferences", "projects": "Create and discover project containers", "issues": "Track work, state and relationships",
 	"milestones": "Group project issues into named worksets", "comments": "Discuss issues with durable comments", "claims": "Reserve issues with expiring work claims",
 	"transactions": "Reconcile uncertain mutation outcomes", "grep": "Search current content using a literal substring",
-	"setup-skills": "Install embedded skills for Codex or Claude", "workflow-session": "Bind explicit agent runtime sessions to lit clients",
+	"setup-workflows": "Install the workflow skills for Codex or Claude", "workflow-session": "Bind explicit agent runtime sessions to lit clients",
 	"completion": "Generate the autocompletion script for the specified shell",
 	"tui":        "Open the terminal UI (lit-tui)",
 	"search":     "Search current content ranked by relevance",
@@ -94,9 +94,9 @@ func commandDocs(path []string, group bool) (summary, description, example strin
 	case name == "search":
 		summary, description = topSummaries[name], rankedSearchHelp
 		example = "  lit search --session my-session 'connection timeout'\n  lit search --session my-session --all-projects --state open '\"claim renewal\" -flaky'"
-	case name == "setup-skills":
-		summary, description = topSummaries[name], setupSkillsHelp
-		example = "  lit setup-skills --scope local --agent both\n  lit setup-skills --scope custom --path /work/project --agent codex"
+	case name == "setup-workflows":
+		summary, description = topSummaries[name], setupWorkflowsHelp
+		example = "  lit setup-workflows --scope local --agent both\n  lit setup-workflows --agent claude --config-dir ~/.claude-work"
 	default:
 		summary = topSummaries[name]
 		if !group {

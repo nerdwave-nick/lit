@@ -11,13 +11,13 @@ import (
 	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
-// parsed lists the commands whose arguments Parse handles; setup-skills and
+// parsed lists the commands whose arguments Parse handles; setup-workflows and
 // workflow-session have their own parsers.
 func parsedCommands(t *testing.T, fn func(path []string, cmd *nwcli.Command)) {
 	t.Helper()
 	n := 0
 	grammar.Walk(func(path []string, cmd *nwcli.Command) {
-		if len(path) == 0 || len(cmd.Commands) > 0 || path[0] == "setup-skills" || path[0] == "workflow-session" || path[0] == "completion" {
+		if len(path) == 0 || len(cmd.Commands) > 0 || path[0] == "setup-workflows" || path[0] == "workflow-session" || path[0] == "completion" {
 			return
 		}
 		n++
