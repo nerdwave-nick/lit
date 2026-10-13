@@ -16,8 +16,8 @@ import (
 	"strings"
 	"unicode/utf16"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/clientendpoint"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/clientendpoint"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 type record struct {

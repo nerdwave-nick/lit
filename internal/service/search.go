@@ -11,9 +11,9 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/textfold"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/textfold"
 	"golang.org/x/text/cases"
 )
 

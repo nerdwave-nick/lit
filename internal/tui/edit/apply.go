@@ -5,12 +5,12 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/textdiff"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/claims"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/textdiff"
+	"github.com/nerdwave-nick/lit/internal/tui/claims"
+	"github.com/nerdwave-nick/lit/internal/tui/drafts"
+	"github.com/nerdwave-nick/lit/internal/tui/recovery"
 )
 
 // Preview is an apply's preview: the draft's content, the record now, and

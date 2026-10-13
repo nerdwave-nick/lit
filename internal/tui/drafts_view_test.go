@@ -10,14 +10,14 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/claims"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/edit"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/lifecycle"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/prefs"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/tuitest"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/claims"
+	"github.com/nerdwave-nick/lit/internal/tui/drafts"
+	"github.com/nerdwave-nick/lit/internal/tui/edit"
+	"github.com/nerdwave-nick/lit/internal/tui/lifecycle"
+	"github.com/nerdwave-nick/lit/internal/tui/prefs"
+	"github.com/nerdwave-nick/lit/internal/tui/tuitest"
 )
 
 // drafted is a seeded service, with the agent's project test/one, and the

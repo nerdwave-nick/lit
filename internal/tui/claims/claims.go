@@ -19,9 +19,9 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/lifecycle"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/lifecycle"
 )
 
 // Defaults (Proposals). A claim is taken for Lease and renewed when two

@@ -62,10 +62,10 @@ jobs:
             export GOOS="${target%/*}" GOARCH="${target#*/}" CGO_ENABLED=0
             destination="dist/${GOOS}-${GOARCH}"
             mkdir "$destination"
-            go build -trimpath -ldflags "-X github.com/nerdwave-nick/nerdwave-workflows/internal/protocol.ReleaseVersion=$RELEASE_VERSION" -o "$destination/" ./cmd/lit ./cmd/lit-tui
+            go build -trimpath -ldflags "-X github.com/nerdwave-nick/lit/internal/protocol.ReleaseVersion=$RELEASE_VERSION" -o "$destination/" ./cmd/lit ./cmd/lit-tui
             cp docs/installation.md "$destination/INSTALL.md"
             if [[ "$GOOS" == linux ]]; then
-              go build -trimpath -ldflags "-X github.com/nerdwave-nick/nerdwave-workflows/internal/protocol.ReleaseVersion=$RELEASE_VERSION" -o "$destination/" ./cmd/lit-server
+              go build -trimpath -ldflags "-X github.com/nerdwave-nick/lit/internal/protocol.ReleaseVersion=$RELEASE_VERSION" -o "$destination/" ./cmd/lit-server
               cp packaging/lit.service.in "$destination/lit.service.in"
               cp packaging/lit.socket "$destination/lit.socket"
             fi

@@ -105,7 +105,7 @@ func TestTUIDispatch(t *testing.T) {
 		if code != 1 || stdout != "" || c != "tui_not_found" {
 			t.Fatalf("code %d, stdout %q, stderr %q", code, stdout, stderr)
 		}
-		for _, want := range []string{"lit-tui", litDir, "PATH", "go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-tui@latest"} {
+		for _, want := range []string{"lit-tui", litDir, "PATH", "go install github.com/nerdwave-nick/lit/cmd/lit-tui@latest"} {
 			if !strings.Contains(msg, want) {
 				t.Errorf("message lacks %q: %s", want, msg)
 			}

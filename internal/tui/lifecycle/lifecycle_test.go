@@ -14,11 +14,11 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/lifecycle"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/registry"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/tuitest"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/lifecycle"
+	"github.com/nerdwave-nick/lit/internal/tui/registry"
+	"github.com/nerdwave-nick/lit/internal/tui/tuitest"
 )
 
 func config(state, url string) lifecycle.Config {

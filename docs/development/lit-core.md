@@ -1,7 +1,7 @@
 # lit core development
 
 The executable paths are `cmd/lit-server` and `cmd/lit` in the module
-`github.com/nerdwave-nick/nerdwave-workflows`. Run `go test -race ./...` for the public
+`github.com/nerdwave-nick/lit`. Run `go test -race ./...` for the public
 CLI / real service suite and focused persistence, protocol, and HTTP tests.
 See [verification](testing.md) for the full validation commands.
 The integration harness builds race-instrumented executable binaries into a

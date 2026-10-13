@@ -5,8 +5,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/recovery"
 )
 
 // Overlay is the prompt or report that replaces the content, or "".

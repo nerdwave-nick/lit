@@ -12,9 +12,9 @@ import (
 // one-time setup import, contains a frozen copy; lit-server must never link
 // it, nor a revived internal/store (see the SQLite storage specification).
 var legacyPackages = []string{
-	"github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-migrate/internal/legacy",
-	"github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-migrate/internal/legacystore",
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/store",
+	"github.com/nerdwave-nick/lit/cmd/lit-migrate/internal/legacy",
+	"github.com/nerdwave-nick/lit/cmd/lit-migrate/internal/legacystore",
+	"github.com/nerdwave-nick/lit/internal/store",
 }
 
 func deps(t *testing.T, pkg string) []string {
@@ -33,7 +33,7 @@ func TestLitServerDoesNotLinkTheLegacyStore(t *testing.T) {
 		t.Skip("go command unavailable")
 	}
 	for _, dep := range deps(t, ".") {
-		if slices.Contains(legacyPackages, dep) || strings.HasPrefix(dep, "github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-migrate") {
+		if slices.Contains(legacyPackages, dep) || strings.HasPrefix(dep, "github.com/nerdwave-nick/lit/cmd/lit-migrate") {
 			t.Errorf("lit-server links legacy package %s", dep)
 		}
 	}

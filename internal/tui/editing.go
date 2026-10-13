@@ -8,12 +8,12 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/comments"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/draftsview"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/edit"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/tui/comments"
+	"github.com/nerdwave-nick/lit/internal/tui/drafts"
+	"github.com/nerdwave-nick/lit/internal/tui/draftsview"
+	"github.com/nerdwave-nick/lit/internal/tui/edit"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
 )
 
 // editing is the root model's body editing: the open drafts of this session

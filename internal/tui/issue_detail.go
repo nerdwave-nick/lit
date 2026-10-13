@@ -4,9 +4,9 @@ import (
 	"context"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/detail"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/issue"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/detail"
+	"github.com/nerdwave-nick/lit/internal/tui/issue"
 )
 
 // fullDetail is the issue detail's load of the selection's body and

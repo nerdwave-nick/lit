@@ -6,8 +6,8 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/textfold"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/textfold"
 )
 
 // ListQuery selects records of one type with the service's discovery filters,

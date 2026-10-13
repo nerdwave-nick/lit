@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
 )
 
 func TestCommandRequirementsHelp(t *testing.T) {

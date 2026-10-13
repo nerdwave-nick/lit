@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 var scheduledBackup = regexp.MustCompile(`^lit-\d{8}T\d{6}\.\d{6}Z-scheduled\.db$`)

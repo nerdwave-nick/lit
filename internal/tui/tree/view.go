@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/cells"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/sanitize"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/render/cells"
+	"github.com/nerdwave-nick/lit/internal/tui/render/sanitize"
 )
 
 const (

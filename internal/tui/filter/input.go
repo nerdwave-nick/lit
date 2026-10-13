@@ -5,9 +5,9 @@ import (
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/cells"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/sanitize"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/render/cells"
+	"github.com/nerdwave-nick/lit/internal/tui/render/sanitize"
 )
 
 // Input edits the search text. It owns typed text, including letters bound

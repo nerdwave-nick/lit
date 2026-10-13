@@ -6,8 +6,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 const service = "a29ca783-fb66-42a1-befe-9149289cc659"

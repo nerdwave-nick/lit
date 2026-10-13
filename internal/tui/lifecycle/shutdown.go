@@ -6,8 +6,8 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/registry"
+	"github.com/nerdwave-nick/lit/internal/tui/recovery"
+	"github.com/nerdwave-nick/lit/internal/tui/registry"
 )
 
 // Phase is where the lifecycle is.

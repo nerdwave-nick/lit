@@ -6,7 +6,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // strict rejects unknown members; a set and members hold only plain fields.

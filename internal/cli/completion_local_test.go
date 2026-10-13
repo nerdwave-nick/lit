@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // completion splits __complete output into candidate values (descriptions

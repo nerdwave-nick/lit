@@ -9,8 +9,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/detail"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/prefs"
+	"github.com/nerdwave-nick/lit/internal/tui/detail"
+	"github.com/nerdwave-nick/lit/internal/tui/prefs"
 )
 
 // drive delivers msgs and runs every command they produce, as Bubble Tea

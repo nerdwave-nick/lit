@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // rawRecords seeds rows directly, independent of the write path.

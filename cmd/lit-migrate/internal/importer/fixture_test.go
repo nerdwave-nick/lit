@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-migrate/internal/legacy"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/cmd/lit-migrate/internal/legacy"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // testConfig is the configuration of the fixture stores' legacy server.

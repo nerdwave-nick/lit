@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 func readCapFixture(t *testing.T, reads int) (*Server, protocol.Client) {

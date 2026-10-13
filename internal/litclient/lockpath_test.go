@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // LockPath holds a mapping outside the sessions namespace; Connect saves the

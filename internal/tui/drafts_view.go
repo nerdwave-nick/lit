@@ -6,11 +6,11 @@ import (
 	"sort"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/draftsview"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/edit"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/cells"
+	"github.com/nerdwave-nick/lit/internal/tui/drafts"
+	"github.com/nerdwave-nick/lit/internal/tui/draftsview"
+	"github.com/nerdwave-nick/lit/internal/tui/edit"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/render/cells"
 )
 
 // draftsState is the root model's view of the unapplied drafts: the cached

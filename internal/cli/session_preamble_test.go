@@ -11,10 +11,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/service"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 // preambleService starts a real service and isolates CLI state, cwd caches and

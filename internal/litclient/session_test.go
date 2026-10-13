@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 func TestLockHoldsMappingUntilClose(t *testing.T) {

@@ -7,9 +7,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/clientendpoint"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/clientendpoint"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
 )
 
 // completers supply lit's dynamic values: existing records from the service,

@@ -6,10 +6,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/clientendpoint"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/prefs"
+	"github.com/nerdwave-nick/lit/internal/clientendpoint"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/prefs"
 	"golang.org/x/term"
 )
 

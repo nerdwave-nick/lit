@@ -6,7 +6,7 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/textfold"
+	"github.com/nerdwave-nick/lit/internal/textfold"
 )
 
 // The regex prefilter. lit grep -E reads only the records whose folded text

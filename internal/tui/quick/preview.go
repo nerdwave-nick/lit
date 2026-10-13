@@ -4,8 +4,8 @@ import (
 	"context"
 	"slices"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // Gate is the lifecycle's session gate: Do for reads, Mutate for the commit

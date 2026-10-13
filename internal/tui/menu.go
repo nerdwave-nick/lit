@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/cells"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/render/cells"
 )
 
 // menuCommands are the actions the action menu offers, in its order

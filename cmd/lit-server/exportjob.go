@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
+	"github.com/nerdwave-nick/lit/internal/service"
 )
 
 // exportJob is the interval export: the Markdown export of the database in

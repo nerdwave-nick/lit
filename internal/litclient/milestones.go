@@ -3,7 +3,7 @@ package litclient
 import (
 	"context"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // MilestoneProgress is the service's read-only projection of a milestone's

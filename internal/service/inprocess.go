@@ -3,7 +3,7 @@ package service
 import (
 	"context"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // The exported methods below are the service's in-process API for embedders

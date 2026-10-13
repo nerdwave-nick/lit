@@ -12,8 +12,8 @@ import (
 	"os"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/clientendpoint"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/clientendpoint"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // Session is one logical session's connection state.

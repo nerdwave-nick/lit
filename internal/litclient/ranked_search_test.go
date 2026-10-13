@@ -4,8 +4,8 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // RankedSearch is lit search: results in order of relevance with snippets,

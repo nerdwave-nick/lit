@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // ClaimSelection names the issues a claim operation reads or changes.

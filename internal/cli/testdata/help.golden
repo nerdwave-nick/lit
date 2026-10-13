@@ -1872,7 +1872,7 @@ lit looks for lit-tui next to its own executable first, then on PATH, and hands
 the terminal over to it (on Unix lit is replaced by lit-tui). --endpoint is passed through.
 Bare lit with no command opens it too, but only when stdin and stdout are terminals;
 otherwise bare lit reports that a subcommand is required, so scripts are unaffected.
-Install lit-tui with: go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-tui@latest
+Install lit-tui with: go install github.com/nerdwave-nick/lit/cmd/lit-tui@latest
 
 Requirements:
   Required flags: none. No session is needed; lit-tui must be installed next to lit or on PATH.

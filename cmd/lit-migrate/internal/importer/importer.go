@@ -18,8 +18,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-migrate/internal/legacy"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/cmd/lit-migrate/internal/legacy"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 // Options configure one import.

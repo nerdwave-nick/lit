@@ -3,7 +3,7 @@ package cli
 import (
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
 )
 
 // Help documentation for the grammar, composed from the command catalog

@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // Apply previews and commits t as lit does (POST /v1/transaction-previews,

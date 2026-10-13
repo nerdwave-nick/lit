@@ -19,9 +19,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/registry"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/tuitest"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/tui/registry"
+	"github.com/nerdwave-nick/lit/internal/tui/tuitest"
 )
 
 // These scenarios drive the real lit-tui binary in a private tmux server

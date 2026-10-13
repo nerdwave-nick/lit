@@ -6,7 +6,7 @@ Revisions oldest first. Current project: [project.md](project.md).
 
 Request `d80efef860dba790703c8eedd6d3d9d6482427ec318cf730cf6e905baea9a18e`
 
-- repository_refs: `https://github.com/nerdwave-nick/nerdwave-workflows`
+- repository_refs: `https://github.com/nerdwave-nick/lit`
 - title: `"feat/lit-export"`
 - description: 3 lines
 

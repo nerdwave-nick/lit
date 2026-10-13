@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // durableBody is a durable request's body as executeProjects checks it:

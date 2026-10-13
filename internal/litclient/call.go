@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // Call sends one request and decodes its data into dest. A mutation is first

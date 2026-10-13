@@ -7,8 +7,8 @@ import (
 	"errors"
 	"sort"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/textfold"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/textfold"
 )
 
 // identity returns a record's type and identity fields.

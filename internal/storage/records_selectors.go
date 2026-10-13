@@ -8,7 +8,7 @@ import (
 	"strings"
 	"unicode"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/textfold"
+	"github.com/nerdwave-nick/lit/internal/textfold"
 )
 
 // IDsByPrefix lists, in ID order, up to limit IDs (0 for all) of records of

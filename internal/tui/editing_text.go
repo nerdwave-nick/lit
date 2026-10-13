@@ -4,14 +4,14 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/claims"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/edit"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/sanitize"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/tree"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/claims"
+	"github.com/nerdwave-nick/lit/internal/tui/drafts"
+	"github.com/nerdwave-nick/lit/internal/tui/edit"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/render/sanitize"
+	"github.com/nerdwave-nick/lit/internal/tui/tree"
 )
 
 // offerPanel offers an existing draft instead of starting a new one.

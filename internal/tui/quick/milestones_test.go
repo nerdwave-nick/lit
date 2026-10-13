@@ -7,12 +7,12 @@ import (
 	"testing"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/quick"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/cells"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/tuitest"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/quick"
+	"github.com/nerdwave-nick/lit/internal/tui/render/cells"
+	"github.com/nerdwave-nick/lit/internal/tui/tuitest"
 )
 
 // driver runs a quick model as the root model does: each key's command runs

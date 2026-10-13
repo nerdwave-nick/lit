@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 const fixtureService = "50000000-0000-4000-8000-000000000001"
@@ -114,7 +114,7 @@ func fixture(t *testing.T) *storage.DB {
 		t.Fatal(e)
 	}
 	t.Cleanup(func() { db.Close() })
-	pa := project(p1, "feat/lit-export", "Export the tracker for people.\n\nStart with [the plan](lit:issue:"+issueA+").\n", at(1), "https://github.com/nerdwave-nick/nerdwave-workflows")
+	pa := project(p1, "feat/lit-export", "Export the tracker for people.\n\nStart with [the plan](lit:issue:"+issueA+").\n", at(1), "https://github.com/nerdwave-nick/lit")
 	pb := project(p2, "fix/other-project", "", at(1))
 	commit(t, db, nick, at(1), pa, pb)
 

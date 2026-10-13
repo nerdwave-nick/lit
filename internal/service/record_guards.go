@@ -1,6 +1,6 @@
 package service
 
-import "github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+import "github.com/nerdwave-nick/lit/internal/protocol"
 
 // Structural reads are explicit guards unless the same owner is a target.
 func requiredGuards(before, after RecordState, ops []protocol.Operation) map[string]bool {

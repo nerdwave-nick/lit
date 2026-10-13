@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // Record types, as protocol.ResourceType names them.

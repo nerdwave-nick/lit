@@ -4,7 +4,7 @@ import (
 	"context"
 	"sync/atomic"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // Prepared is a previewed durable transaction. It fences every affected record,

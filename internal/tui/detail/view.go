@@ -3,8 +3,8 @@ package detail
 import (
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/cells"
+	"github.com/nerdwave-nick/lit/internal/tui/render"
+	"github.com/nerdwave-nick/lit/internal/tui/render/cells"
 )
 
 // Markers. Without styling (the ASCII style: NO_COLOR, TERM=dumb) they are

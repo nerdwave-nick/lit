@@ -2,7 +2,7 @@ package storage
 
 import (
 	"context"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 	"sort"
 	"strings"
 	"testing"

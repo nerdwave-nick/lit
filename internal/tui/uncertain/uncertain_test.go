@@ -8,11 +8,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/tuitest"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/uncertain"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/recovery"
+	"github.com/nerdwave-nick/lit/internal/tui/tuitest"
+	"github.com/nerdwave-nick/lit/internal/tui/uncertain"
 )
 
 // snapshot reads every file under dir, so a test can prove that nothing was

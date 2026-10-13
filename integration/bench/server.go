@@ -12,7 +12,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 // Server is a lit-server process on a temporary data directory and a free

@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli/shelltest"
+	"github.com/nerdwave-nick/lit/internal/nwcli/shelltest"
 )
 
 const awkward = `it's "quoted" $HOME; (x)`

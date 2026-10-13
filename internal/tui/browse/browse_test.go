@@ -6,10 +6,10 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/browse"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/tuitest"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/browse"
+	"github.com/nerdwave-nick/lit/internal/tui/tuitest"
 )
 
 // gate serializes a session like the lifecycle does, and can refuse the nth

@@ -5,7 +5,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
 )
 
 type Args struct {

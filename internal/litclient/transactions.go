@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // RequestStatus is the reconciled status of one retained request and where its

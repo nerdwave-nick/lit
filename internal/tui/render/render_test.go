@@ -196,7 +196,7 @@ func TestTopLevelBlockStructure(t *testing.T) {
 
 func TestReferenceLinksSurviveBlockSplit(t *testing.T) {
 	d := mustRender(t, Job{Content: cjkBody, Width: 120, Style: Dark})
-	if !strings.Contains(joined(d), "nerdwave-workflows") {
+	if !strings.Contains(joined(d), "github.com/nerdwave-nick/lit") {
 		t.Error("reference link destination lost")
 	}
 }

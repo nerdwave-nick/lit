@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"unicode/utf8"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 // Ranked search (lit search, POST /v1/ranked-search) reads the storage

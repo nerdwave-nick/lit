@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 func searchLimitFixture(t *testing.T, reads int, timeout time.Duration) (*Server, protocol.Client) {

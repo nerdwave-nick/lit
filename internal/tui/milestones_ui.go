@@ -5,12 +5,12 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/milestones"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/quick"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/cells"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/drafts"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/milestones"
+	"github.com/nerdwave-nick/lit/internal/tui/quick"
+	"github.com/nerdwave-nick/lit/internal/tui/render/cells"
 )
 
 // Milestones: milestones (M) opens the Milestones view of the project

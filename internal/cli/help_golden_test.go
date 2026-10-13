@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
 )
 
 // renderAllHelp renders --help for the root, every group and every command.

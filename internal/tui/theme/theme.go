@@ -12,8 +12,8 @@ import (
 	tea "charm.land/bubbletea/v2"
 	"github.com/charmbracelet/colorprofile"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/prefs"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render"
+	"github.com/nerdwave-nick/lit/internal/tui/prefs"
+	"github.com/nerdwave-nick/lit/internal/tui/render"
 )
 
 // DefaultTimeout is how long the detector waits for the terminal to report

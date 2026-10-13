@@ -2,8 +2,8 @@ package service
 
 import (
 	"fmt"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/storage"
 	"net"
 	"os"
 	"path/filepath"

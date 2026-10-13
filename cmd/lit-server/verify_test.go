@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 func verifyCLI(t *testing.T, args ...string) (int, string, string) {

@@ -1,6 +1,6 @@
 package litclient
 
-import "github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+import "github.com/nerdwave-nick/lit/internal/protocol"
 
 // The functions below build the preview requests for single record mutations.
 // project scopes issue and milestone references ("" uses the client's selected

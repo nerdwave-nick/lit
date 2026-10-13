@@ -3,7 +3,7 @@ package litclient
 import (
 	"context"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // RankedSearchPage is one page of ranked search results.

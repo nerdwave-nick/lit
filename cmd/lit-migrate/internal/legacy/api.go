@@ -9,8 +9,8 @@ import (
 	"strings"
 	"time"
 
-	store "github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-migrate/internal/legacystore"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	store "github.com/nerdwave-nick/lit/cmd/lit-migrate/internal/legacystore"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // Open opens the legacy store in dir and verifies it as the legacy lit-server

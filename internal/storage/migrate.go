@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	_ "embed"
 	"fmt"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 	"os"
 	"path/filepath"
 	"time"

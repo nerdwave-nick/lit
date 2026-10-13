@@ -5,8 +5,8 @@ import (
 	"unicode"
 	"unicode/utf8"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/drafts"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
 )
 
 // Names of what a draft edits, for notes and panels. An issue body keeps

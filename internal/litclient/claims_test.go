@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/litclient"
 )
 
 func expiry(t *testing.T, v string) time.Time {

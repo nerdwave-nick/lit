@@ -4,7 +4,7 @@ import (
 	"sort"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // liveClaim is the claim on an issue that is live at the request time.

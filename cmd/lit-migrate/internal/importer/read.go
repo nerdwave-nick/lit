@@ -10,9 +10,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-migrate/internal/legacy"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/cmd/lit-migrate/internal/legacy"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 // recordTypes are the legacy record directories, in import order.

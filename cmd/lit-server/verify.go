@@ -6,9 +6,9 @@ import (
 	"io"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/service"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 // verifyCommand is `lit-server verify`, the on-demand full verification.

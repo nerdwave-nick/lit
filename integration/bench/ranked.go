@@ -1,6 +1,6 @@
 package bench
 
-import "github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+import "github.com/nerdwave-nick/lit/internal/protocol"
 
 // RankedQueries are the ranked searches (lit search) measured, all over all
 // projects with the default page of 20: a common word, two words, a phrase,

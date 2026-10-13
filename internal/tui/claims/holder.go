@@ -5,10 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/sanitize"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/recovery"
+	"github.com/nerdwave-nick/lit/internal/tui/render/sanitize"
 )
 
 // entry is a hold and when it is next renewed. Renewals compare entries by

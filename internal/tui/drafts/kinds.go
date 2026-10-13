@@ -3,7 +3,7 @@ package drafts
 import (
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // The draft kinds. Each declares, in kinds below, whether its record exists

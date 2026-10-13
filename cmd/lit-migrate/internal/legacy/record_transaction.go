@@ -4,8 +4,8 @@
 package legacy
 
 import (
-	store "github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-migrate/internal/legacystore"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	store "github.com/nerdwave-nick/lit/cmd/lit-migrate/internal/legacystore"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // Structural reads are explicit guards unless the same owner is a target.

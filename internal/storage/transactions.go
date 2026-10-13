@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // TimeFormat is the fixed-width UTC layout of record and transaction stamps,

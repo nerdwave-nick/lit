@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 const testService = "50000000-0000-4000-8000-000000000001"

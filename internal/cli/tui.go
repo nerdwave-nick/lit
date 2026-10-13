@@ -9,8 +9,8 @@ import (
 	"path/filepath"
 	"runtime"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 	"golang.org/x/term"
 )
 
@@ -18,7 +18,7 @@ import (
 // stack. lit tui, and bare lit on a terminal, hand the terminal over to it.
 const (
 	tuiBinary  = "lit-tui"
-	tuiInstall = "go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-tui@latest"
+	tuiInstall = "go install github.com/nerdwave-nick/lit/cmd/lit-tui@latest"
 )
 
 // tuiFlags are the lit flags passed through to lit-tui.

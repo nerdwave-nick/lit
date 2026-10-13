@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/cli"
+	"github.com/nerdwave-nick/lit/internal/cli"
 	"os"
 )
 

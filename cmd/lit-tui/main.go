@@ -4,7 +4,7 @@ package main
 import (
 	"os"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui"
+	"github.com/nerdwave-nick/lit/internal/tui"
 )
 
 func main() { os.Exit(tui.Main(os.Args[1:], os.Stdin, os.Stdout, os.Stderr)) }

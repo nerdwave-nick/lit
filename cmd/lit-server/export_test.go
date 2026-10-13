@@ -8,8 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/export"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/export"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 // isolate points configuration at an empty home so tests never read the

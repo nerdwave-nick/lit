@@ -3,7 +3,7 @@ package filter
 import (
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 func summary(id, state string, labels []string, assignee string, claimed bool) protocol.IssueSummary {

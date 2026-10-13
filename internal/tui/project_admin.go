@@ -4,11 +4,11 @@ import (
 	"context"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/detail"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/projectadmin"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/quick"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/detail"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/projectadmin"
+	"github.com/nerdwave-nick/lit/internal/tui/quick"
 )
 
 // Project administration (internal/tui/projectadmin): new_project in the

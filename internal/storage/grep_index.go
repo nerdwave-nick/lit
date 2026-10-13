@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/textfold"
+	"github.com/nerdwave-nick/lit/internal/textfold"
 )
 
 // grepFold is a field's text as grep_text stores it: textfold.Grep of the

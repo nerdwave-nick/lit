@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/tuitest"
+	"github.com/nerdwave-nick/lit/internal/tui/tuitest"
 )
 
 // flat removes the whitespace of a screen, so a value wrapped over lines can

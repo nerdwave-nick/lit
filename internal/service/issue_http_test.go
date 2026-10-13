@@ -3,7 +3,7 @@ package service
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 	"net/http/httptest"
 	"strings"
 	"testing"

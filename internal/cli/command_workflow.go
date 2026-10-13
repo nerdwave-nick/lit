@@ -3,8 +3,8 @@ package cli
 import (
 	"io"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/workflowsession"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/workflowsession"
 )
 
 // runWorkflow hands a parsed adapter invocation to the workflow session runner

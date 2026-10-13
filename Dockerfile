@@ -15,7 +15,7 @@ COPY cmd ./cmd
 COPY internal ./internal
 ARG LIT_VERSION=dev
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath \
-      -ldflags "-X github.com/nerdwave-nick/nerdwave-workflows/internal/protocol.ReleaseVersion=${LIT_VERSION}" \
+      -ldflags "-X github.com/nerdwave-nick/lit/internal/protocol.ReleaseVersion=${LIT_VERSION}" \
       -o /out/lit-server ./cmd/lit-server
 # The mount points, owned by the runtime user. Docker copies /data's owner and
 # mode into a new named volume, so lit-server can create its database there.

@@ -3,7 +3,7 @@ package litclient
 import (
 	"context"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // Record is a durable record type readable through snapshots.

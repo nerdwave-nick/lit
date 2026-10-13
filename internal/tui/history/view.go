@@ -4,10 +4,10 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/cells"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/sanitize"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/recovery"
+	"github.com/nerdwave-nick/lit/internal/tui/render/cells"
+	"github.com/nerdwave-nick/lit/internal/tui/render/sanitize"
 )
 
 // styles colour lines by kind when styling is on; plain views rely on the

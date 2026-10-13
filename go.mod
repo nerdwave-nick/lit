@@ -1,4 +1,4 @@
-module github.com/nerdwave-nick/nerdwave-workflows
+module github.com/nerdwave-nick/lit
 
 go 1.27.0
 

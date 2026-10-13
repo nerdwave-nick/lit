@@ -4,7 +4,7 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
-	workflowskills "github.com/nerdwave-nick/nerdwave-workflows/internal/workflow-skills"
+	workflowskills "github.com/nerdwave-nick/lit/internal/workflow-skills"
 	"io"
 	"os"
 )

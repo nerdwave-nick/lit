@@ -3,7 +3,7 @@ package cli
 import (
 	"bytes"
 	"fmt"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 	"strconv"
 	"strings"
 	"time"

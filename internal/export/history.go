@@ -8,9 +8,9 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/textdiff"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/textdiff"
 )
 
 // hiddenFields never appear in a history entry: the heading shows the

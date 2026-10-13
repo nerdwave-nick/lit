@@ -6,8 +6,8 @@ package legacy
 import (
 	"encoding/json"
 	"fmt"
-	store "github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-migrate/internal/legacystore"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	store "github.com/nerdwave-nick/lit/cmd/lit-migrate/internal/legacystore"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 	"os"
 	"sort"
 	"time"

@@ -4,8 +4,8 @@ import (
 	"errors"
 	"sort"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 // RecordState holds the records one transaction reads, keyed by "type/id":

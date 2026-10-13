@@ -4,9 +4,9 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/issue"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/tree"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/issue"
+	"github.com/nerdwave-nick/lit/internal/tui/tree"
 )
 
 // issueMarkdown is the detail's metadata section for an issue summary:

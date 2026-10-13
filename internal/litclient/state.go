@@ -9,7 +9,7 @@ import (
 	"runtime"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // Mapping binds a logical session name to its client, service and endpoint.

@@ -4,7 +4,7 @@ import (
 	"context"
 	"errors"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // Code returns the protocol error code carried by err, such as

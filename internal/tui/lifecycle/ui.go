@@ -2,8 +2,8 @@ package lifecycle
 
 import (
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/recovery"
 )
 
 // ReportMsg delivers the launch's registry scan.

@@ -1,6 +1,6 @@
 package tree
 
-import "github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+import "github.com/nerdwave-nick/lit/internal/protocol"
 
 // SetFilter shows only the issues match accepts, each with its ancestors as
 // context, expanded so that every match shows; nil shows every issue again.

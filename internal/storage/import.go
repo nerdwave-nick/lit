@@ -17,7 +17,7 @@ import (
 	"path/filepath"
 	"sort"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // Create creates a new database in the data directory dir, which must not

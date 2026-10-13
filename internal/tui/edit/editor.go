@@ -10,7 +10,7 @@ import (
 	"os/exec"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // Lookup returns the editor command as arguments: $VISUAL, then $EDITOR,

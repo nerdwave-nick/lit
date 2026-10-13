@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
+	"github.com/nerdwave-nick/lit/internal/service"
 	"io"
 	"net/http"
 	"os"

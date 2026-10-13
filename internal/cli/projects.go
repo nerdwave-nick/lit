@@ -2,8 +2,8 @@ package cli
 
 import (
 	"fmt"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 	"io"
 	"net/url"
 	"os"

@@ -3,7 +3,7 @@ package cli
 import (
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
 )
 
 // grammar is lit's command tree: the single description of which flags and

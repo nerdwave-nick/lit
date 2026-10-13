@@ -4,8 +4,8 @@ import (
 	"io"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // Run executes lit. The grammar routes the arguments, renders help and

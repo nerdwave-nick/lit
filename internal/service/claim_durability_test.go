@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 func disconnectClaimTest(t *testing.T, s *Server, c protocol.Client) int {

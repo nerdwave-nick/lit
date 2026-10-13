@@ -4,8 +4,8 @@ import (
 	"context"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/claims"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/claims"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
 )
 
 // claimsView is the root model's view of the claim holder: its latest state

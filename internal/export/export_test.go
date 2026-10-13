@@ -19,8 +19,8 @@ import (
 	"github.com/yuin/goldmark/text"
 	"go.yaml.in/yaml/v3"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/export"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/export"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 var update = flag.Bool("update", false, "rewrite the golden export tree")

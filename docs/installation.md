@@ -27,10 +27,10 @@ Once this module has been published and is accessible, installation without a
 checkout uses an explicit version query:
 
 ```sh
-go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit@latest
-go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-tui@latest
+go install github.com/nerdwave-nick/lit/cmd/lit@latest
+go install github.com/nerdwave-nick/lit/cmd/lit-tui@latest
 # Linux service, if needed:
-go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-server@latest
+go install github.com/nerdwave-nick/lit/cmd/lit-server@latest
 ```
 
 Replace `latest` with a published tag to pin a version. Remote publication and
@@ -63,7 +63,7 @@ refuses to start without a terminal (status 2). If `lit-tui` is not installed,
 the install command:
 
 ```sh
-go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-tui@latest
+go install github.com/nerdwave-nick/lit/cmd/lit-tui@latest
 ```
 
 ## Shell completion

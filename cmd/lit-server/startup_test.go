@@ -11,8 +11,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/service"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 // config is a server configuration for the data directory dir.

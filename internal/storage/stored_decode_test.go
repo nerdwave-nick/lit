@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // strictTransaction decodes a stored transaction as the request API does,

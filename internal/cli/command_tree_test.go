@@ -2,7 +2,7 @@ package cli
 
 import (
 	"bytes"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
 	"net/http"
 	"net/http/httptest"
 	"reflect"

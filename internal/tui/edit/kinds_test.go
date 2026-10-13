@@ -4,10 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/claims"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/claims"
+	"github.com/nerdwave-nick/lit/internal/tui/drafts"
 )
 
 // specKind edits a project's specification, as a later ticket registers it.

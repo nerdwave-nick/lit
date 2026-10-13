@@ -8,7 +8,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 const (

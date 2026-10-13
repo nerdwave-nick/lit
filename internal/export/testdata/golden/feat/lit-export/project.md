@@ -2,7 +2,7 @@
 id: "11111111-0000-4000-8000-000000000001"
 title: "feat/lit-export"
 repository_refs:
-  - "https://github.com/nerdwave-nick/nerdwave-workflows"
+  - "https://github.com/nerdwave-nick/lit"
 created_at: "2026-10-11T09:00:01.000000Z"
 updated_at: "2026-10-11T09:00:06.000000Z"
 revision: 2

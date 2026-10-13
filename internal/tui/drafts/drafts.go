@@ -24,7 +24,7 @@ package drafts
 import (
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // SchemaVersion is the sidecar's schema version.

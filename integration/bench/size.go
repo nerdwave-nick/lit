@@ -4,7 +4,7 @@ import (
 	"database/sql"
 	"path/filepath"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 // TableSize is the space one table or index takes in the database file.

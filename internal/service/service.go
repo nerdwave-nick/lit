@@ -16,8 +16,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 // Server serves the lit protocol. Each request runs on its own request-scoped

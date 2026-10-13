@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // Limits shared by every search mode: literal lit grep (POST /v1/search) and

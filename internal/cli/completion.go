@@ -9,10 +9,10 @@ import (
 	"time"
 	"unicode"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/clientendpoint"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/clientendpoint"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 const completionTimeout = time.Second

@@ -43,7 +43,7 @@ const cjkBody = "# CJK と絵文字 🧪\n\n" +
 	"Emoji: 👨\u200d👩\u200d👧\u200d👦 family, 🇩🇪 flag, 🧑🏽\u200d💻 coder, ✅ done, ⚠️ warning (VS16).\n\n" +
 	"| 名前 | 状態 | 説明 |\n|---|---|---|\n| 計画 | 進行中 | 端末ユーザーインターフェースの設計を決定する長い説明文 |\n| 実装 | 未着手 | 🚧 まだ許可されていません |\n\n" +
 	"A [reference link][lit] defined at the bottom.\n\n" +
-	"[lit]: https://github.com/nerdwave-nick/nerdwave-workflows \"lit repository\"\n"
+	"[lit]: https://github.com/nerdwave-nick/lit \"lit repository\"\n"
 
 const tabsBody = "# Tab-indented code\n\n```go\nfunc main() {\n\tif x {\n\t\tfmt.Println(\"tab\")\n\t}\n\tvar a\t= 1 // aligned\twith tabs\n}\n```\n\n" +
 	"Indented code block (tab):\n\n\tmake build\n\t\tnested\n\n" +

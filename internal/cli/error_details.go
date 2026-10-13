@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/litclient"
 )
 
 // The message explains the failure; details retain the identities and evidence

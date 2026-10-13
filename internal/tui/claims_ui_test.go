@@ -9,12 +9,12 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/claims"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/lifecycle"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/prefs"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/tuitest"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/claims"
+	"github.com/nerdwave-nick/lit/internal/tui/lifecycle"
+	"github.com/nerdwave-nick/lit/internal/tui/prefs"
+	"github.com/nerdwave-nick/lit/internal/tui/tuitest"
 )
 
 // claiming is a browsing root model with a claim holder, over the seeded

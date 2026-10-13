@@ -5,7 +5,7 @@ import (
 	"unicode"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
 )
 
 // field is an inline text field. It owns typed text, including letters bound

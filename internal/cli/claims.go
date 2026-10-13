@@ -2,8 +2,8 @@ package cli
 
 import (
 	"fmt"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 	"net/url"
 	"strconv"
 	"strings"

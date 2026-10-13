@@ -3,7 +3,7 @@ package service
 import (
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // A link changes both of its issues together: a failure after the writes

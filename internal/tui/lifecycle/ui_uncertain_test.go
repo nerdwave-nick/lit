@@ -4,10 +4,10 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/lifecycle"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/lifecycle"
+	"github.com/nerdwave-nick/lit/internal/tui/recovery"
 )
 
 // The launch panel and the exit report that mention uncertain requests name

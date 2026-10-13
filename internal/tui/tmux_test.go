@@ -11,8 +11,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/detail"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/prefs"
+	"github.com/nerdwave-nick/lit/internal/tui/detail"
+	"github.com/nerdwave-nick/lit/internal/tui/prefs"
 )
 
 // demoEnv names a Markdown file. When it is set, the test binary runs

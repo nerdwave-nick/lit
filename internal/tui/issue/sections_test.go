@@ -4,9 +4,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/detail"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/issue"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/detail"
+	"github.com/nerdwave-nick/lit/internal/tui/issue"
 )
 
 const issueID = "11111111-2222-4333-8444-555555555555"

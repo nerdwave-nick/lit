@@ -5,14 +5,14 @@ import (
 	"time"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/browse"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/detail"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/projects"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/cells"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/tree"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/browse"
+	"github.com/nerdwave-nick/lit/internal/tui/detail"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/projects"
+	"github.com/nerdwave-nick/lit/internal/tui/render/cells"
+	"github.com/nerdwave-nick/lit/internal/tui/tree"
 )
 
 // Refresh timing (Proposals). Background refresh runs RefreshInterval after

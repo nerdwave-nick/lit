@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/claims"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/sanitize"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/tree"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/tui/claims"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/recovery"
+	"github.com/nerdwave-nick/lit/internal/tui/render/sanitize"
+	"github.com/nerdwave-nick/lit/internal/tui/tree"
 )
 
 // maxLostLines bounds how many lost claims the footer names one by one.

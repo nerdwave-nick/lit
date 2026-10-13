@@ -2,7 +2,7 @@ package service
 
 import (
 	"fmt"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 	"sync"
 	"testing"
 	"time"

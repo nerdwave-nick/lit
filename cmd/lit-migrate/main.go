@@ -13,11 +13,11 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-migrate/internal/importer"
-	"github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-migrate/internal/legacy"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
+	"github.com/nerdwave-nick/lit/cmd/lit-migrate/internal/importer"
+	"github.com/nerdwave-nick/lit/cmd/lit-migrate/internal/legacy"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/service"
 )
 
 var command = &nwcli.Command{

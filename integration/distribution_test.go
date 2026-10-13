@@ -12,7 +12,7 @@ import (
 	"strings"
 	"testing"
 
-	workflowskills "github.com/nerdwave-nick/nerdwave-workflows/internal/workflow-skills"
+	workflowskills "github.com/nerdwave-nick/lit/internal/workflow-skills"
 )
 
 // TestGoDistributionWalkthrough exercises the installed public executables from

@@ -1,6 +1,6 @@
 package service
 
-import "github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+import "github.com/nerdwave-nick/lit/internal/protocol"
 
 // validateLinks checks the links of the records in state: a changed issue's
 // counterparts must exist and mirror each link, and an unchanged issue's links

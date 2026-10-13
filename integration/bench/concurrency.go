@@ -7,7 +7,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // writeOps are the operations the concurrent agents write with.

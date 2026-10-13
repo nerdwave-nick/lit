@@ -15,8 +15,8 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/tui/drafts"
 )
 
 // Gate is the lifecycle's gate (lifecycle.Lifecycle.Do).

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/service"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 // startJobs starts lit-server's periodic jobs for the service s started

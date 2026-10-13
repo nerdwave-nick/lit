@@ -5,7 +5,7 @@ import (
 	"math/rand/v2"
 	"slices"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // Shape is the shape of one project of the corpus (decision 341b612a).

@@ -11,8 +11,8 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/textdiff"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/textdiff"
 )
 
 // FieldDifference is one non-body field's JSON value before and after a change.

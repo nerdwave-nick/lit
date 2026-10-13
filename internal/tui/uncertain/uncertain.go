@@ -16,8 +16,8 @@ import (
 	"os"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/recovery"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/tui/recovery"
 )
 
 // NotChecked is the status of a retained request whose outcome was not

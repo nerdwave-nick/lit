@@ -5,7 +5,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // gate serializes every use of the session and admits nothing once draining.

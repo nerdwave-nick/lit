@@ -52,7 +52,7 @@ func TestFindTUIPrefersTheSiblingOfLitThenPATH(t *testing.T) {
 	if err == nil {
 		t.Fatal("missing lit-tui was found")
 	}
-	for _, want := range []string{"lit-tui", empty, "PATH", "go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-tui@latest"} {
+	for _, want := range []string{"lit-tui", empty, "PATH", "go install github.com/nerdwave-nick/lit/cmd/lit-tui@latest"} {
 		if !strings.Contains(err.Error(), want) {
 			t.Errorf("missing-binary error lacks %q: %v", want, err)
 		}
@@ -104,7 +104,7 @@ func TestTUIMissingBinary(t *testing.T) {
 	if err := json.Unmarshal(errOut.Bytes(), &envelope); err != nil {
 		t.Fatalf("%v: %s", err, &errOut)
 	}
-	if code != 1 || out.Len() != 0 || envelope.Error.Code != "tui_not_found" || !strings.Contains(envelope.Error.Message, "go install github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-tui@latest") {
+	if code != 1 || out.Len() != 0 || envelope.Error.Code != "tui_not_found" || !strings.Contains(envelope.Error.Message, "go install github.com/nerdwave-nick/lit/cmd/lit-tui@latest") {
 		t.Fatalf("code %d, out %q, err %s", code, &out, &errOut)
 	}
 }

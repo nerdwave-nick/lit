@@ -19,12 +19,12 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/drafts"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/edit"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/quick"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/sanitize"
+	"github.com/nerdwave-nick/lit/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/tui/drafts"
+	"github.com/nerdwave-nick/lit/internal/tui/edit"
+	"github.com/nerdwave-nick/lit/internal/tui/quick"
+	"github.com/nerdwave-nick/lit/internal/tui/render/sanitize"
 )
 
 // MaxTitle is the longest project title the service accepts, in bytes.

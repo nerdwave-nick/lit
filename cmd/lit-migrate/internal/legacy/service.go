@@ -5,8 +5,8 @@ package legacy
 
 import (
 	"fmt"
-	store "github.com/nerdwave-nick/nerdwave-workflows/cmd/lit-migrate/internal/legacystore"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	store "github.com/nerdwave-nick/lit/cmd/lit-migrate/internal/legacystore"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 	"os"
 	"strings"
 	"sync"

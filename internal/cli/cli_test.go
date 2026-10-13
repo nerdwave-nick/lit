@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/litclient"
+	"github.com/nerdwave-nick/lit/internal/litclient"
 	"net/http"
 	"net/http/httptest"
 	"os"

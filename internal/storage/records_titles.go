@@ -3,7 +3,7 @@ package storage
 import (
 	"context"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // vacateTitles moves the unique titles of renamed records out of the way, so

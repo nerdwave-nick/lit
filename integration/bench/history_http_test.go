@@ -9,9 +9,9 @@ import (
 	"runtime"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/service"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/storage"
+	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/service"
+	"github.com/nerdwave-nick/lit/internal/storage"
 )
 
 // historyServer is an in-process service holding one long-lived project of

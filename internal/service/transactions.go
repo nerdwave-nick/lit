@@ -5,7 +5,7 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 func invalid(msg string) error { return protocol.E(422, "validation_failed", msg) }

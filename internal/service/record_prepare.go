@@ -3,7 +3,7 @@ package service
 import (
 	"strings"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 func (s *Server) prepareRecords(req protocol.PrepareRequest, c protocol.Client) (protocol.Prepared, error) {

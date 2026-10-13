@@ -10,9 +10,9 @@ import (
 	"slices"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/nwcli/shelltest"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/nwcli"
+	"github.com/nerdwave-nick/lit/internal/nwcli/shelltest"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // TestShellCompletionThroughLit loads lit's own scripts into real shells and

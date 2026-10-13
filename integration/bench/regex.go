@@ -1,6 +1,6 @@
 package bench
 
-import "github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+import "github.com/nerdwave-nick/lit/internal/protocol"
 
 // RegexQueries are the regex searches (lit grep -E) measured, all over all
 // projects and case-insensitive. The first four require a literal of three

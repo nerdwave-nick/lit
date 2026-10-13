@@ -11,7 +11,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // APIError is a failed request: lit's error envelope, or a transport failure

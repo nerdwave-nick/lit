@@ -3,7 +3,7 @@
 
 package legacy
 
-import "github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+import "github.com/nerdwave-nick/lit/internal/protocol"
 
 type Config struct {
 	SchemaVersion int             `json:"schema_version"`

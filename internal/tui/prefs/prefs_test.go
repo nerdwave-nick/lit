@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
 )
 
 // isolate points HOME and XDG_CONFIG_HOME at fresh directories and clears the

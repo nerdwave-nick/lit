@@ -5,10 +5,10 @@ import (
 	"strings"
 
 	tea "charm.land/bubbletea/v2"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/comments"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/issue"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/keys"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/cells"
+	"github.com/nerdwave-nick/lit/internal/tui/comments"
+	"github.com/nerdwave-nick/lit/internal/tui/issue"
+	"github.com/nerdwave-nick/lit/internal/tui/keys"
+	"github.com/nerdwave-nick/lit/internal/tui/render/cells"
 )
 
 // Comment editing: new_comment writes a new comment on the selected issue

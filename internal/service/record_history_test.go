@@ -7,7 +7,7 @@ import (
 	"net/url"
 	"testing"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 // historyText needs every kind of JSON escape the encoder makes: quotes,

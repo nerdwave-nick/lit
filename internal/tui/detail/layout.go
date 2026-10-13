@@ -6,8 +6,8 @@ import (
 
 	"github.com/charmbracelet/x/ansi"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/cells"
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/tui/render/sanitize"
+	"github.com/nerdwave-nick/lit/internal/tui/render/cells"
+	"github.com/nerdwave-nick/lit/internal/tui/render/sanitize"
 )
 
 // ref locates a block in the current layout: a section index and a block

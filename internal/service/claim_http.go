@@ -6,7 +6,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/nerdwave-nick/nerdwave-workflows/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
 func (s *Server) claimRoute(w http.ResponseWriter, r *http.Request, c protocol.Client) (bool, error) {
