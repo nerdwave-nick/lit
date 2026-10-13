@@ -1,21 +1,28 @@
 # Host discovery and explicit sessions
 
 The CLI embeds the complete suite from `internal/workflow-skills/skills/`.
-Install offline with `lit setup-skills --scope local --agent codex` (or
+Install offline with `lit setup-workflows --scope local --agent codex` (or
 `--agent claude` / `--agent both`). Local scope uses the current directory;
 `--scope user` uses the home directory. Neither searches repository parents or
-reads vendor configuration-root overrides. For a custom parent directory, use
-`lit setup-skills --scope custom --path /parent --agent both`: this targets
-`/parent/.codex` and `/parent/.claude`, not `/parent` itself. `--path` is required
-only with custom scope. Both `--scope` and `--agent` are required.
+reads vendor configuration-root overrides (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`). For
+another agent configuration, such as `~/.claude-work`, name its directory:
+`lit setup-workflows --agent claude --config-dir ~/.claude-work`. That takes
+exactly one `--agent` (`codex` or `claude`), installs into that one directory,
+which must already exist and is the configuration itself, not a parent of
+`.claude`, and cannot be combined with `--scope`. Two configurations are two
+runs and two independent installs. `--agent` and either `--scope` or
+`--config-dir` are required.
 
 The installer copies all sixteen skills into each host's `skills` directory,
 adds a bounded managed block to `AGENTS.md` or `CLAUDE.md`, and records version 1
-ownership in `.lit-skills.json`. Both destinations are preflighted before writes.
-Each host has its own transaction; an unexpected filesystem failure may leave the
-first host complete. The error identifies completed hosts; resolve the error and
-rerun. Updates stage backups and a version-1 recovery journal. Interrupted updates
-recover on the next run after any stale installer lock is resolved.
+ownership in `.lit-workflows.json`. An install made by the removed `lit
+setup-skills` command (ownership file `.lit-skills.json`) is adopted in the same
+transaction; the receipt marks it `adopted`. Both destinations are preflighted
+before writes. Each host has its own transaction; an unexpected filesystem
+failure may leave the first host complete. The error identifies completed hosts;
+resolve the error and rerun. Updates stage backups and a version-2 recovery
+journal (version-1 journals left by `setup-skills` still recover). Interrupted
+updates recover on the next run after any stale installer lock is resolved.
 
 In the following recovery guidance, PATH means the host root (.codex or .claude).
 
@@ -28,7 +35,7 @@ preserved, and recovery stops for explicit resolution rather than overwriting
 them. It preserves unrelated configuration
 and refuses local edits/collisions. Resolve those explicitly; never delete unrelated
 skills to make installation succeed. Retired names are not installed; only entries
-already owned by this install manifest may be retired. No shell profiles, binary
+already owned by this installation record may be retired. No shell profiles, binary
 installation, hooks, or service startup are changed.
 
 Codex uses `SKILL.md` with `agents/openai.yaml` invocation policy and `$lit`;

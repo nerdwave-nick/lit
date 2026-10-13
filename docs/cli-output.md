@@ -79,5 +79,5 @@ field names, values and pagination envelope are unchanged; strings retain their
 original control characters through normal JSON escaping. CLI and structured Markdown tables omit internal schema versions and use
 readable labels; single-record Markdown documents retain the complete metadata.
 
-The separate `setup-skills` and `workflow-session` helpers retain their own
+The separate `setup-workflows` and `workflow-session` helpers retain their own
 machine-readable result formats.
