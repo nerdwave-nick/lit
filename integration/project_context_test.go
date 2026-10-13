@@ -124,7 +124,7 @@ func TestProjectContextWithoutASessionAgainstBinaries(t *testing.T) {
 	}
 
 	// A rename is followed by ID.
-	run(t, cwd, state, 0, "projects", "update", "feat/context", "--project-title", "feat/renamed")
+	run(t, cwd, state, 0, "projects", "update", "feat/context", "--title", "feat/renamed")
 	if got, err := c.Validate(ctx, binding); err != nil || got.Title != "feat/renamed" || got.ProjectID != id {
 		t.Fatalf("after rename: %+v %v", got, err)
 	}
