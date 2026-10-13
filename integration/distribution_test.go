@@ -89,8 +89,14 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 			t.Fatalf("lit %v outside a terminal (want the %s result): %d, stdout %q, stderr %q", tc.args, tc.from, c.ProcessState.ExitCode(), &stdout, &stderr)
 		}
 	}
-	if out, err := exec.Command(filepath.Join(bin, "lit-tui"), "--version").CombinedOutput(); err != nil || strings.TrimSpace(string(out)) != "dev" {
-		t.Fatalf("lit-tui --version: %v: %s", err, out)
+	// Both binaries report the same version: "dev", or the version go install
+	// recorded from the checkout's VCS state (for example v0.7.1+dirty).
+	litVersion, err := exec.Command(cli, "version").CombinedOutput()
+	if err != nil || strings.TrimSpace(string(litVersion)) == "" {
+		t.Fatalf("lit version: %v: %s", err, litVersion)
+	}
+	if out, err := exec.Command(filepath.Join(bin, "lit-tui"), "--version").CombinedOutput(); err != nil || strings.TrimSpace(string(out)) != strings.TrimSpace(string(litVersion)) {
+		t.Fatalf("lit-tui --version: %v: %s, lit version: %s", err, out, litVersion)
 	}
 	// Setup has no service available and no usable inherited tracker selection.
 	for _, args := range [][]string{{"--scope", "local", "--agent", "both"}, {"--scope", "user", "--agent", "both"}, {"--scope", "custom", "--path", custom, "--agent", "both"}} {

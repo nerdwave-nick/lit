@@ -119,7 +119,10 @@ Pull requests run Go race tests, vet, and cross-builds. Version tags
 and `SHA256SUMS` as GitHub Actions artifacts. CI uses ordinary Go commands and
 shell archive utilities; it does not create GitHub Releases. Publishing remains
 an explicit separate action. CI embeds the release identifier in `lit-server --version`,
-`lit version` and `lit-tui --version`; source builds without that override report `dev`.
+`lit version` and `lit-tui --version`. Without that override, the binaries report
+the module version Go recorded: the tag for `go install …@v0.7.1`, a
+pseudo-version or VCS-derived version (for example `v0.7.1+dirty`) for a build
+from a git checkout, and `dev` when Go recorded none.
 
 Verify checksums before extracting: `sha256sum -c SHA256SUMS` on Linux,
 `shasum -a 256 -c SHA256SUMS` on macOS, or compare PowerShell
