@@ -182,6 +182,22 @@ mounts, an export directory below its mount, the exec-form healthcheck, a static
 non-root distroless image). Building and running the image is a manual check
 with Docker, recorded on the compose ticket; the suite needs no Docker.
 
+The session-free project context read has three layers.
+`internal/service/project_context_test.go` sends requests with no client, an
+unknown client and a connected client, and covers reference resolution against the
+resolver the project commands use, missing and ambiguous targets, stored-binding
+validation across a rename and a foreign service, malformed requests, an exact
+key set (no project content leaks), unchanged durable state, and that every other
+route still answers `client_required`. `internal/litclient/project_context_test.go`
+counts the requests a fresh caller sends (one `GET /v1/project-context` each, no
+connect, claim or transaction, no pending record) and covers a replacement
+service, local argument rejection, service refusals, malformed and incompatible
+answers, timeouts, an unreachable service and a cancelled context.
+`integration/project_context_test.go` repeats the resolve, rename and
+replacement-service cases against the real binaries and compares table row counts
+and the client state directory before and after. There is no archived-project
+case: the tracker has no archive state yet.
+
 `internal/service/routes_test.go` checks the route table's classification of
 every route. `internal/service/concurrency_test.go` and `readcap_test.go` run
 reads concurrently with writes under the race detector. A request is held
