@@ -8,6 +8,12 @@ description: Turn requirements or an agreed specification into reviewed, verifia
 Run this skill only when the user requested it. Otherwise propose it and run it
 only after the user confirms.
 
+Workflow stage: when the user invokes this skill directly, record it with
+`lit session set --stage to-tickets` before starting. When another workflow
+skill invokes it, leave the stage unchanged. On completion or handoff, run
+`lit session unset --stage`. The Workflow stage section of the
+[lit skill](../lit/SKILL.md) covers the session and older lit versions.
+
 Accept a plan, specification, existing discussion, or issue directly. No planner
 prerequisite is needed. Read [lit guidance](../lit/SKILL.md), repository tracker and
 triage conventions, and each affected repository's instructions, CONTEXT.md, and
