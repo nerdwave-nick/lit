@@ -6,7 +6,9 @@
     "codex-stop-schema": "Not captured: built from the Stop input schema embedded in codex-cli 0.162.1 (strings /opt/openai-codex/bin/codex, 'stop.command.input' and 'stop.command.output'; see stop.input.schema.json and stop.output.schema.json). Every required field is present (including turn_id and a null transcript_path) and no other field is added; the session_id is the Codex startup input's. The prototype's hook log (lit 345c8d1d) observed a real Stop under codex-cli 0.162.1 with the same session_id as its SessionStart and a boolean stop_hook_active of false, but logged only those extracted fields. No Codex capture was made for this fixture and no auth.json was read or copied.",
     "codex-schema": "Not captured: built from the SessionStart input schema embedded in codex-cli 0.162.1 (strings /opt/openai-codex/bin/codex, 'session-start.command.input'; see session-start.input.schema.json, whose closing braces were restored because strings drops short lines). Every required field is present and no other field is added. A real Codex capture was deliberately not made: SessionStart does not fire without credentials and the user ruled out copying auth.json.",
     "claude-subagent-observed": "Not captured in full: the field values are observed, the rest is documented. In the planning prototype for the hooks plugin (lit issue 345c8d1d, Claude Code 2.1.296) a SubagentStart hook fired when Claude started a general-purpose subagent with the Agent tool; the prototype's log kept only session_id, agent_id and agent_type, and those three values (including the format of agent_id and that session_id is the root conversation's, the one its SessionStart reported) are used here unchanged. The complete stdin was not recorded, so transcript_path, cwd and hook_event_name follow the documented SubagentStart input (https://code.claude.com/docs/en/hooks#subagentstart; the common fields plus agent_id and agent_type, no permission_mode or effort), with the home directory and project replaced by example paths. A later SubagentStart for the same agent_id (a resumed subagent, or an in-process teammate handling a new message) carries the same input.",
-    "codex-subagent-schema": "Not captured: built from the SubagentStart input schema embedded in codex-cli 0.162.1 ('subagent-start.command.input' in /opt/openai-codex/bin/codex, extracted verbatim into subagent-start.input.schema.json; its output schema is subagent-start.output.schema.json). So codex-cli 0.162.1 does have a SubagentStart event. Every required field is present and none is added; session_id is the root thread's and agent_id the subagent's (example UUIDv7 values), agent_type is an example value. No Codex run was made, and no auth.json was read or copied."
+    "codex-subagent-schema": "Not captured: built from the SubagentStart input schema embedded in codex-cli 0.162.1 ('subagent-start.command.input' in /opt/openai-codex/bin/codex, extracted verbatim into subagent-start.input.schema.json; its output schema is subagent-start.output.schema.json). So codex-cli 0.162.1 does have a SubagentStart event. Every required field is present and none is added; session_id is the root thread's and agent_id the subagent's (example UUIDv7 values), agent_type is an example value. No Codex run was made, and no auth.json was read or copied.",
+    "claude-statusline-captured": "Captured from Claude Code 2.1.296: the interactive TUI (python pty) with a temporary CLAUDE_CONFIG_DIR whose settings.json statusLine command dumped stdin, a dummy ANTHROPIC_API_KEY and no model call, so the input is the one sent when a session starts (used_percentage null, no session_name, prompt_id, rate_limits or prompt_cache). Only the session ID, home, project and transcript paths were replaced with example values; every other field is as the host sent it.",
+    "claude-statusline-documented": "Not captured: the mid-session shape written from the 'Full JSON schema' of https://code.claude.com/docs/en/statusline (fetched 2026-10-14 for Claude Code 2.1.296) with values a running session would show; fields the page lists as present only sometimes (vim, agent, pr, worktree, prompt_cache) are left out, the way the host omits them. The field set and types are those of the page and of the captured startup input."
   },
   "fixtures": [
     {
@@ -114,6 +116,18 @@
       "host": "codex",
       "event": "subagent-start",
       "provenance": "codex-subagent-schema"
+    },
+    {
+      "file": "claude/statusline-early.json",
+      "host": "claude",
+      "event": "statusline",
+      "provenance": "claude-statusline-captured"
+    },
+    {
+      "file": "claude/statusline-session.json",
+      "host": "claude",
+      "event": "statusline",
+      "provenance": "claude-statusline-documented"
     }
   ]
 }

@@ -95,6 +95,27 @@ runs (one child client), a held lock, a parent without a ready session, a server
 is down, a stalled `/v1/connect` under the real one-second budget (the pending child
 association is kept), a service that is not the parent's, and malformed input.
 
+The `statusline` event (`internal/hook/statusline*_test.go`) is tested the same
+way. Its two recorded inputs are in `fixtures.json` as well: `statusline-early`
+was captured from Claude Code 2.1.296 (the interactive TUI in a pty with a
+temporary `CLAUDE_CONFIG_DIR` whose `statusLine` command dumped stdin, a dummy
+API key and no model call, so it is the input of a session that has not had a
+response yet), `statusline-session` is the mid-session shape written from the
+documented schema. Pure tests cover fish-style directory shortening, display
+width (emoji, wide characters, escape sequences), `git status` parsing, the
+built-in line at each of its eleven collapse levels and the choice of the
+fullest level that fits. Service tests start a real `lit-server` and count the
+requests that reach it, so they pin the cache: a fresh entry makes none, a stale
+one reads the server again, the project title is read once per five minutes, a
+stalled server costs one bounded attempt and its failure is cached. Further
+cases cover a down server, a reachable server without a session, a pending
+association, recent and old hook errors of both hosts, missing input fields,
+real Git repositories (outside Git, dirty, ahead and behind, detached; skipped
+without `git`) and `--original` as shell scripts: stdin passed through exactly,
+`COLUMNS` handed down, a non-zero exit, no output, a missing command and a
+timeout (the process group is killed too) leaving lit's part alone. A test runs
+the built binary and logs how long a cold and a cached status line took.
+
 `internal/checkoutcontext` tests run against temporary directories and real Git
 repositories created with the `git` executable and no inherited configuration
 (skipped where `git` is missing): every subdirectory of a repository resolving

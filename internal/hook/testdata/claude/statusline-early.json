@@ -1,0 +1,41 @@
+{
+  "session_id": "d754184c-431a-489d-b36b-e6a448f068e7",
+  "transcript_path": "/home/example/.claude/projects/-home-example-project/d754184c-431a-489d-b36b-e6a448f068e7.jsonl",
+  "cwd": "/home/example/project",
+  "effort": {
+    "level": "medium"
+  },
+  "model": {
+    "id": "claude-opus-5-5",
+    "display_name": "Opus 5.5"
+  },
+  "workspace": {
+    "current_dir": "/home/example/project",
+    "project_dir": "/home/example/project",
+    "added_dirs": []
+  },
+  "version": "2.1.296",
+  "output_style": {
+    "name": "default"
+  },
+  "cost": {
+    "total_cost_usd": 0,
+    "total_duration_ms": 4191,
+    "total_api_duration_ms": 0,
+    "total_lines_added": 0,
+    "total_lines_removed": 0
+  },
+  "context_window": {
+    "total_input_tokens": 0,
+    "total_output_tokens": 0,
+    "context_window_size": 1000000,
+    "current_usage": null,
+    "used_percentage": null,
+    "remaining_percentage": null
+  },
+  "exceeds_200k_tokens": false,
+  "fast_mode": false,
+  "thinking": {
+    "enabled": true
+  }
+}

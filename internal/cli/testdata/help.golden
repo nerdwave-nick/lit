@@ -2167,6 +2167,7 @@ Usage:
 
 Available Commands:
   session-start  Hand the agent its lit session at session start
+  statusline     Print the Claude status line, ending with lit's state
   stop           Remind the agent once about held claims before it stops
   subagent-start Give a subagent its own lit session
 
@@ -2202,6 +2203,40 @@ Examples:
 
 Flags:
   -h, --help   help for session-start
+
+Global Flags:
+      --host HOST   Required agent HOST: codex or claude
+== lit hook statusline --help
+Serve Claude Code's status line command. Read the status line JSON on stdin and print one line: an original status line,
+then lit's part, joined with " | ". Without --original the original is a built-in line, "MODEL EFFORT | DIRECTORY | GIT |
+context: N%". With --original COMMAND it is that command's output: the command runs through sh -c with the same stdin, at most
+one second and the width left over in COLUMNS; lit's part is printed alone when it fails.
+lit's part is "🔥 lit | PROJECT | claims:N | STAGE" (the last part only while a stage is set), "⚫ not lit" when the server does
+not answer and "lit: pending" while the session's association is pending. "[hooks degraded]" follows it after hook errors of
+the last ten minutes. In a narrow terminal (Claude sets COLUMNS) lit's part shortens first, then the built-in line collapses
+step by step. The server is asked every few seconds at most; in between, the line is answered from a cache in the workflow
+state directory, within about 300 ms. Only the Claude host has a custom status line.
+
+Requirements:
+  Required flag: --host claude (Codex has no custom status line; it prints nothing).
+  The host's status line JSON is read from stdin and the line is written to stdout; the host sets COLUMNS to the terminal width.
+  No tracker session is needed: the runtime ID is the input's session_id.
+  lit's state is answered from a cache under the workflow state directory (hooks/statusline) and refreshed every few seconds.
+  Exits 0 whatever happens once the event is served; errors go to the hook log.
+
+Valid forms:
+  lit hook --host claude statusline [--original COMMAND] < status-line-input.json
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit hook statusline [flags]
+
+Examples:
+  lit hook --host claude statusline < hook-input.json
+
+Flags:
+  -h, --help               help for statusline
+      --original COMMAND   Optional. Status line COMMAND to print first, run through sh -c with the same stdin and the width left in COLUMNS
 
 Global Flags:
       --host HOST   Required agent HOST: codex or claude

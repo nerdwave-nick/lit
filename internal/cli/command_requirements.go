@@ -20,6 +20,8 @@ func requirementsFor(path string) (string, string) {
 		return "Required flag when LIT_SESSION is unset: --session NAME.\n" + sessionRequirement, prefix + " [--session NAME]"
 	case "version":
 		return "Required flags: none. No session or service is needed.", prefix
+	case "hook statusline":
+		return "Required flag: --host claude (Codex has no custom status line; it prints nothing).\nThe host's status line JSON is read from stdin and the line is written to stdout; the host sets COLUMNS to the terminal width.\nNo tracker session is needed: the runtime ID is the input's session_id.\nlit's state is answered from a cache under the workflow state directory (hooks/statusline) and refreshed every few seconds.\nExits 0 whatever happens once the event is served; errors go to the hook log.", "lit hook --host claude statusline [--original COMMAND] < status-line-input.json"
 	case "setup-workflows":
 		return "Required flags: --agent, and --scope or --config-dir.\n--scope and --config-dir are mutually exclusive; --config-dir takes exactly one --agent (codex or claude).\nNo tracker session or service is needed.", prefix + " --scope local|user --agent codex|claude|both\n" + prefix + " --agent codex|claude --config-dir DIRECTORY"
 	case "tui":

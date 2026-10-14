@@ -177,6 +177,14 @@ Codex home) into which lit installs skills, instructions, hooks and the status
 line. Two configurations are two independent installs.
 _Avoid_: profile (settings are a file inside a configuration)
 
+**Status line**:
+Claude Code's one-line bar, served by `lit hook --host claude statusline`: an
+original status line (a built-in default, or the user's own command wrapped with
+`--original`) followed by lit's part: project, claim count and workflow stage, or
+`not lit` when the server does not answer. It reads the server's state from a
+short-lived cache so that it answers within about 300 ms.
+_Avoid_: status bar, statusline (the event and flag keep that spelling)
+
 **Assignment**:
 The durable record of responsibility for an issue, independent of permission to
 work under an active claim.
