@@ -130,3 +130,10 @@ service codes above, the caller adds:
 
 On any error the returned `ProjectContext` is the zero value. On `Validate`
 success it equals the binding plus the current title.
+
+`internal/checkoutcontext` builds on it for remembered projects: `Validate` checks a
+saved `Record` and `ResolveProject` finds the `Preference` to save, both taking a
+`checkoutcontext.Endpoint` (explicit endpoint, `LIT_ENDPOINT`, then the saved one
+and the default) and returning explained `*protocol.Error` values that keep the
+codes above. `lit context set` and `lit context show --validate` use them; see
+[command help](cli-help.md#remembered-project-per-checkout).

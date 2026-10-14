@@ -214,26 +214,87 @@ client ID, claim token or session name, and it does not decide the work: it
 carries project context only.
 
 ```sh
+lit context set --project feat/tracker
 lit context show
+lit context show --validate
 lit context show --format json
 lit context clear
 ```
 
+- **`set --project REF`** asks lit-server to resolve the project, in one
+  read-only request, then saves its stable ID, its current title, the answering
+  service's ID and the endpoint used, replacing an earlier valid preference for
+  this checkout (the replaced one is reported as `previous`). `REF` is a title
+  (case-insensitive), a UUID, a unique UUID prefix, or the `title:` and `id:`
+  forms; the stored identity is always the ID, and the title is display text.
+  Only `set` remembers a project: reading a project, `session set --project`,
+  `connect --project` or `workflow-session fresh --project` never write the
+  preference. `set` is not a rebind workflow: it saves nothing unless the
+  service resolves the project, and a failure of any kind leaves the earlier
+  preference exactly as it was. Choosing another service is an explicit
+  `set --endpoint URL` (or `clear` first); nothing ever repoints a saved binding.
 - **`show`** reports the saved preference with `validated: false`: it reads only
   the local record, never asks lit-server, and so works while the server is down.
   The title is the one saved with the preference; the project may since have
   been renamed, archived or removed. With nothing remembered, `show` succeeds and
   says so explicitly (`remembered: false`, `preference: null`, message "No project
   remembered for this checkout").
+- **`show --validate`** also asks lit-server, in one read-only request, whether the
+  remembered service ID and project ID still match, and reports the project's
+  current identity in `current` (`service_id`, `project_id`, `project_title` and
+  the `endpoint` that answered) with `validated: true`. A project renamed since
+  it was saved is valid: `renamed: true`, `current.project_title` is the new
+  title, and the saved preference is not rewritten. With nothing remembered it
+  succeeds with the same empty result as `show` and makes no network request.
+  Any other outcome is a nonzero exit, described below. Neither form of `show`
+  changes the preference.
 - **`clear`** removes only this checkout's preference. It is idempotent (clearing
   nothing succeeds with outcome `already_satisfied` and creates nothing) and does
   not delete projects, disconnect sessions, release claims or touch pending
   requests, session associations or any other workflow state. It also removes a
   damaged or unsupported record, reporting `removed: damaged_record`.
-- Both commands are offline: they need no logical session and no service, and
-  ignore `LIT_SESSION` and `LIT_ENDPOINT`. They accept only `--format`
-  (default `cli`; no session preference applies) and offer no `--session`,
-  `--endpoint` or `--timeout`.
+- No command needs a logical session, and all ignore `LIT_SESSION`. `show` and
+  `clear` are offline. `set` and `show --validate` make one `GET
+  /v1/project-context` ([project context API](project-context-api.md)) without a
+  client identity, so they create no client, claim, mapping, pending request or
+  session file on the machine, and write nothing on the service.
+- Flags: every command takes `--format` (default `cli`; no session preference
+  applies). `set` requires `--project` and takes `--endpoint` and `--timeout`;
+  `show` takes `--validate`, and `--endpoint` and `--timeout` only with it.
+  `clear` offers no `--session`, `--endpoint` or `--timeout`.
+
+**Endpoint selection.** Validation (`show --validate`) uses `--endpoint`, then
+`LIT_ENDPOINT`, then the endpoint saved with the preference, then
+`http://127.0.0.1:7411`. A different address that reaches the same service is
+accepted, and the saved endpoint is not rewritten; a different service ID is
+rejected. `set` has no saved binding to consume: it uses `--endpoint`, then
+`LIT_ENDPOINT`, then the default, and saves the endpoint it used with the ID of
+the service that answered. A supplied `--endpoint` that is empty or not an HTTP(S)
+origin is an error (`invalid_endpoint`, exit 2), never a fall back to a lower
+choice. `--timeout` (default 30s) bounds the request. These rules concern the
+context commands and adoption of a remembered project, not a global change to
+session resume.
+
+**Validation outcomes.** Each failure leaves the preference untouched, exits
+nonzero and carries `details`: the `endpoint` contacted, the `remembered` project
+(`service_id`, `project_id`, `project_title`, `endpoint`) and a `recovery`
+sentence that names only explicit commands.
+
+| Code | Exit | Meaning |
+| --- | --- | --- |
+| `wrong_service` | 1 | The service that answered (`details.answered_by`) is not the remembered one, for example a replacement at the same address. |
+| `not_found` | 1 | The remembered project no longer exists on the service (`set`: no project has that title or ID). |
+| `ambiguous_reference` | 1 | `set`: a UUID prefix names several projects. |
+| `service_unavailable` | 1 | lit-server could not be reached within `--timeout`; `clear` still works. |
+| `incompatible_service`, `invalid_response` | 1 | The service predates project context or answered unusably. |
+| `invalid_endpoint` | 2 | `--endpoint` or `LIT_ENDPOINT` is not an HTTP(S) origin. |
+| `invalid_local_state` | 1 | The local record is damaged or unsupported; no request was made. |
+| `context_locked` | 3 | Another invocation holds this checkout's preference past the wait (`set`). |
+
+*Archived projects are not reported yet.* lit has no archive state, so no
+project is archived and every existing project validates; the check (a distinct
+error code that the commands must explain, never substitute or restore) is
+deferred to the archive work tracked in issue `0c14ae79`, by decision.
 
 **The checkout** is the Git worktree root containing the current directory. All
 subdirectories share it; each linked worktree and each nested repository
@@ -270,8 +331,9 @@ fails with `context_locked` (exit 3).
 validation, belongs to another checkout, is not a regular file, or has another
 `schema_version` is reported as `invalid_local_state` (exit 1) with the file,
 the problem (`damaged` or `unsupported`), the reason and the recovery command.
-It is never replaced or deleted silently: `show` leaves it alone and only an
-explicit `lit context clear` removes it.
+It is never replaced or deleted silently: `show` (with or without `--validate`)
+leaves it alone, `set` stops before it asks the service, and only an explicit
+`lit context clear` removes it.
 
 ## Existing record references
 
