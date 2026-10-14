@@ -21,12 +21,16 @@ func TestContextHelpExplainsScopeStorageAndOfflineUse(t *testing.T) {
 	defer server.Close()
 	t.Setenv("LIT_ENDPOINT", server.URL)
 	for _, tc := range []struct {
-		path  string
-		wants []string
+		path    string
+		wants   []string
+		service bool // contacts lit-server: offers --endpoint and --timeout
 	}{
-		{"context", []string{"checkout", "Git worktree root", "symlink", "nested repository", "moved", "LIT_WORKFLOW_STATE_DIR", "checkout-context", "client", "show", "clear", "never contact lit-server"}},
-		{"context show", []string{"Requirements:", "Valid forms:", "lit context show", "not validated", "offline", "No project remembered", "--format"}},
-		{"context clear", []string{"Requirements:", "Valid forms:", "lit context clear", "idempotent", "damaged", "unsupported", "only this checkout", "claims", "--format"}},
+		{"context", []string{"checkout", "Git worktree root", "symlink", "nested repository", "moved", "LIT_WORKFLOW_STATE_DIR", "checkout-context", "client", "set", "show", "clear", "--validate", "offline"}, false},
+		{"context set", []string{"Requirements:", "Valid forms:", "lit context set --project REF", "--project", "stable", "service ID", "LIT_ENDPOINT", "saved endpoint",
+			"not_found", "ambiguous_reference", "service_unavailable", "preserved", "no session", "no client"}, true},
+		{"context show", []string{"Requirements:", "Valid forms:", "lit context show", "--validate", "not validated", "offline", "No project remembered", "--format",
+			"wrong_service", "not_found", "service_unavailable", "incompatible_service", "invalid_local_state", "renamed", "archived", "0c14ae79", "LIT_ENDPOINT", "saved endpoint", "no network request"}, true},
+		{"context clear", []string{"Requirements:", "Valid forms:", "lit context clear", "idempotent", "damaged", "unsupported", "only this checkout", "claims", "--format"}, false},
 	} {
 		t.Run(tc.path, func(t *testing.T) {
 			var baseline string
@@ -52,9 +56,12 @@ func TestContextHelpExplainsScopeStorageAndOfflineUse(t *testing.T) {
 				baseline = out.String()
 			}
 			_, flags, _ := strings.Cut(baseline, "\nUsage:\n")
-			for _, flag := range []string{"--session ", "--endpoint ", "--timeout "} {
-				if strings.Contains(flags, flag) {
-					t.Errorf("%s advertises %s, which does not apply offline:\n%s", tc.path, flag, flags)
+			if strings.Contains(flags, "--session ") {
+				t.Errorf("%s advertises --session, which does not apply:\n%s", tc.path, flags)
+			}
+			for _, flag := range []string{"--endpoint ", "--timeout "} {
+				if got := strings.Contains(flags, flag); got != tc.service {
+					t.Errorf("%s advertises %q: %v, want %v:\n%s", tc.path, flag, got, tc.service, flags)
 				}
 			}
 			if !strings.Contains(flags, "--format FORMAT") || strings.Contains(flags, "otherwise session preference") {
@@ -70,16 +77,22 @@ func TestContextHelpExplainsScopeStorageAndOfflineUse(t *testing.T) {
 
 func TestContextCompletion(t *testing.T) {
 	offlineCompletion(t)
-	if values, _ := completion(t, "context", ""); !slices.Contains(values, "show") || !slices.Contains(values, "clear") {
+	if values, _ := completion(t, "context", ""); !slices.Contains(values, "set") || !slices.Contains(values, "show") || !slices.Contains(values, "clear") {
 		t.Errorf("subcommands: %v", values)
 	}
-	for _, sub := range []string{"show", "clear"} {
+	for sub, want := range map[string][]string{
+		"set":   {"--format", "--project", "--endpoint", "--timeout"},
+		"show":  {"--format", "--validate", "--endpoint", "--timeout"},
+		"clear": {"--format"},
+	} {
 		values, _ := completion(t, "context", sub, "--")
-		if !slices.Contains(values, "--format") {
-			t.Errorf("%s flags: %v", sub, values)
+		for _, flag := range want {
+			if !slices.Contains(values, flag) {
+				t.Errorf("%s flags lack %s: %v", sub, flag, values)
+			}
 		}
-		for _, absent := range []string{"--session", "--endpoint", "--timeout"} {
-			if slices.Contains(values, absent) {
+		for _, absent := range []string{"--session", "--endpoint", "--timeout", "--validate", "--project"} {
+			if slices.Contains(values, absent) && !slices.Contains(want, absent) {
 				t.Errorf("%s offers %s: %v", sub, absent, values)
 			}
 		}
@@ -109,8 +122,17 @@ func TestContextCompletionInRealShells(t *testing.T) {
 				t.Errorf("command: %+v", r)
 			}
 			r := shelltest.Complete(t, shell, script.String(), program, "lit context ")
-			if !slices.Contains(r.Values, "show") || !slices.Contains(r.Values, "clear") {
+			if !slices.Contains(r.Values, "set") || !slices.Contains(r.Values, "show") || !slices.Contains(r.Values, "clear") {
 				t.Errorf("subcommands: %+v", r)
+			}
+			if r := shelltest.Complete(t, shell, script.String(), program, "lit context show --v"); !slices.Equal(r.Values, []string{"--validate"}) {
+				t.Errorf("show switch: %+v", r)
+			}
+			if r := shelltest.Complete(t, shell, script.String(), program, "lit context set --pro"); !slices.Equal(r.Values, []string{"--project"}) {
+				t.Errorf("set flag: %+v", r)
+			}
+			if r := shelltest.Complete(t, shell, script.String(), program, "lit context clear --e"); len(r.Values) != 0 {
+				t.Errorf("clear offers an endpoint: %+v", r)
 			}
 			if r := shelltest.Complete(t, shell, script.String(), program, "lit context show --f"); !slices.Equal(r.Values, []string{"--format"}) {
 				t.Errorf("flag: %+v", r)

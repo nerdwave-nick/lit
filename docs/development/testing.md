@@ -134,12 +134,38 @@ writers and lock-free readers as goroutines and as re-executed test-binary
 processes (no reader ever sees a partial record), hold the lock in another
 process to see `ErrLocked` after the timeout and a waiting `Save` win after the
 release, and kill the holder to see that the lock dies with its process.
-`internal/cli` `TestContext*` tests drive `lit context show` and `clear` through
-`Run` in all three formats from subdirectories, linked worktrees and symlink
-aliases, with an ambient `LIT_SESSION` and `LIT_ENDPOINT` pointing at a service
-that fails the test on any request, hashed copies of the private client state
-and neighbouring workflow state proving they are untouched, the error mapping,
+`internal/checkoutcontext/online_test.go` covers the session-free caller that
+`lit context` and fresh-session adoption share (`Validate`, `ResolveProject`,
+`Endpoint`): against recording HTTP fakes, the exact request (one GET, no client
+header), a renamed project, the endpoint precedence flag, `LIT_ENDPOINT`, saved
+endpoint, with an unusable explicit endpoint never falling through and the default
+pinned by an internal test, every failure code with its explained message and
+details (`remembered`, `answered_by`, `recovery`), a cancelled context, and a
+resolved preference the store accepts.
+`internal/cli` `TestContext*` tests drive `lit context show`, `clear`, `set` and
+`show --validate` through `Run` in all three formats from subdirectories, linked
+worktrees and symlink aliases. Offline commands run with an ambient `LIT_SESSION`
+and `LIT_ENDPOINT` pointing at a service that fails the test on any request;
+`context_service_test.go` starts real in-process services (`service.New` over a
+temporary database) behind a recording front, with an administrator session of
+their own, so tests see exactly which requests reached which address and that
+none carried a client identity. They cover `set` by title, case, UUID, prefix and
+the `title:` and `id:` forms, replacement and explicit rebinding to another
+service, every failure leaving the stored bytes untouched (missing, ambiguous,
+unreachable, too slow, unusable endpoint, an old service, a malformed answer), a
+damaged record stopping `set` before any request, `show --validate` with nothing
+remembered making no request, a rename followed without rewriting the preference,
+the endpoint precedence with one service at two addresses, a replacement service
+at the remembered address, a project missing on the service, local record
+problems, hashed copies of the private client state, pending requests and
+neighbouring workflow state proving they are untouched, the error mapping,
 argument rejection, help and completion in real bash, zsh and fish.
+`integration/context_online_test.go` repeats the flow with the built binaries
+against two real `lit-server` processes: set, validate by saved endpoint and
+`LIT_ENDPOINT`, a rename, the other service refusing the binding, ordinary
+project and session commands (including `workflow-session fresh --project`) never
+rewriting the preference, table counts proving no client or row was added, and a
+stopped service leaving `show` and `clear` working.
 
 `internal/storage` tests run against real SQLite databases in temporary
 directories, without mocks: the owner lock, connection settings, `BEGIN

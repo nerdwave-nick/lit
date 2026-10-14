@@ -223,6 +223,8 @@ func flagRequirements(path string) map[string]string {
 		for _, name := range []string{"project", "output-format", "runtime-vendor", "runtime-session-id", "stage"} {
 			m[name] = "Optional individually; select at least one property"
 		}
+	case "context set":
+		m["project"] = "Required"
 	case "transactions status":
 		m["file"] = "Optional retained request envelope `PATH` (not stdin or a mutation array)"
 	}

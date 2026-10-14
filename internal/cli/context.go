@@ -10,18 +10,22 @@ import (
 	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
-// contextCommand declares the commands on a checkout's remembered project. They
-// are offline: no session, endpoint or timeout applies, and the group owns
-// --format, which no session preference influences.
+// contextCommand declares the commands on a checkout's remembered project. None
+// needs a session, and the group owns --format, which no session preference
+// influences. Only the leaves that can contact a service take --endpoint and
+// --timeout: set always, show with --validate.
 func contextCommand() *nwcli.Command {
-	g := group("context", &nwcli.Command{Name: "show"}, &nwcli.Command{Name: "clear"})
+	g := group("context",
+		&nwcli.Command{Name: "set", Flags: flags("project endpoint timeout")},
+		&nwcli.Command{Name: "show", Flags: join(switches("validate"), flags("endpoint timeout"))},
+		&nwcli.Command{Name: "clear"})
 	g.Flags, g.Without = flags("format"), []string{"session", "endpoint", "timeout"}
 	return g
 }
 
 // runContext runs one parsed context command against the remembered project of
-// the current directory's checkout. It reads no session, mapping or cache and
-// makes no request.
+// the current directory's checkout. It reads no session, mapping or cache; only
+// set and show --validate make a request, one GET without a client identity.
 func runContext(p *nwcli.Parsed, out, errOut io.Writer) int {
 	app := &App{Out: out, Err: errOut, Format: "cli", Args: Args{Command: "context", Verb: p.Path[1]}}
 	if values := p.Flags["format"]; len(values) > 0 {
@@ -30,14 +34,18 @@ func runContext(p *nwcli.Parsed, out, errOut io.Writer) int {
 			return app.Error(protocol.E(400, "invalid_arguments", "--format must be cli, markdown or json"))
 		}
 	}
-	result, err := app.contextResult()
+	result, err := app.contextResult(p)
 	if err != nil {
 		return app.Error(contextError(err))
 	}
 	return app.Print(result)
 }
 
-func (a *App) contextResult() (Result, error) {
+func (a *App) contextResult(p *nwcli.Parsed) (Result, error) {
+	online, err := contextOnline(p)
+	if err != nil {
+		return Result{}, err
+	}
 	checkout, err := checkoutcontext.Current()
 	if err != nil {
 		return Result{}, err
@@ -47,18 +55,37 @@ func (a *App) contextResult() (Result, error) {
 		return Result{}, err
 	}
 	item := map[string]any{"schema_version": 1, "checkout": map[string]any{"path": checkout.Path, "kind": checkout.Kind()}}
-	if a.Args.Verb == "show" {
-		record, err := store.Load(checkout)
-		if err != nil {
+	switch a.Args.Verb {
+	case "set":
+		return contextSet(store, checkout, item, online)
+	case "show":
+		return contextShow(store, checkout, item, online)
+	}
+	return contextClear(store, checkout, item)
+}
+
+// contextShow reports the saved preference. It reads only the local record
+// unless validation was asked for and something is remembered.
+func contextShow(store *checkoutcontext.Store, checkout checkoutcontext.Checkout, item map[string]any, online onlineOptions) (Result, error) {
+	record, err := store.Load(checkout)
+	if err != nil {
+		return Result{}, err
+	}
+	item["remembered"], item["validated"], item["preference"] = record != nil, false, preferenceItem(record)
+	item["message"] = "No project remembered for this checkout"
+	switch {
+	case record == nil:
+	case online.validate:
+		if err := online.validated(record, item); err != nil {
 			return Result{}, err
 		}
-		item["remembered"], item["validated"], item["preference"] = record != nil, false, preferenceItem(record)
-		item["message"] = "No project remembered for this checkout"
-		if record != nil {
-			item["message"] = "Saved for this checkout; not validated against lit-server (lit context show reads only the local record)"
-		}
-		return Result{Items: []any{item}}, nil
+	default:
+		item["message"] = "Saved for this checkout; not validated against lit-server (lit context show --validate checks it)"
 	}
+	return Result{Items: []any{item}}, nil
+}
+
+func contextClear(store *checkoutcontext.Store, checkout checkoutcontext.Checkout, item map[string]any) (Result, error) {
 	cleared, err := store.Clear(checkout)
 	if err != nil {
 		return Result{}, err
@@ -100,12 +127,17 @@ func problemOf(err error) string {
 	return "damaged"
 }
 
-// contextError maps a preference failure to a stable protocol error: a damaged
-// or unsupported record names the file and how to remove it, a held lock is a
-// conflict, and anything else is local state trouble.
+// contextError maps a preference failure to a stable protocol error: a failure
+// that already is one (argument or service trouble from set and show --validate,
+// explained by checkoutcontext) passes through, a damaged or unsupported record
+// names the file and how to remove it, a held lock is a conflict, and anything
+// else is local state trouble.
 func contextError(err error) *protocol.Error {
 	var record *checkoutcontext.RecordError
+	var explained *protocol.Error
 	switch {
+	case errors.As(err, &explained):
+		return explained
 	case errors.As(err, &record):
 		what := "is damaged"
 		if problemOf(err) == "unsupported" {

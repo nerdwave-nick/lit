@@ -83,14 +83,25 @@ readable labels; single-record Markdown documents retain the complete metadata.
 The separate `setup-workflows` and `workflow-session` helpers retain their own
 machine-readable result formats.
 
-`context show` and `context clear` are offline and use these formats with no
-session preference: `--format` defaults to `cli`. Their single result item has
-`schema_version`, `checkout` (`path` and `kind`, `git` or `directory`) and a
-`message`. `show` adds `remembered`, `validated` (always `false`: the saved data
-is not checked against lit-server) and `preference` (`service_id`, `project_id`,
+The `context` commands use these formats with no session preference: `--format`
+defaults to `cli`. Their single result item has `schema_version`, `checkout`
+(`path` and `kind`, `git` or `directory`) and a `message`. `show` adds
+`remembered`, `validated` and `preference` (`service_id`, `project_id`,
 `project_title`, `endpoint`, `saved_at`), which is `null` when nothing is
-remembered. `clear` adds `removed` (`preference`, `damaged_record` or `none`),
+remembered. `validated` is `false` for plain `show` (the saved data is not
+checked against lit-server) and for `show --validate` with nothing remembered;
+after a successful `show --validate` it is `true` and the item adds `current`
+(`service_id`, `project_id`, `project_title` and the `endpoint` that answered)
+and `renamed` (the project's current title differs from `preference`, which is
+never rewritten). `set` returns `remembered: true`, `validated: true`, the new
+`preference` and `previous` (the replaced preference, or `null`), with outcome
+`applied`. `clear` adds `removed` (`preference`, `damaged_record` or `none`),
 `previous` (the removed preference) and `damage` (`problem` and `reason` of a
 removed damaged or unsupported record); its outcome is `applied` or
-`already_satisfied`. Errors use the usual envelope with `invalid_local_state`,
-`context_locked` or `local_state_error`; see [command help](cli-help.md).
+`already_satisfied`. Errors use the usual envelope. Local record problems are
+`invalid_local_state`, `context_locked` or `local_state_error`. A failed `set` or
+`show --validate` keeps the service's code (`not_found`, `ambiguous_reference`,
+`wrong_service`, `service_unavailable`, `incompatible_service`, `invalid_response`)
+or `invalid_endpoint`, and its `details` hold the `endpoint` contacted, the
+`remembered` project, `answered_by` for `wrong_service`, and a `recovery` sentence
+(`reference` replaces `remembered` for `set`); see [command help](cli-help.md).
