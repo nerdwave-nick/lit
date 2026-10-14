@@ -28,7 +28,7 @@ func quote(s string) string {
 func (c *Call) unavailable(exists bool, known association, endpoint string) string {
 	if !exists {
 		return fmt.Sprintf("lit is unavailable: nothing answered at %s, so no lit session was created for this conversation. "+
-			"When the server is running, set the session up with: %s (add --project REF to select a project). "+
+			"When the server is running, set the session up with: %s (it adopts the project remembered for this checkout, if any; add --project REF to use another project). "+
 			"Until then do not run lit tracker commands.", endpoint, c.workflow("fresh", "--endpoint", endpoint))
 	}
 	return fmt.Sprintf("lit is unavailable: nothing answered at %s. This conversation's lit session is kept (session: %s, runtime ID: %s, project: %s) "+
@@ -86,6 +86,9 @@ func (c *Call) ready(a adapter, r association, how string) string {
 		"endpoint: " + r.Endpoint,
 		"runtime ID: " + r.Runtime,
 		"project: " + c.project(a, r),
+	}
+	if line := remembrance(r); line != "" {
+		lines = append(lines, line)
 	}
 	lines = append(lines, c.claims(a, how == "new session")...)
 	lines = append(lines, "Run lit tracker commands as this session: "+c.workflow("run", "--", "<lit command>"))

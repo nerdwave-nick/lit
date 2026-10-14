@@ -4,10 +4,8 @@ import (
 	"errors"
 	"fmt"
 	"io/fs"
-	"os"
 	"time"
 
-	"github.com/nerdwave-nick/lit/internal/clientendpoint"
 	"github.com/nerdwave-nick/lit/internal/workflowsession"
 )
 
@@ -23,10 +21,12 @@ func init() {
 		Summary:  "Hand the agent its lit session at session start",
 		Description: "Serve the host's SessionStart hook. Read the hook JSON on stdin; create the lit session for a new runtime (startup, clear,\n" +
 			"fork) or reconnect the known one (resume), keyed by the host session_id, and print host output whose additionalContext names\n" +
-			"the session, endpoint, runtime ID, selected project and current claims. A server that does not answer creates nothing and is\n" +
-			"reported in the context. After a compaction (source compact) print the session, project, the claims it holds with their lease\n" +
-			"expiry and an excerpt of each claimed issue's latest comment, without writing anything to the tracker. The command exits 0\n" +
-			"whatever happens; errors go to the hook log.",
+			"the session, endpoint, runtime ID, selected project and current claims. A new runtime adopts the project remembered for the\n" +
+			"checkout of the input's cwd, and the context says so. A remembered project that cannot be adopted creates no session: the context\n" +
+			"explains it and gives the commands that fix it (lit context clear, or fresh --project REF), and it is logged as a warning, not a\n" +
+			"failure. A server that does not answer creates nothing and is reported in the context. After a compaction (source compact)\n" +
+			"print the session, project, the claims it holds with their lease expiry and an excerpt of each claimed issue's latest comment,\n" +
+			"without writing anything to the tracker. The command exits 0 whatever happens; errors go to the hook log.",
 		Budget: 3 * time.Second,
 		Handle: sessionStart,
 		Failed: sessionStartFailed,
@@ -66,20 +66,25 @@ func startRuntime(c *Call) ([]byte, error) {
 	if err != nil && !errors.Is(err, fs.ErrNotExist) {
 		return nil, fmt.Errorf("reading the association of this runtime: %w", err)
 	}
-	endpoint := known.Endpoint
+	endpoint, probeAt := known.Endpoint, known.Endpoint
 	if !exists {
-		if endpoint, err = clientendpoint.Resolve("", false, os.Getenv("LIT_ENDPOINT"), ""); err != nil {
+		if endpoint, probeAt, err = c.newRuntimeEndpoints(a); err != nil {
 			return nil, err
 		}
 	}
-	if err = probe(c.Ctx, endpoint, c.probeTimeout()); err != nil {
-		c.Log.Warn(fmt.Sprintf("lit does not answer at %s: %v", endpoint, err))
-		return c.say(c.unavailable(exists, known, endpoint)), nil
+	if probeAt != "" {
+		if err = probe(c.Ctx, probeAt, c.probeTimeout()); err != nil {
+			c.Log.Warn(fmt.Sprintf("lit does not answer at %s: %v", probeAt, err))
+			return c.say(c.unavailable(exists, known, probeAt)), nil
+		}
 	}
 	assoc, how, err := c.settle(a, known, exists, endpoint)
+	var refused *workflowsession.AdoptionError
 	switch {
 	case errors.Is(err, workflowsession.ErrBusy):
 		return c.lockHeld(a), nil
+	case errors.As(err, &refused):
+		return c.stale(refused, endpoint), nil
 	case err != nil && assoc.Status == "pending":
 		c.Log.Error(fmt.Sprintf("setting up the session failed, the pending association %s was kept: %v", assoc.Session, err))
 		return c.say(c.pending(assoc)), nil
@@ -108,11 +113,13 @@ func (c *Call) settle(a adapter, known association, exists bool, endpoint string
 	return known, "existing session", nil
 }
 
-// create registers the runtime. Losing a race to another run of the same hook
-// is not an error: the winner's association is used.
+// create registers the runtime, adopting the project remembered for the
+// checkout of the host's working directory; a preference that cannot be adopted
+// ends in an *AdoptionError with nothing created. Losing a race to another run
+// of the same hook is not an error: the winner's association is used.
 func (c *Call) create(a adapter, endpoint string) (association, string, error) {
 	r, err := c.whileBusy(func() (association, error) {
-		return a.Fresh(c.Ctx, workflowsession.FreshOptions{Endpoint: endpoint})
+		return a.Fresh(c.Ctx, workflowsession.FreshOptions{Endpoint: endpoint, Remembered: c.remembered()})
 	})
 	if errors.Is(err, workflowsession.ErrAlreadyAssociated) {
 		r, err = a.Read()

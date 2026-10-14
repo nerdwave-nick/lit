@@ -2215,16 +2215,18 @@ Use "lit hook [command] --help" for more information about a command.
 == lit hook session-start --help
 Serve the host's SessionStart hook. Read the hook JSON on stdin; create the lit session for a new runtime (startup, clear,
 fork) or reconnect the known one (resume), keyed by the host session_id, and print host output whose additionalContext names
-the session, endpoint, runtime ID, selected project and current claims. A server that does not answer creates nothing and is
-reported in the context. After a compaction (source compact) print the session, project, the claims it holds with their lease
-expiry and an excerpt of each claimed issue's latest comment, without writing anything to the tracker. The command exits 0
-whatever happens; errors go to the hook log.
+the session, endpoint, runtime ID, selected project and current claims. A new runtime adopts the project remembered for the
+checkout of the input's cwd, and the context says so. A remembered project that cannot be adopted creates no session: the context
+explains it and gives the commands that fix it (lit context clear, or fresh --project REF), and it is logged as a warning, not a
+failure. A server that does not answer creates nothing and is reported in the context. After a compaction (source compact)
+print the session, project, the claims it holds with their lease expiry and an excerpt of each claimed issue's latest comment,
+without writing anything to the tracker. The command exits 0 whatever happens; errors go to the hook log.
 
 Requirements:
   Required flag: --host.
   The host's hook JSON is read from stdin and its output written to stdout.
   No tracker session is needed: the runtime ID is the hook input's session_id.
-  Endpoint: LIT_ENDPOINT, otherwise http://127.0.0.1:7411, for a new runtime; a known runtime keeps its saved endpoint.
+  Endpoint of a new runtime: LIT_ENDPOINT, then the endpoint saved with the remembered project it adopts, then http://127.0.0.1:7411; a known runtime keeps its saved endpoint.
   Exits 0 whatever happens once the event is served; errors go to the hook log.
 
 Valid forms:
@@ -2287,7 +2289,7 @@ Requirements:
   Required flag: --host.
   The host's hook JSON is read from stdin and its output written to stdout.
   No tracker session is needed: the runtime ID is the hook input's session_id.
-  Endpoint: LIT_ENDPOINT, otherwise http://127.0.0.1:7411, for a new runtime; a known runtime keeps its saved endpoint.
+  Endpoint of a new runtime: LIT_ENDPOINT, then the endpoint saved with the remembered project it adopts, then http://127.0.0.1:7411; a known runtime keeps its saved endpoint.
   Exits 0 whatever happens once the event is served; errors go to the hook log.
 
 Valid forms:

@@ -40,7 +40,7 @@ func requirementsFor(path string) (string, string) {
 		return "Required flag: --host.\nThe host's hook JSON is read from stdin and its output written to stdout.\nNo tracker session is needed: the subagent's runtime ID is the hook input's agent_id and its parent is the input's session_id.\nEndpoint and project: those of the parent's lit session (workflow-session subagent --endpoint --project); LIT_ENDPOINT is not read.\nExits 0 whatever happens once the event is served; errors go to the hook log.", "lit hook --host codex|claude subagent-start < hook-input.json"
 	}
 	if strings.HasPrefix(path, "hook ") {
-		return "Required flag: --host.\nThe host's hook JSON is read from stdin and its output written to stdout.\nNo tracker session is needed: the runtime ID is the hook input's session_id.\nEndpoint: LIT_ENDPOINT, otherwise http://127.0.0.1:7411, for a new runtime; a known runtime keeps its saved endpoint.\nExits 0 whatever happens once the event is served; errors go to the hook log.", "lit hook --host codex|claude " + strings.TrimPrefix(path, "hook ") + " < hook-input.json"
+		return "Required flag: --host.\nThe host's hook JSON is read from stdin and its output written to stdout.\nNo tracker session is needed: the runtime ID is the hook input's session_id.\nEndpoint of a new runtime: LIT_ENDPOINT, then the endpoint saved with the remembered project it adopts, then http://127.0.0.1:7411; a known runtime keeps its saved endpoint.\nExits 0 whatever happens once the event is served; errors go to the hook log.", "lit hook --host codex|claude " + strings.TrimPrefix(path, "hook ") + " < hook-input.json"
 	}
 	if strings.HasPrefix(path, "context ") {
 		return contextRequirements(path)
