@@ -1,0 +1,12 @@
+{
+  "session_id": "3b1f6a52-7c0e-4a3b-9d55-6f0c1e2b8a47",
+  "transcript_path": "/home/example/.claude/projects/-home-example-project/3b1f6a52-7c0e-4a3b-9d55-6f0c1e2b8a47.jsonl",
+  "cwd": "/home/example/project",
+  "permission_mode": "default",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "SessionStart",
+  "source": "clear",
+  "model": "claude-sonnet-5-5"
+}

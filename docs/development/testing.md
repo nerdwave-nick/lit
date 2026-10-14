@@ -41,6 +41,23 @@ Installer and workflow-session regression tests live in
 `internal/workflow-skills` and `internal/workflowsession`. Protocol fixtures in
 `internal/protocol/testdata` pin canonical request bytes and hashes.
 
+`internal/hook` tests feed recorded host hook JSON to `hook.Run` and to the built
+`lit hook` binary against a real service in a temporary directory.
+`testdata/fixtures.json` lists every input with its provenance: the Claude
+`startup` input was captured from Claude Code 2.1.296, the other Claude sources
+are derived from the captured shape and the documented fields, and the Codex
+inputs are built from the SessionStart schema embedded in codex-cli 0.162.1 (no
+Codex capture was made; `testdata/codex/*.schema.json` hold that schema, and
+`fixtures_test.go` checks every Codex input and the hook's own output against
+it). The tests cover each source for both hosts, a server that does not answer, a
+connect that outlives the budget (a stalled `/v1/connect` leaves the pending
+association), duplicate and eight concurrent runs (exactly one `POST
+/v1/connect`), a lock that is released during the wait and one that never is,
+malformed input, an unreadable association, the log, its rotation and
+`RecentFailures`, and that the agent's working directory stays untouched.
+`internal/workflowsession/adapter_test.go` covers the adapter library API that
+`lit hook` shares with `workflow-session`.
+
 `internal/storage` tests run against real SQLite databases in temporary
 directories, without mocks: the owner lock, connection settings, `BEGIN
 IMMEDIATE` and typed busy errors (a second connection holds the write lock),

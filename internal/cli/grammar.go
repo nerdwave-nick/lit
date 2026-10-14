@@ -3,6 +3,7 @@ package cli
 import (
 	"strings"
 
+	"github.com/nerdwave-nick/lit/internal/hook"
 	"github.com/nerdwave-nick/lit/internal/nwcli"
 )
 
@@ -146,6 +147,7 @@ func newGrammar() *nwcli.Command {
 		&nwcli.Command{Name: "search", Operands: nwcli.Operands{Usage: "QUERY", Max: 1},
 			Flags: join(flags("project state limit cursor"), switches("all-projects"))},
 		workflowSession(),
+		hookCommand(),
 		completionCommand(),
 	)
 	documentGrammar(root)
@@ -266,5 +268,17 @@ func workflowSession() *nwcli.Command {
 		&nwcli.Command{Name: "checkout", Without: bound, Flags: with(flags("repository path"), "repository", free, nwcli.Once)},
 	)
 	g.Flags, g.Without = flags("host runtime-id cli"), []string{"session", "format", "timeout"}
+	return g
+}
+
+// hookCommand declares the events host hooks call. Its commands come from the
+// hook package's registry, so a new event is declared there and appears here,
+// in help and in completion. Hooks have no tracker session of their own.
+func hookCommand() *nwcli.Command {
+	g := group("hook")
+	for _, e := range hook.Events() {
+		g.Commands = append(g.Commands, &nwcli.Command{Name: e.Name})
+	}
+	g.Flags, g.Without = flags("host"), strings.Fields(globals)
 	return g
 }

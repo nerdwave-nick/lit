@@ -17,6 +17,7 @@ Available Commands:
   disconnect       End a connected client session
   grep             Search current content using a literal substring
   help             Help about any command
+  hook             Serve agent host hooks
   issues           Track work, state and relationships
   milestones       Group project issues into named worksets
   projects         Create and discover project containers
@@ -2152,6 +2153,53 @@ Global Flags:
       --cli EXECUTABLE   Optional. Path to lit EXECUTABLE (default: this binary)
       --host HOST        Required agent HOST: codex or claude
       --runtime-id ID    Required explicit vendor runtime session ID
+== lit hook --help
+Serve the hooks an agent host (Claude Code or Codex) calls at session events. The host writes its hook JSON to stdin and
+reads the output from stdout; hooks are installed into the host's configuration, not run by hand. Session details reach the
+agent only through the hook output, never through environment variables. Once an event is being served the command exits 0
+whatever happens, so a hook never breaks the host session; failures are written to the hook log in the workflow state
+directory (hooks/hook.log). Argument errors exit 2 like other commands.
+
+Usage:
+  lit hook [flags]
+  lit hook [command]
+
+Available Commands:
+  session-start Hand the agent its lit session at session start
+
+Flags:
+  -h, --help        help for hook
+      --host HOST   Required agent HOST: codex or claude
+
+Use "lit hook [command] --help" for more information about a command.
+== lit hook session-start --help
+Serve the host's SessionStart hook. Read the hook JSON on stdin; create the lit session for a new runtime (startup, clear,
+fork) or reconnect the known one (resume), keyed by the host session_id, and print host output whose additionalContext names
+the session, endpoint, runtime ID, selected project and current claims. A server that does not answer creates nothing and is
+reported in the context. The command exits 0 whatever happens; errors go to the hook log.
+
+Requirements:
+  Required flag: --host.
+  The host's hook JSON is read from stdin and its output written to stdout.
+  No tracker session is needed: the runtime ID is the hook input's session_id.
+  Endpoint: LIT_ENDPOINT, otherwise http://127.0.0.1:7411, for a new runtime; a known runtime keeps its saved endpoint.
+  Exits 0 whatever happens once the event is served; errors go to the hook log.
+
+Valid forms:
+  lit hook --host codex|claude session-start < hook-input.json
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit hook session-start [flags]
+
+Examples:
+  lit hook --host claude session-start < hook-input.json
+
+Flags:
+  -h, --help   help for session-start
+
+Global Flags:
+      --host HOST   Required agent HOST: codex or claude
 == lit completion --help
 Generate the autocompletion script for lit for the specified shell: bash, fish or zsh.
 See each sub-command's help for details on how to use the generated script.

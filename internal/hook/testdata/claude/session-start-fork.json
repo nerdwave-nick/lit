@@ -1,0 +1,16 @@
+{
+  "session_id": "9e47c8d0-52a1-4f6e-8b3d-1a7c40e9f2b5",
+  "transcript_path": "/home/example/.claude/projects/-home-example-project/9e47c8d0-52a1-4f6e-8b3d-1a7c40e9f2b5.jsonl",
+  "cwd": "/home/example/project",
+  "permission_mode": "default",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "SessionStart",
+  "source": "fork",
+  "model": "claude-sonnet-5-5",
+  "seconds_since_last_response": 3600,
+  "context_tokens": 41250,
+  "prompt_cache_likely_expired": true,
+  "estimated_cache_write_usd": 0.31
+}

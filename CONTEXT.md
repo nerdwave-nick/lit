@@ -157,6 +157,19 @@ restoration before editing.
 A local companion to coding agents that observes registered sessions and renews
 their eligible work claims through lit-server.
 
+**lit hook**:
+The shared command, `lit hook --host claude|codex EVENT`, that agent hosts call
+at session events. It reads the host's hook JSON, acts on the runtime's tracker
+session, and hands the agent its details only through the hook output. Once an
+event is being served it exits successfully whatever happens and writes failures
+to the hook log. Distinct from the lease helper, which renews claims.
+
+**Agent configuration**:
+A host's configuration directory (for example `~/.claude`, `~/.claude-work` or a
+Codex home) into which lit installs skills, instructions, hooks and the status
+line. Two configurations are two independent installs.
+_Avoid_: profile (settings are a file inside a configuration)
+
 **Assignment**:
 The durable record of responsibility for an issue, independent of permission to
 work under an active claim.

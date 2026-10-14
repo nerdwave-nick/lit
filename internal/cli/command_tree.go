@@ -2,6 +2,7 @@ package cli
 
 import (
 	"io"
+	"os"
 	"strings"
 
 	"github.com/nerdwave-nick/lit/internal/nwcli"
@@ -47,6 +48,12 @@ func Run(argv []string, out, errOut io.Writer) int {
 			return argumentError(argv, out, errOut, err)
 		}
 		return 0
+	case "hook":
+		p, err := grammar.Parse(argv)
+		if err != nil {
+			return argumentError(argv, out, errOut, err)
+		}
+		return runHook(p, os.Stdin, out, errOut)
 	case "setup-workflows", "workflow-session":
 		p, err := grammar.Parse(argv)
 		if err != nil {

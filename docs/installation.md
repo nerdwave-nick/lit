@@ -295,6 +295,49 @@ migrates an older database to storage schema 4 adds the column after the usual
 pre-migration snapshot; an older `lit-server` refuses the migrated database, and
 an older `lit` ignores the new `stage` field.
 
+## Session hooks
+
+`lit hook --host claude|codex session-start` is the command an agent host calls
+when a conversation starts, resumes or is cleared. The host writes its hook JSON
+to stdin; lit uses the `session_id` as the workflow-session runtime ID, sets up
+the lit session for it and prints host output whose `additionalContext` tells the
+agent its session name, endpoint, runtime ID, selected project and current claims
+(with lease expiry), so the agent runs no setup commands. Nothing is passed through
+environment variables. Hooks are installed into an agent configuration by a
+separate step; this section describes what they do once installed.
+
+| Source | Behavior |
+| --- | --- |
+| `startup`, `clear`, `fork` | A new runtime: `workflow-session fresh` with the `session_id`. |
+| `resume` | A known runtime reconnects (`resume`); one that was never set up gets `fresh`. |
+| `compact` | Prints nothing yet. |
+
+Before connecting, the hook probes the endpoint (`GET /v1/meta`, one second); the
+whole event has a budget of about three seconds. When the endpoint does not answer
+nothing is created, and the context says lit is unavailable and gives the exact
+`lit workflow-session ... fresh --endpoint URL` command to set the session up
+later; a known runtime keeps its association and is told to `resume`. When the
+service answers but connecting does not finish in time, the pending association
+is kept and the agent is told to run `workflow-session reconcile` before any
+tracker work, as the recovery rules require; it never runs `fresh` again.
+
+A hook never breaks the host session. Once an event is being served, `lit hook`
+exits 0 whatever happens; argument errors still exit 2. Errors become a one-line
+note in the context and a line in the hook log,
+`<workflow state>/hooks/hook.log` (JSON lines, rotated at 256 KiB to `hook.log.1`;
+`LIT_WORKFLOW_STATE_DIR` relocates it). Error lines are the failures the status
+line reports; warnings, such as a server that is down, are not. The new runtime's
+endpoint is `LIT_ENDPOINT` or `http://127.0.0.1:7411`.
+
+Hooks are idempotent per runtime. When another hook run already created the
+association, or holds the adapter lock while doing so, the hook waits briefly (up
+to 1.5 seconds), reads the existing association and prints the usual context
+without logging an error; it never registers a second client. A lock that
+outlasts the wait is a failure: the hook leaves it alone, names its directory in
+the note and logs the error. The hook runs lit in a directory of its own
+(`<workflow state>/hooks/work`), so the CLI's output cache stays out of your
+project.
+
 ## Optional systemd user service
 
 The checked-in `packaging/lit.service.in` (also in Linux archives) is a template,
