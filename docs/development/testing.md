@@ -58,6 +58,20 @@ malformed input, an unreadable association, the log, its rotation and
 `internal/workflowsession/adapter_test.go` covers the adapter library API that
 `lit hook` shares with `workflow-session`.
 
+The Stop guard tests (`stop_test.go`, `stopfixtures_test.go`, `skew_test.go`) use
+the same service rig. The Stop inputs are not captured: the Claude ones are built
+from the Stop section of the Claude Code hooks reference and the captured
+startup input, the Codex ones from the `stop.command.input` schema embedded in
+codex-cli 0.162.1 (`testdata/codex/stop.*.schema.json`, which also checks the
+guard's block decision), with the provenance of each in `fixtures.json`. They
+cover both hosts for a block while claims are held (every claim named, no token,
+claims and issues unchanged afterwards), an allowed stop for `stop_hook_active`
+(no tracker call), no claims, a released or expired claim, no session, a pending
+or unreadable association, a server that is down, one that fails or stalls the
+claims read past the budget, and input the guard cannot trust, with the failures
+each one logs; and an event this lit does not know, through `hook.Run`, the CLI
+and the built binary.
+
 `internal/checkoutcontext` tests run against temporary directories and real Git
 repositories created with the `git` executable and no inherited configuration
 (skipped where `git` is missing): every subdirectory of a repository resolving

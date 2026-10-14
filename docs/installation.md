@@ -340,6 +340,35 @@ the note and logs the error. The hook runs lit in a directory of its own
 (`<workflow state>/hooks/work`), so the CLI's output cache stays out of your
 project.
 
+### Stop guard
+
+`lit hook --host claude|codex stop` is the command a host calls when the agent
+finishes responding. If the agent's lit session still holds claims, it blocks the
+stop once: both hosts get `{"decision":"block","reason":"..."}`, and the reason
+names each claim by issue ID and lease expiry and asks the agent to record a
+checkpoint or handoff comment and release the claim, or to continue, with the
+commands to do so (it never prints a claim token). It also says that the reminder
+is shown once, so an agent that keeps its claims on purpose, for example while it
+waits for your answer, says so and stops again. The host sets `stop_hook_active`
+on the stop that follows a block, and lit always allows that one; Claude
+additionally caps consecutive continuations at eight, Codex relies on
+`stop_hook_active` alone. Only live claims count: lit-server does not list expired
+leases.
+
+The guard only reads. It never releases, renews or closes anything, and it never
+sets a session up. Whatever it cannot be sure about allows the stop and prints
+nothing: no lit session for the runtime, a session that is still pending, a
+server that does not answer (probed for 400 ms, logged as a warning), a failed or
+slow claims read (the event has a budget of one second), and input without a
+boolean `stop_hook_active`, which could otherwise block every stop. Errors go to
+the hook log as failures; a server that is down is not one.
+
+A hook entry installed by a newer lit can name an event this lit does not know. An
+exit status of 2 would block a Stop hook, so `lit hook --host claude|codex EVENT`
+with an unknown event exits 0 and prints nothing, and the hook log records a
+failure that says to update lit or reinstall the hooks. An invalid host, no
+event, or an unknown flag of a known event still exit 2.
+
 ## Optional systemd user service
 
 The checked-in `packaging/lit.service.in` (also in Linux archives) is a template,
