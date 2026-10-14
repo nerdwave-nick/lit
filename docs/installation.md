@@ -82,17 +82,30 @@ The installed CLI contains the sixteen workflow skills and their instruction
 template. Setup is offline and needs no source checkout or tracker connection:
 
 ```sh
-lit setup-skills --scope local --agent both
-lit setup-skills --scope user --agent codex
-lit setup-skills --scope custom --path /path/to/project --agent claude
+lit setup-workflows --scope local --agent both
+lit setup-workflows --scope user --agent codex
+lit setup-workflows --agent claude --config-dir ~/.claude-work
 ```
 
-Both `--scope` and `--agent` are required. Agent values are `codex`, `claude`, or
-`both`. Local scope uses the current working directory, including a worktree;
-user scope uses the user's home directory. Custom scope requires `--path` pointing
-to the **parent containing `.codex` and/or `.claude`**, not either host directory
-itself. `--path` is rejected for local/user scope. Setup does not walk to a Git
-root or redirect using vendor configuration environment variables.
+`--agent` is required, with either `--scope` or `--config-dir`. Agent values are
+`codex`, `claude`, or `both` (only `codex` or `claude` with `--config-dir`). Local
+scope uses the current working directory, including a worktree; user scope uses
+the user's home directory. `--config-dir` names one agent configuration directory
+itself, for example `~/.claude-work` or an alternative Codex home: it takes exactly
+one `--agent`, installs into that single directory and cannot be combined with
+`--scope`. The directory must already exist; a missing path is refused instead of
+created, and so is a directory that contains `.claude` or `.codex` (the
+configuration is the directory itself, not its parent). Two configurations are two
+runs and two independent installs, each with its own ownership record. Setup does
+not walk to a Git root, and `CLAUDE_CONFIG_DIR` and `CODEX_HOME` are never read.
+`lit setup-skills` and `--scope custom --path` no longer exist.
+
+Setup records what it owns in `.lit-workflows.json` in each configuration
+directory. A configuration installed by the removed `lit setup-skills` command
+(ownership file `.lit-skills.json`) is adopted in the same transaction: the next
+`setup-workflows` run takes over its skills and managed block, writes the new
+record and removes the old file, or changes nothing if any step fails. The
+receipt marks adopted targets.
 
 Setup manages files under the selected host directories, preserving unrelated
 content. Rerun it after a CLI upgrade to update owned skills. Unmanaged collisions
@@ -101,8 +114,9 @@ both destinations before writing; an unexpected filesystem failure can leave one
 host updated, since the two hosts are separate transactions. Correct the reported
 problem and rerun for safe recovery. Setup does not start the service, establish
 tracker identity, or enable paid consultations. Setup writes a JSON installation
-receipt; it does not accept `--format`. If writing that receipt fails, it exits
-nonzero and reports that skills were installed. The completed installation stays
+receipt listing each target's `agent`, `scope` (`local`, `user` or `config-dir`),
+`directory` and whether it was `adopted`; it does not accept `--format`. If writing
+that receipt fails, it exits nonzero and reports that workflows were installed. The completed installation stays
 in place; the output error does not roll it back. See the installed lit skill's host
 reference for explicit session setup.
 
@@ -465,8 +479,8 @@ Stop the foreground service or user service before replacing its executable.
 With socket activation, stop `lit.socket` as well as `lit.service`, so that a
 client connection cannot start the old executable during replacement.
 Run `go install` again for the chosen source/version, or verify and extract the
-chosen archive and copy its binaries. Rerun `lit setup-skills` with the same
-scope/agent/path selection to update the installed skill bundle. Review any
+chosen archive and copy its binaries. Rerun `lit setup-workflows` with the same
+scope/agent or agent/config-dir selection to update the installed skill bundle. Review any
 reported local edits before proceeding. Explicitly restart the service afterward
 (with socket activation, start `lit.socket` again).
 Service identity and records remain in the existing data directory. Unsupported
@@ -639,7 +653,7 @@ The skill guides exact model/effort selection, explicit session reuse, read-only
 permissions and agent-managed discussion notes. Coordination is followed by the
 agent rather than enforced by a helper. Existing consultation JSON records,
 locks and vendor transcripts are preserved as evidence; no migration or deletion
-is performed. Rerun `setup-skills` after updating the CLI to install this revision.
+is performed. Rerun `setup-workflows` after updating the CLI to install this revision.
 
 ## Output formats
 

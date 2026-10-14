@@ -22,7 +22,7 @@ Available Commands:
   projects         Create and discover project containers
   search           Search current content ranked by relevance
   session          Inspect or change session preferences
-  setup-skills     Install embedded skills for Codex or Claude
+  setup-workflows  Install the workflow skills for Codex or Claude
   transactions     Reconcile uncertain mutation outcomes
   tui              Open the terminal UI (lit-tui)
   version          Print the binary version
@@ -1846,36 +1846,41 @@ Global Flags:
       --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
       --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
       --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
-== lit setup-skills --help
-setup-skills --scope local|user|custom --agent codex|claude|both [--path PARENT]
-Installs all embedded skills offline; never starts lit-server.
+== lit setup-workflows --help
+setup-workflows --scope local|user --agent codex|claude|both
+setup-workflows --agent codex|claude --config-dir DIRECTORY
+Installs the embedded workflow skills and the managed instruction block offline; never starts lit-server.
 Output is a JSON installation receipt; --format does not apply.
-local: current directory. user: home directory. custom: --path is the parent of .codex/.claude.
---path is required only for custom scope. Existing owned files upgrade; local edits and collisions fail.
+local: .codex/.claude in the current directory. user: .codex/.claude in the home directory.
+--config-dir: one agent configuration directory, for example ~/.claude-work. It takes exactly one --agent,
+installs into that one directory and must already exist. CLAUDE_CONFIG_DIR and CODEX_HOME are not read;
+install each configuration with its own run, each with its own ownership record (.lit-workflows.json).
+An install made by the removed setup-skills command (.lit-skills.json) is adopted in the same transaction.
+Existing owned files upgrade; local edits and collisions fail.
 Both agents are preflighted before writes; unexpected errors can leave one host completed. Rerun safely.
 
 Requirements:
-  Required flags: --scope and --agent.
-  --path is required with custom scope and forbidden with local or user scope.
+  Required flags: --agent, and --scope or --config-dir.
+  --scope and --config-dir are mutually exclusive; --config-dir takes exactly one --agent (codex or claude).
   No tracker session or service is needed.
 
 Valid forms:
-  lit setup-skills --scope local|user --agent codex|claude|both
-  lit setup-skills --scope custom --path DIRECTORY --agent codex|claude|both
+  lit setup-workflows --scope local|user --agent codex|claude|both
+  lit setup-workflows --agent codex|claude --config-dir DIRECTORY
   [] means optional; | separates alternatives; ... means repeatable.
 
 Usage:
-  lit setup-skills [flags]
+  lit setup-workflows [flags]
 
 Examples:
-  lit setup-skills --scope local --agent both
-  lit setup-skills --scope custom --path /work/project --agent codex
+  lit setup-workflows --scope local --agent both
+  lit setup-workflows --agent claude --config-dir ~/.claude-work
 
 Flags:
-      --agent AGENT      Required Target AGENT: codex, claude or both
-  -h, --help             help for setup-skills
-      --path DIRECTORY   Required with --scope custom; forbidden otherwise. Parent DIRECTORY of .codex/.claude for custom scope
-      --scope SCOPE      Required Install SCOPE: local, user or custom
+      --agent AGENT            Required Target AGENT: codex, claude or both (codex or claude with --config-dir)
+      --config-dir DIRECTORY   Required unless --scope is given; conflicts with --scope. Agent configuration DIRECTORY, for example ~/.claude-work; installs one agent there
+  -h, --help                   help for setup-workflows
+      --scope SCOPE            Required unless --config-dir is given; conflicts with --config-dir. Install SCOPE: local or user
 == lit tui --help
 Open the terminal UI for people: the separate lit-tui executable.
 lit looks for lit-tui next to its own executable first, then on PATH, and hands

@@ -19,6 +19,16 @@ func put(t *testing.T, p, s string) {
 	}
 }
 
+// localTargets selects the .codex/.claude directories below parent, as the
+// local and user scopes do.
+func localTargets(parent string, hosts ...string) []Target {
+	var targets []Target
+	for _, h := range hosts {
+		targets = append(targets, Target{Host: h, Dir: filepath.Join(parent, "."+h), Scope: ScopeLocal})
+	}
+	return targets
+}
+
 const confirmGate = "Run this skill only when the user requested it. Otherwise propose it and run it\nonly after the user confirms."
 
 func TestInstallRepeatAndPreserve(t *testing.T) {
@@ -26,7 +36,7 @@ func TestInstallRepeatAndPreserve(t *testing.T) {
 	f := filepath.Join(p, ".codex", "AGENTS.md")
 	put(t, f, "user instructions\n")
 	for i := 0; i < 2; i++ {
-		if e := Install(Bundle(), p, []string{"codex", "claude"}); e != nil {
+		if _, e := Install(Bundle(), localTargets(p, "codex", "claude")); e != nil {
 			t.Fatal(e)
 		}
 	}
@@ -58,7 +68,7 @@ func TestInstallManagedWorkflowBlock(t *testing.T) {
 				name = "CLAUDE.md"
 			}
 			path := filepath.Join(parent, "."+host, name)
-			if err := Install(Bundle(), parent, []string{host}); err != nil {
+			if _, err := Install(Bundle(), localTargets(parent, host)); err != nil {
 				t.Fatal(err)
 			}
 			got, err := os.ReadFile(path)
@@ -75,7 +85,7 @@ func TestInstallManagedWorkflowBlock(t *testing.T) {
 			put(t, path, prefix+start+"\nOld installed paths and invocation hints.\n"+end+suffix)
 			expected := prefix + strings.TrimSuffix(string(want), "\n") + suffix
 			for i := 0; i < 2; i++ {
-				if err := Install(Bundle(), parent, []string{host}); err != nil {
+				if _, err := Install(Bundle(), localTargets(parent, host)); err != nil {
 					t.Fatal(err)
 				}
 				got, err := os.ReadFile(path)
@@ -92,19 +102,19 @@ func TestInstallManagedWorkflowBlock(t *testing.T) {
 func TestBothPreflightAndEdits(t *testing.T) {
 	p := t.TempDir()
 	put(t, filepath.Join(p, ".claude", "skills", "lit", "SKILL.md"), "mine")
-	if e := Install(Bundle(), p, []string{"codex", "claude"}); e == nil {
+	if _, e := Install(Bundle(), localTargets(p, "codex", "claude")); e == nil {
 		t.Fatal("collision accepted")
 	}
 	if _, e := os.Stat(filepath.Join(p, ".codex")); !os.IsNotExist(e) {
 		t.Fatal("first host changed")
 	}
 	p = t.TempDir()
-	if e := Install(Bundle(), p, []string{"codex"}); e != nil {
+	if _, e := Install(Bundle(), localTargets(p, "codex")); e != nil {
 		t.Fatal(e)
 	}
 	f := filepath.Join(p, ".codex", "skills", "lit", "SKILL.md")
 	put(t, f, "edited")
-	if e := Install(Bundle(), p, []string{"codex"}); e == nil {
+	if _, e := Install(Bundle(), localTargets(p, "codex")); e == nil {
 		t.Fatal("edit accepted")
 	}
 	b, _ := os.ReadFile(f)
@@ -129,7 +139,7 @@ func TestUnsafeDestinations(t *testing.T) {
 			case "block":
 				put(t, filepath.Join(root, "AGENTS.md"), start)
 			}
-			if e := Install(Bundle(), p, []string{"codex"}); e == nil {
+			if _, e := Install(Bundle(), localTargets(p, "codex")); e == nil {
 				t.Fatal("unsafe destination accepted")
 			}
 		})
@@ -171,7 +181,7 @@ func TestLegacyRecoveryAndUpgrade(t *testing.T) {
 	if e := os.Symlink(t.TempDir(), filepath.Join(r, "CLAUDE.md")); e != nil {
 		t.Skip(e)
 	}
-	if e := Install(Bundle(), p, []string{"codex"}); e != nil {
+	if _, e := Install(Bundle(), localTargets(p, "codex")); e != nil {
 		t.Fatal(e)
 	}
 	b, _ := os.ReadFile(filepath.Join(r, "AGENTS.md"))
@@ -219,7 +229,7 @@ func TestMalformedManifestMissingFields(t *testing.T) {
 	for _, body := range []string{`{}`, `{"schema_version":1,"entries":{}}`, `{"host":"codex","entries":{}}`, `{"schema_version":1,"host":"codex"}`, `{"schema_version":true,"host":"codex","entries":{}}`} {
 		p := t.TempDir()
 		put(t, filepath.Join(p, ".codex", ".lit-skills.json"), body)
-		if e := Install(Bundle(), p, []string{"codex"}); e == nil {
+		if _, e := Install(Bundle(), localTargets(p, "codex")); e == nil {
 			t.Fatalf("accepted %s", body)
 		}
 	}
@@ -231,7 +241,7 @@ func TestRetiredAliasesOnlyOwnedAreRemoved(t *testing.T) {
 	put(t, filepath.Join(r, "skills", "grilling", "SKILL.md"), "unowned")
 	v, _ := fingerprint(filepath.Join(r, "skills", "wayfinder"))
 	put(t, filepath.Join(r, ".lit-skills.json"), `{"schema_version":1,"host":"codex","entries":{"wayfinder":"`+v+`"}}`)
-	if e := Install(Bundle(), p, []string{"codex"}); e != nil {
+	if _, e := Install(Bundle(), localTargets(p, "codex")); e != nil {
 		t.Fatal(e)
 	}
 	if exists(filepath.Join(r, "skills", "wayfinder")) {
@@ -245,7 +255,7 @@ func TestRetiredAliasesOnlyOwnedAreRemoved(t *testing.T) {
 func TestBothPreflightBeforeRecovery(t *testing.T) {
 	p, r := interrupted(t)
 	put(t, filepath.Join(p, ".claude", "skills", "lit", "SKILL.md"), "collision")
-	if e := Install(Bundle(), p, []string{"codex", "claude"}); e == nil {
+	if _, e := Install(Bundle(), localTargets(p, "codex", "claude")); e == nil {
 		t.Fatal("collision accepted")
 	}
 	b, _ := os.ReadFile(filepath.Join(r, "AGENTS.md"))
@@ -269,7 +279,7 @@ func TestLegacyFingerprintPathComponentOrder(t *testing.T) {
 
 func TestInstalledBundleBytesAndMetadata(t *testing.T) {
 	p := t.TempDir()
-	if e := Install(Bundle(), p, []string{"codex", "claude"}); e != nil {
+	if _, e := Install(Bundle(), localTargets(p, "codex", "claude")); e != nil {
 		t.Fatal(e)
 	}
 	e := fs.WalkDir(Bundle(), "skills", func(path string, d fs.DirEntry, e error) error {

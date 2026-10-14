@@ -22,9 +22,9 @@ func TestRoutingErrorsAreOfflineArgumentErrors(t *testing.T) {
 		{[]string{"projects", "wat"}, `unknown command "wat" for lit projects; run 'lit projects --help'`},
 		{[]string{"help", "wat"}, `unknown command "wat" for lit; run 'lit --help'`},
 		{[]string{"issues", "list", "--bogus", "x"}, "unknown flag --bogus"},
-		{[]string{"setup-skills", "--session", "s", "--scope", "custom", "--path", parent, "--agent", "codex"}, "--session does not apply to lit setup-skills"},
-		{[]string{"setup-skills", "--scope", "local", "--scope", "user"}, "duplicate flag --scope"},
-		{[]string{"setup-skills", "extra"}, `unexpected argument "extra" for lit setup-skills`},
+		{[]string{"setup-workflows", "--session", "s", "--agent", "codex", "--config-dir", parent}, "--session does not apply to lit setup-workflows"},
+		{[]string{"setup-workflows", "--scope", "local", "--scope", "user"}, "duplicate flag --scope"},
+		{[]string{"setup-workflows", "extra"}, `unexpected argument "extra" for lit setup-workflows`},
 		{[]string{"workflow-session", "--host", "claude", "--runtime-id", "r", "resume", "--endpoint", "http://x"}, "--endpoint does not apply to lit workflow-session resume"},
 		{[]string{"workflow-session", "--host", "claude", "--runtime-id", "r", "fresh", "--timeout", "5s"}, "--timeout does not apply to lit workflow-session fresh"},
 		{[]string{"version", "extra"}, "unexpected positional argument"},
@@ -46,7 +46,7 @@ func TestHelpRoutesWhereverFlagsAppear(t *testing.T) {
 	for _, argv := range [][]string{
 		{"--session", "s", "issues", "--format", "json", "create", "--help"},
 		{"workflow-session", "--host", "claude", "fresh", "-h"},
-		{"setup-skills", "help"},
+		{"setup-workflows", "help"},
 	} {
 		var out, errOut bytes.Buffer
 		if code := Run(argv, &out, &errOut); code != 0 || errOut.Len() != 0 || !strings.Contains(out.String(), "Usage:\n  lit ") {
