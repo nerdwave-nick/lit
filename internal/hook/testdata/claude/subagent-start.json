@@ -1,0 +1,8 @@
+{
+  "session_id": "f3c23cf6-17e1-4e1c-8fd1-a58551b99f16",
+  "transcript_path": "/home/example/.claude/projects/-home-example-project/f3c23cf6-17e1-4e1c-8fd1-a58551b99f16.jsonl",
+  "cwd": "/home/example/project",
+  "hook_event_name": "SubagentStart",
+  "agent_id": "a305ae2cbfacdad70",
+  "agent_type": "general-purpose"
+}

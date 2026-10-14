@@ -1,0 +1,11 @@
+{
+  "agent_id": "019a1c2f-3c5a-7e21-8b64-0d9a4f7c2e15",
+  "agent_type": "default",
+  "cwd": "/home/example/project",
+  "hook_event_name": "SubagentStart",
+  "model": "gpt-5.5",
+  "permission_mode": "default",
+  "session_id": "019a1c2e-7b44-7d10-9a3e-5c8f2d6e1b09",
+  "transcript_path": "/home/example/.codex/sessions/2026/10/14/rollout-2026-10-14T09-00-12-019a1c2f-3c5a-7e21-8b64-0d9a4f7c2e15.jsonl",
+  "turn_id": "019a1c2f-0b6d-7a3c-9f10-2e4b8d6a7c31"
+}

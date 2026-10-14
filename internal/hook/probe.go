@@ -16,29 +16,36 @@ import (
 // the cheap test that precedes connecting: it reads the service's metadata
 // and creates nothing.
 func probe(ctx context.Context, endpoint string, timeout time.Duration) error {
+	_, err := probeService(ctx, endpoint, timeout)
+	return err
+}
+
+// probeService is probe for a caller that must also know which service
+// answered: it returns the service's ID.
+func probeService(ctx context.Context, endpoint string, timeout time.Duration) (string, error) {
 	ctx, cancel := context.WithTimeout(ctx, timeout)
 	defer cancel()
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, endpoint+"/v1/meta", nil)
 	if err != nil {
-		return err
+		return "", err
 	}
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
-		return err
+		return "", err
 	}
 	defer resp.Body.Close()
 	if resp.StatusCode != http.StatusOK {
-		return fmt.Errorf("answered %s", resp.Status)
+		return "", fmt.Errorf("answered %s", resp.Status)
 	}
 	var answer struct {
 		Data protocol.Meta `json:"data"`
 	}
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
 	if err != nil {
-		return err
+		return "", err
 	}
 	if json.Unmarshal(body, &answer) != nil || answer.Data.APIMajor != 1 || !protocol.ValidUUID(answer.Data.ServiceID) {
-		return errors.New("not a compatible lit service")
+		return "", errors.New("not a compatible lit service")
 	}
-	return nil
+	return answer.Data.ServiceID, nil
 }
