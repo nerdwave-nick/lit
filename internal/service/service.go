@@ -143,6 +143,9 @@ func (s *Server) handle(w http.ResponseWriter, r *http.Request) error {
 	if strings.HasPrefix(r.URL.Path, "/v1/completions/") {
 		return s.completionRoute(w, r)
 	}
+	if r.URL.Path == projectContextPath {
+		return s.projectContextRoute(w, r)
+	}
 	if r.URL.Path == "/v1/connect" && r.Method == "POST" {
 		return s.connect(w, r)
 	}

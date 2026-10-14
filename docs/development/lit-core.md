@@ -78,6 +78,15 @@ Deferred archives, editing windows, drafts, and saved plans have no routes.
   Disconnect; its connect and `transactions status` stay in `internal/cli`.
 - `internal/cli.App` embeds that session and adds arguments and output
   preference; it passes its stderr as the warning writer.
+- Besides `/v1/meta` and `/v1/connect`, only two read routes are dispatched
+  before the connected-client gate in `service.handle`: record completion
+  ([completion API](../completion-api.md)) and `GET /v1/project-context`
+  ([project context API](../project-context-api.md)), which resolves a project
+  reference or validates a stored service and project ID without a client. Both
+  return explicit projections in `internal/protocol` and never write.
+  `litclient.ProjectContextClient` (`Resolve`, `Validate`) is the session-free
+  Go caller: it holds no mapping, lock or pending journal. A further session-free
+  route needs the same narrow projection; it is not a general bypass.
 - Resource CLI verbs should live in separate files, expanding argument validation
   and dispatch. Session selections are property selectors, distinct from the
   global project context used by later resource commands. Grouped resource flags
