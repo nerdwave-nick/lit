@@ -87,10 +87,16 @@ type AdoptionError struct {
 	Err      error
 }
 
+// Remedy is Recovery without its closing assurance that the remembered
+// project was not changed, for callers that give that assurance themselves.
+func (e *AdoptionError) Remedy() string {
+	return strings.TrimSuffix(e.Recovery, "; the remembered project was not changed")
+}
+
 func (e *AdoptionError) Error() string {
 	text := e.Reason + "; no session was created."
 	// The remedies below say that the remembered project stays as it is.
-	recovery := strings.TrimSuffix(e.Recovery, "; the remembered project was not changed")
+	recovery := e.Remedy()
 	if recovery != "" {
 		text += " " + strings.ToUpper(recovery[:1]) + recovery[1:] + "."
 	}
@@ -181,6 +187,32 @@ func (a Adapter) adoptRemembered(ctx context.Context, o FreshOptions) (choice, e
 		selection.SavedTitle = saved.ProjectTitle
 	}
 	return choice{selection, valid.Endpoint, valid.Current.ProjectID}, nil
+}
+
+// RememberedEndpoint returns the endpoint saved with the project remembered
+// for the checkout containing dir (the working directory when dir is empty),
+// or "" when none is remembered. It only reads the preference: nothing is
+// validated and no service is contacted. Fresh adopts a project at the first of
+// Remembered.Endpoint's inputs, this endpoint and the default, so a caller that
+// wants to reach the service before it calls Fresh asks here. A preference that
+// cannot be read is an *AdoptionError, the one Fresh returns for it.
+func (a Adapter) RememberedEndpoint(dir string) (string, error) {
+	c, err := a.checkout(dir)
+	if err != nil {
+		return "", fmt.Errorf("finding the checkout to take the remembered project from: %w", err)
+	}
+	store, err := a.preferences()
+	if err != nil {
+		return "", err
+	}
+	saved, err := store.Load(c)
+	if err != nil {
+		return "", refusal(c, err)
+	}
+	if saved == nil {
+		return "", nil
+	}
+	return saved.Endpoint, nil
 }
 
 // preferences opens the checkout preferences in the adapter's workflow state.

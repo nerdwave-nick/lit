@@ -55,6 +55,17 @@ association), duplicate and eight concurrent runs (exactly one `POST
 /v1/connect`), a lock that is released during the wait and one that never is,
 malformed input, an unreadable association, the log, its rotation and
 `RecentFailures`, and that the agent's working directory stays untouched.
+`sessionstart_remembered_test.go` covers the remembered project for both hosts: an
+adopted project (also from a subdirectory of the checkout, after a rename and
+repeated from the association), no preference (another checkout's does not apply),
+and every preference that cannot be adopted (another service, a project that is gone,
+a damaged and an unsupported record), which must create no association, lock or client,
+leave the preference byte-identical, be logged as a warning and not as a failure, and
+leave the runtime free for `fresh --project`; the probe goes to the endpoint adoption
+will choose (saved endpoint, `LIT_ENDPOINT` first, a down saved endpoint reported as
+unavailable). The recorded inputs keep their provenance: the tests only replace the
+example `cwd` with a temporary checkout (a Codex input is checked against the embedded
+schema again), because session start resolves the checkout of that directory.
 `internal/workflowsession/adapter_test.go` covers the adapter library API that
 `lit hook` shares with `workflow-session`.
 

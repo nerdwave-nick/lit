@@ -62,6 +62,8 @@ type rig struct {
 	binary   string
 	workflow string
 	connects atomic.Int32
+	// adminConnected: the admin session of remembered_harness_test.go exists.
+	adminConnected bool
 }
 
 // newRig starts a real service; wrap, when set, intercepts its requests. The
@@ -201,8 +203,19 @@ func loadFixtures(t *testing.T) fixtureSet {
 }
 
 // input returns the recorded hook input for a host and source, and its
-// session_id.
+// session_id. The recorded cwd is an example path that does not exist, so the
+// input names a fresh temporary directory instead, as a real host names the
+// directory its session runs in (session start resolves that directory's
+// checkout). inputIn chooses the directory.
 func input(t *testing.T, host, source string) ([]byte, string) {
+	t.Helper()
+	return inputIn(t, host, source, t.TempDir())
+}
+
+// inputIn is input with cwd as the session's working directory. Nothing else
+// of the recorded input changes, and a Codex input is checked against the
+// embedded schema again after the substitution.
+func inputIn(t *testing.T, host, source, cwd string) ([]byte, string) {
 	t.Helper()
 	for _, f := range loadFixtures(t).Fixtures {
 		if f.Host == host && f.Source == source && f.Event == "session-start" {
@@ -210,13 +223,26 @@ func input(t *testing.T, host, source string) ([]byte, string) {
 			if e != nil {
 				t.Fatal(e)
 			}
-			var id struct {
-				SessionID string `json:"session_id"`
-			}
-			if e = json.Unmarshal(b, &id); e != nil || id.SessionID == "" {
+			var fields map[string]any
+			if e = json.Unmarshal(b, &fields); e != nil {
 				t.Fatalf("%s: %v", f.File, e)
 			}
-			return b, id.SessionID
+			id, _ := fields["session_id"].(string)
+			if id == "" {
+				t.Fatalf("%s: no session_id", f.File)
+			}
+			fields["cwd"] = cwd
+			if host == "codex" {
+				schema := loadSchema(t, "session-start.input.schema.json")
+				if problems := check(schema, schema, fields, "input"); len(problems) != 0 {
+					t.Fatalf("the Codex schema rejects the input in %s: %v", cwd, problems)
+				}
+			}
+			out, e := json.Marshal(fields)
+			if e != nil {
+				t.Fatal(e)
+			}
+			return out, id
 		}
 	}
 	t.Fatalf("no %s %s fixture", host, source)

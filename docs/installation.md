@@ -482,8 +482,9 @@ exits 0 whatever happens; argument errors still exit 2. Errors become a one-line
 note in the context and a line in the hook log,
 `<workflow state>/hooks/hook.log` (JSON lines, rotated at 256 KiB to `hook.log.1`;
 `LIT_WORKFLOW_STATE_DIR` relocates it). Error lines are the failures the status
-line reports; warnings, such as a server that is down, are not. The new runtime's
-endpoint is `LIT_ENDPOINT` or `http://127.0.0.1:7411`.
+line reports; warnings, such as a server that is down or a preference that cannot be
+adopted, are not. The new runtime's endpoint is `LIT_ENDPOINT`, the endpoint saved
+with the remembered project it adopts, or `http://127.0.0.1:7411`.
 
 Hooks are idempotent per runtime. When another hook run already created the
 association, or holds the adapter lock while doing so, the hook waits briefly (up
@@ -493,6 +494,40 @@ outlasts the wait is a failure: the hook leaves it alone, names its directory in
 the note and logs the error. The hook runs lit in a directory of its own
 (`<workflow state>/hooks/work`), so the CLI's output cache stays out of your
 project.
+
+### Remembered project
+
+A new runtime's session adopts the project remembered for the checkout of the
+hook input's `cwd` (`lit context set --project REF`; see [CLI
+help](cli-help.md#remembered-project-per-checkout)): the hook asks
+`workflow-session fresh` to adopt it, as the command does, and announces the result
+in the context with a `remembered project:` line.
+
+- **Adopted.** The project is selected in the new session, and the line says that it
+  was remembered for this checkout and adopted when the session started (and, when
+  the project was renamed since, the title it was saved under). A resumed session
+  and a repeated start print the same line from the association, as long as the
+  session still has that project; they never read the preference again.
+- **Nothing remembered.** The session is created with no project selected and the
+  line says that no project is remembered for this checkout. A project remembered
+  for another checkout does not apply.
+- **A preference that cannot be adopted** (damaged or unsupported record, another
+  service at the address, project gone, service refusing the check) creates no
+  session, no pending association and no client. The context says so, names the
+  checkout, the problem and its code, and gives the two ways out with their exact
+  commands: `lit context clear` from inside the checkout and then
+  `workflow-session fresh`, or `workflow-session fresh --project REF` to start this
+  conversation with another project while the preference stays as it is. The agent
+  is told to ask the user and not to run tracker commands until a session exists.
+  This is a warning in the hook log, not a failure: the status line shows no
+  `[hooks degraded]` for it, and the hook still exits 0. The runtime ID stays free,
+  so either command (or the same hook run again) sets the session up later.
+
+The reachability probe asks the endpoint the adoption will use: `LIT_ENDPOINT`, then
+the endpoint saved with the preference, then `http://127.0.0.1:7411`. A damaged record
+is reported without probing, since it is refused before any server is contacted.
+Only a new runtime adopts; `resume` of a known runtime and subagent sessions never
+read the preference.
 
 ### After compaction
 
