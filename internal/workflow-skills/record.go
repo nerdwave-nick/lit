@@ -24,6 +24,32 @@ type record struct {
 	Version int               `json:"schema_version"`
 	Host    string            `json:"host"`
 	Skills  map[string]string `json:"skills"` // skill name -> tree fingerprint
+	// The hook installation, present only in agent configurations that got one
+	// (never in a local scope): the Claude plugin directory below skills/, the
+	// hook groups lit appended to a Codex hooks.json, and the Claude status line.
+	Plugin     *pluginRecord     `json:"plugin,omitempty"`
+	Hooks      []hookEntry       `json:"hooks,omitempty"`
+	StatusLine *statusLineRecord `json:"status_line,omitempty"`
+}
+
+// pluginRecord is the lit-owned Claude plugin directory skills/<Name>.
+type pluginRecord struct {
+	Name        string `json:"name"`
+	Fingerprint string `json:"fingerprint"`
+}
+
+// hookEntry is one hook group lit appended to an event list of the Codex
+// hooks.json, recorded exactly as written so it can be found again by value.
+type hookEntry struct {
+	Event string          `json:"event"`
+	Group json.RawMessage `json:"group"`
+}
+
+// statusLineRecord is the Claude statusLine value lit wrote to settings.json
+// and, when it wrapped a foreign status line, that status line as it was.
+type statusLineRecord struct {
+	Installed json.RawMessage `json:"installed"`
+	Original  json.RawMessage `json:"original,omitempty"`
 }
 
 // legacyRecord is the setup-skills ownership file.
@@ -37,13 +63,24 @@ type legacyRecord struct {
 type Result struct {
 	Target  Target
 	Adopted bool // the target held a setup-skills install, now owned by the record
+	// Hooks reports that the hooks belong to this installation (user scope and
+	// configuration directories only); StatusLine is what happened to the Claude
+	// status line: "set", "wrapped", "unchanged" or "kept" (left alone).
+	Hooks      bool
+	StatusLine string
+	// Warnings are problems the user should look at, Notes what to do next.
+	Warnings []string
+	Notes    []string
 }
 
 // owned is what a target's installation owns before this run.
 type owned struct {
-	skills map[string]string
-	exists bool // a record, new or legacy, exists
-	legacy bool // it is the setup-skills ownership file
+	skills     map[string]string
+	plugin     *pluginRecord
+	hooks      []hookEntry
+	statusLine *statusLineRecord
+	exists     bool // a record, new or legacy, exists
+	legacy     bool // it is the setup-skills ownership file
 }
 
 // readOwned reads the record of an existing installation, the legacy
@@ -63,7 +100,11 @@ func readOwned(root, host string) (owned, error) {
 		if r.Version != 1 || r.Host != host || r.Skills == nil {
 			return o, errors.New("invalid ownership record")
 		}
+		if e := validHookSections(r); e != nil {
+			return o, fmt.Errorf("invalid ownership record: %w", e)
+		}
 		o.skills, o.exists = r.Skills, true
+		o.plugin, o.hooks, o.statusLine = r.Plugin, r.Hooks, r.StatusLine
 	case exists(old):
 		var r legacyRecord
 		if e := readJSON(old, &r); e != nil {
@@ -88,4 +129,41 @@ func readStrictJSON(p string, v any) error {
 	d := json.NewDecoder(bytes.NewReader(b))
 	d.DisallowUnknownFields()
 	return d.Decode(v)
+}
+
+// validHookSections checks the parts of a record that describe the hook
+// installation: each belongs to one host and must be well-formed, because
+// removal acts on exactly what they say.
+func validHookSections(r record) error {
+	if r.Plugin != nil {
+		if r.Host != "claude" || r.Plugin.Name != pluginName || !validHash(&r.Plugin.Fingerprint) {
+			return errors.New("invalid plugin entry")
+		}
+	}
+	if len(r.Hooks) > 0 && r.Host != "codex" {
+		return errors.New("hook entries belong to a codex configuration")
+	}
+	for _, h := range r.Hooks {
+		known := false
+		for _, d := range hookDefs {
+			known = known || d.event == h.Event
+		}
+		if _, e := parseObject(h.Group); !known || e != nil {
+			return fmt.Errorf("invalid hook entry for %q", h.Event)
+		}
+	}
+	if s := r.StatusLine; s != nil {
+		if r.Host != "claude" {
+			return errors.New("a status line belongs to a claude configuration")
+		}
+		if _, e := parseObject(s.Installed); e != nil {
+			return errors.New("invalid status line entry")
+		}
+		if s.Original != nil {
+			if _, e := parseObject(s.Original); e != nil {
+				return errors.New("invalid original status line")
+			}
+		}
+	}
+	return nil
 }

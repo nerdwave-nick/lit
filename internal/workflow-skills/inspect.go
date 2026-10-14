@@ -10,12 +10,18 @@ import (
 )
 
 type plan struct {
-	previous         owned
-	instruction      string
-	instructionBytes []byte
+	previous          owned
+	instruction       string
+	instructionBytes  []byte
+	instructionBefore *string // hash of the instruction file the plan is based on; nil when absent
+	hooks             hookPlan
 }
 
-func inspect(root, host string) (plan, error) {
+// inspect plans the installation into t, reading the configuration at root
+// (the target's directory, or a copy of it during preflight) and refusing
+// anything setup does not own.
+func inspect(root string, t Target, o Options) (plan, error) {
+	host := t.Host
 	p := plan{instruction: "AGENTS.md"}
 	if host == "claude" {
 		p.instruction = "CLAUDE.md"
@@ -50,6 +56,9 @@ func inspect(root, host string) (plan, error) {
 	if !utf8.Valid(b) {
 		return p, errors.New("instruction is not UTF-8")
 	}
+	if e == nil {
+		p.instructionBefore = ptr(hash(b))
+	}
 	original := string(b)
 	if strings.Count(original, start) != strings.Count(original, end) || strings.Count(original, start) > 1 || strings.Index(original, start) > strings.Index(original, end) {
 		return p, errors.New("malformed managed instruction block")
@@ -71,18 +80,20 @@ func inspect(root, host string) (plan, error) {
 		original += block + "\n"
 	}
 	p.instructionBytes = []byte(original)
-	return p, nil
+	p.hooks, e = planHooks(root, t, o, p.previous)
+	return p, e
 }
-func preflight(root, host string) error {
-	if e := safe(root); e != nil {
+func preflight(t Target, o Options) error {
+	if e := safe(t.Dir); e != nil {
 		return e
 	}
-	if exists(filepath.Join(root, ".lit-install.lock")) {
+	if exists(filepath.Join(t.Dir, ".lit-install.lock")) {
 		return errors.New("installation busy or interrupted; inspect .lit-install.lock")
 	}
-	return preflightUnlocked(root, host)
+	return preflightUnlocked(t, o)
 }
-func preflightUnlocked(root, host string) error {
+func preflightUnlocked(t Target, o Options) error {
+	root := t.Dir
 	if e := recoverInstallation(root, true); e != nil {
 		return e
 	}
@@ -92,15 +103,15 @@ func preflightUnlocked(root, host string) error {
 			return e
 		}
 		defer os.RemoveAll(tmp)
-		if e = copyRecoveryView(root, tmp, host); e != nil {
+		if e = copyRecoveryView(root, tmp, t.Host); e != nil {
 			return e
 		}
 		if e = recoverInstallation(tmp, false); e != nil {
 			return e
 		}
-		_, e = inspect(tmp, host)
+		_, e = inspect(tmp, t, o)
 		return e
 	}
-	_, e := inspect(root, host)
+	_, e := inspect(root, t, o)
 	return e
 }

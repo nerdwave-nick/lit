@@ -9,8 +9,12 @@ import (
 
 // journalVersion is the journal schema written by this installer. Version 1
 // journals were written by setup-skills and covered the instruction file and
-// the old ownership file; they still recover.
-const journalVersion = 2
+// the old ownership file. Version 2 (the first setup-workflows) covers the
+// instruction file and the new record, plus the old record when it adopts an
+// install. Version 3 adds the host file the hook installation edits
+// (settings.json for Claude, hooks.json for Codex) and lets the touched
+// directories include the hooks plugin. Versions 1 and 2 still recover.
+const journalVersion = 3
 
 type journal struct {
 	Version     int                `json:"schema_version"`
@@ -56,7 +60,7 @@ func recoverInstallation(root string, dry bool) error {
 	}
 	seen := map[string]bool{}
 	for _, n := range j.Touched {
-		if !allowed(n) || seen[n] {
+		if !(allowed(n) || n == pluginName) || seen[n] {
 			return errors.New("invalid touched skills")
 		}
 		seen[n] = true
@@ -148,7 +152,7 @@ func recoverInstallation(root string, dry bool) error {
 			if e != nil {
 				return e
 			}
-			if e = atomicWrite(p, b, 0644); e != nil {
+			if e = atomicWrite(p, b, modeOf(filepath.Join(tx, n))); e != nil {
 				return e
 			}
 		}
@@ -156,20 +160,24 @@ func recoverInstallation(root string, dry bool) error {
 	return os.RemoveAll(tx)
 }
 
-// journalFiles returns the files a journal covers: the instruction file and
-// the ownership records. Version 1 covers the old record; version 2 the
-// current one, plus the old record when the transaction adopts it. Files and
-// AfterFiles must name exactly that set.
+// journalFiles returns the files a journal covers: the instruction file, the
+// ownership records and, from version 3, the host file of the hook
+// installation. Files and AfterFiles must name exactly one of the sets the
+// version allows.
 func journalFiles(j journal) ([]string, bool) {
 	if j.Instruction != "AGENTS.md" && j.Instruction != "CLAUDE.md" {
 		return nil, false
 	}
+	hostFile := hostFileOf(j.Instruction)
 	var sets [][]string
 	switch j.Version {
 	case 1:
 		sets = [][]string{{j.Instruction, legacyRecordName}}
-	case journalVersion:
+	case 2:
 		sets = [][]string{{j.Instruction, recordName}, {j.Instruction, recordName, legacyRecordName}}
+	case journalVersion:
+		sets = [][]string{{j.Instruction, recordName}, {j.Instruction, recordName, legacyRecordName},
+			{j.Instruction, recordName, hostFile}, {j.Instruction, recordName, legacyRecordName, hostFile}}
 	}
 	for _, names := range sets {
 		if exact(j.Files, names) && exact(j.AfterFiles, names) {
@@ -179,13 +187,22 @@ func journalFiles(j journal) ([]string, bool) {
 	return nil, false
 }
 
+// hostFileOf is the file the hook installation edits for the host whose
+// instruction file is instruction.
+func hostFileOf(instruction string) string {
+	if instruction == "CLAUDE.md" {
+		return "settings.json"
+	}
+	return "hooks.json"
+}
+
 // Copy only managed recovery inputs, never unrelated host configuration trees.
 func copyRecoveryView(root, dst, host string) error {
 	instruction := "AGENTS.md"
 	if host == "claude" {
 		instruction = "CLAUDE.md"
 	}
-	for _, n := range []string{instruction, recordName, legacyRecordName} {
+	for _, n := range []string{instruction, recordName, legacyRecordName, hostFileOf(instruction)} {
 		p := filepath.Join(root, n)
 		if !exists(p) {
 			continue
@@ -197,14 +214,14 @@ func copyRecoveryView(root, dst, host string) error {
 		if e != nil {
 			return e
 		}
-		if e = os.WriteFile(filepath.Join(dst, n), b, 0644); e != nil {
+		if e = os.WriteFile(filepath.Join(dst, n), b, modeOf(p)); e != nil {
 			return e
 		}
 	}
 	if e := copyTree(filepath.Join(root, transactionName), filepath.Join(dst, transactionName)); e != nil {
 		return e
 	}
-	for _, n := range append(append([]string{}, suite...), retired...) {
+	for _, n := range append(append(append([]string{}, suite...), retired...), pluginName) {
 		p := filepath.Join(root, "skills", n)
 		if exists(p) {
 			if e := copyTree(p, filepath.Join(dst, "skills", n)); e != nil {
