@@ -562,8 +562,50 @@ malformed diffs; the property `Apply(Diff(a, b), a) == b` (`testing/quick` and a
 fuzz target whose seeds `go test` runs); and the LCS cell bound against 64 KB
 bodies. `go test -run '^$' -bench Diff64KB ./internal/textdiff` measures it.
 
+The guidance for a new conversation (`internal/workflow-skills/skills/lit/references/context.md`
+and the lines in the lit skill, `connect.md`, `hosts.md`, `impl`, `to-spec` and the
+orchestration protocol that point at it) is pinned by
+`internal/workflow-skills/context_guidance_test.go`: the old categorical "cwd never
+selects a project" rules are gone, and the new text distinguishes a remembered choice
+from forbidden inference and covers remember, inspect, validate and clear, the
+precedence of an explicit project, announcing a validated adoption, candidate
+selection when nothing is remembered, a preference that cannot be used, resume,
+subagents, no remembered issue, and no automatic claim, renewal or takeover.
+
+`integration/workflow_walkthrough_test.go` (harness in `workflow_install_test.go`)
+is the installed new-conversation walkthrough. It installs the public binaries with
+`go install`, starts two temporary services, and for each of four setups (Claude and
+Codex, with hooks through `--config-dir` and with skills only through `--scope
+local`) installs the embedded skills into a temporary agent configuration seeded
+with the user's own skill, instruction line, Claude settings or Codex hook. It checks
+the delivered files equal the embedded ones beside the untouched user content, and
+runs the commands exactly as the delivered guidance spells them (a command the
+guidance no longer teaches fails the test) with the installed hook commands run the
+way the host does, in a PATH that holds only the installed binaries and with
+`HOME`, `XDG_*`, both state directories and `LIT_ENDPOINT` pointing at temporary
+locations. The scenario: nothing remembered gives an unselected session; remember A;
+a fresh runtime adopts A (the hook's `remembered project:` line, or
+`project_selection` from `fresh`, checked against the server's own session); a
+conversation that names B leaves A remembered and the next fresh runtime adopts A
+again; a subagent takes only its coordinator's explicit project; a linked worktree
+has its own preference; a rename is followed and reported; another service at the
+remembered address is refused before any client, association, pending request or
+preference changes (counted in both services and the client state) and the
+guidance's way out works; `clear` makes the next runtime unselected without touching
+existing sessions or the other worktree. The installs are then removed and the
+user's content must be intact. The walkthrough scripts commands; it does not show
+how a native model follows the guidance, and Codex's `/hooks` approval and live host
+hook firing are not exercised.
+
 `cmd/lit/deps_test.go` uses `go list -deps` to prove that only `lit-tui` links the
 Charm, Glamour and chroma packages.
+
+The accepted cross-compilation matrix is the `cross-build` job of
+`.github/workflows/lit.yml`: with `CGO_ENABLED=0`, `go build -trimpath` of `./cmd/lit`
+and `./cmd/lit-tui` for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64 and
+windows/amd64, plus `./cmd/lit-server` on the two Linux targets. Foreign targets are
+only compiled on a Linux host: that shows the code builds there, not that it runs.
+Only the host's own tests execute.
 
 Keep generated logs, agent transcripts, and session snapshots out of version
 control. These checks do not establish native agent behavior or macOS/Windows

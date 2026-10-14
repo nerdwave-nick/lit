@@ -41,7 +41,9 @@ Creation requires task authorization. If an existing project is intended, select
 it rather than creating another. With no clear project, list candidates and ask.
 Handle pagination explicitly; one response need not contain all results.
 Session `project_id` is the confirmed identity after title resolution. Renames
-preserve that ID. Never infer a project from checkout name, branch, or `.lit` cache.
+preserve that ID. Never infer a project from a directory name, checkout name, branch
+or `.lit` cache. A project the user explicitly remembered for the checkout is
+different: see [remembered project](context.md).
 
 The service must already be running. Connections never start it. Preserve the
 returned service/client identity and reject a service change at the same endpoint.
