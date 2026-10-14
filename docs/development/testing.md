@@ -136,6 +136,23 @@ journaling, or during the writes is never overwritten, and an adoption with
 hooks is one transaction. Mutation checks (disabling a guard, a journal file set
 or the recovery view's copies) fail these tests.
 
+Removal (`internal/workflow-skills/remove*_test.go`, `internal/cli/setup_workflows_remove_test.go`)
+uses the same temporary configurations. A full install/remove round trip for both
+hosts and for the user and `--config-dir` targets must leave every file the user
+owned byte-identical (the fixtures are written in the form the hosts write, so the
+re-indented JSON compares exactly) and nothing of lit's behind. Further cases: the
+status line restored verbatim after a rewritten wrapper, deleted when there was
+none, left with a warning when changed after setup; `settings.json` and `hooks.json`
+deleted only when setup created them and only lit's content is left; foreign Codex
+entries kept in order, the first of equal groups taken, edited and pre-existing
+identical groups left; a modified skill or plugin, a symlink, malformed records and
+host files, a held lock and a second target's refusal changing nothing; no
+installation (also a missing directory) creating nothing; a legacy `.lit-skills.json`
+install; and the transaction cut at each step of a removal (recovery restores the
+installation exactly, `Remove` and `Install` recover it themselves, foreign edits are
+never overwritten). The cli tests run `setup-workflows --remove` with `HOME` and the
+vendor overrides pointed at temporary directories.
+
 `internal/checkoutcontext` tests run against temporary directories and real Git
 repositories created with the `git` executable and no inherited configuration
 (skipped where `git` is missing): every subdirectory of a repository resolving
