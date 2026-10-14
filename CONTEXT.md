@@ -229,5 +229,7 @@ endpoint. It carries project context only, never a client ID, claim token or
 session name, and is not validated until a command or new session checks it
 against the service. A fresh agent session adopts a valid one unless a project is
 named explicitly, and records which it did (its project selection); subagents
-never adopt it.
+never adopt it. The session-start hook asks `fresh` to adopt it and tells the agent
+whether it did; a preference that cannot be adopted creates no session, and the hook
+explains it (a warning in the hook log, not a failure).
 _Avoid_: default project, active project
