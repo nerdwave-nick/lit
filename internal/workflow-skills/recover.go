@@ -60,7 +60,7 @@ func recoverInstallation(root string, dry bool) error {
 	}
 	seen := map[string]bool{}
 	for _, n := range j.Touched {
-		if !(allowed(n) || n == pluginName) || seen[n] {
+		if (!allowed(n) && n != pluginName) || seen[n] {
 			return errors.New("invalid touched skills")
 		}
 		seen[n] = true

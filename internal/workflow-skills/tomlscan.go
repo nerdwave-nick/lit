@@ -35,7 +35,7 @@ func codexConfigWarnings(root string) []string {
 			keys := splitTableKeys(m[1])
 			inTable = true
 			inFeatures = len(keys) == 1 && keys[0] == "features"
-			if len(keys) > 0 && keys[0] == "hooks" && !(len(keys) > 1 && keys[1] == "state") {
+			if len(keys) > 0 && keys[0] == "hooks" && (len(keys) < 2 || keys[1] != "state") {
 				hooksTable = true
 			}
 			continue

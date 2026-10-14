@@ -115,10 +115,96 @@ host updated, since the two hosts are separate transactions. Correct the reporte
 problem and rerun for safe recovery. Setup does not start the service, establish
 tracker identity, or enable paid consultations. Setup writes a JSON installation
 receipt listing each target's `agent`, `scope` (`local`, `user` or `config-dir`),
-`directory` and whether it was `adopted`; it does not accept `--format`. If writing
-that receipt fails, it exits nonzero and reports that workflows were installed. The completed installation stays
+`directory`, whether it was `adopted`, whether it installed `hooks`, the Claude
+`status_line` outcome and its `warnings` and `notes`; it does not accept
+`--format`. The warnings and notes are also printed on stderr, so stdout stays
+the receipt. If writing that receipt fails, it exits nonzero and reports that
+workflows were installed. The completed installation stays
 in place; the output error does not roll it back. See the installed lit skill's host
 reference for explicit session setup.
+
+### Hooks and the status line
+
+`--scope user` and `--config-dir` also install the lit hooks (`SessionStart`,
+`SubagentStart` and `Stop`, see [Session hooks](#session-hooks)) and, for Claude,
+the [status line](#claude-status-line) into the agent configuration. `--scope local`
+installs the skills and the managed block only: a hook in a repository would run
+next to the user-level one, so setup never writes hooks into a repository's
+`.claude` or `.codex`.
+
+| Host | Hooks | Status line |
+| --- | --- | --- |
+| Claude | The lit-owned plugin directory `skills/lit-hooks/` (`.claude-plugin/plugin.json`, `hooks/hooks.json`), which Claude loads as a skills-directory plugin; `settings.json` is not touched for hooks. | The `statusLine` member of `settings.json`: set when it is unset or already lit's; a foreign command is wrapped as `lit hook --host claude statusline --original 'COMMAND'` and recorded; a `refreshInterval` of 2 seconds is configured. A status line that is not a command (or has none) is left alone, with a note. |
+| Codex | lit's groups appended at the end of the `SessionStart`, `SubagentStart` and `Stop` lists of `hooks.json`; no other entry is touched. | none (Codex has only built-in status items) |
+
+The hook commands are `lit hook --host claude|codex session-start|subagent-start|stop`
+with a backstop timeout of 10, 5 and 5 seconds (lit enforces its own, shorter
+budgets). They name `lit` when the lit on PATH is the executable that ran setup,
+so the commands survive upgrades, and otherwise the running executable's quoted
+path. The definitions change only when the hooks themselves do, because Codex asks
+for approval again whenever one changes.
+
+**Endpoint.** The hook commands carry no endpoint: `lit hook` has no `--endpoint`
+flag. A new runtime's `session-start` uses `LIT_ENDPOINT` from the environment of
+the agent that runs the hook, else `http://127.0.0.1:7411`; a known runtime (and
+the stop and subagent-start hooks, which only serve known runtimes) keep the
+endpoint saved in their association. To use another server, export `LIT_ENDPOINT`
+where you start the agent (for Claude Code also the `env` member of `settings.json`).
+Setup prints a note when it runs with `LIT_ENDPOINT` set; it does not copy the value,
+because the endpoint belongs to the environment (the `lit` CLI reads it everywhere)
+and changing a hook command would make Codex ask for approval again.
+
+**Codex trust.** Codex skips a new or changed hook until the user approves it, and
+it keys the approval by position and a hash of the handler. Setup never writes
+trust state and never pre-trusts: it prints the three hooks to approve in `/hooks`.
+Setup warns when `config.toml` of the same configuration defines `[hooks]` (Codex
+warns about a layer that has both) or disables hooks (`[features] hooks = false`);
+it never edits `config.toml`. Entries the user adds after lit's shift when lit's are
+replaced, so those need approving once more.
+
+**Warnings.** Hooks in several layers all run, so setup reports lit hooks it finds
+elsewhere and never edits them: in the target's own `settings.json` and
+`settings.local.json`, in the other Claude configurations in the home directory
+(`~/.claude`, `~/.claude-work` and any `~/.claude*` directory), in the current
+directory's `.claude/settings*.json`, and for Codex in the other Codex home and the
+current directory's `.codex`. A command counts as lit's when it calls `lit hook` or
+`lit workflow-session`, is a script named `lit-*`, or is a script whose text calls
+lit; that finds the hand-written stage hook and status line of the interim setup. A
+wrapped status line that already shows lit's state is reported too.
+
+**Safety.** `settings.json` and `hooks.json` are written by their hosts as well. Setup
+keeps their key order and member values (only the indentation is normalized when a
+member changes), keeps their permissions, and writes a file only when its content is
+still what the plan was read from; recovery refuses rather than overwrites an edit
+made after an interruption. A file that is not a valid JSON object, a `hooks.json`
+whose `hooks` or event entries have another shape, a symlinked file, a modified
+`skills/lit-hooks` and an unowned `skills/lit-hooks` are refused with nothing changed.
+Hooks and status line sit in the same transaction as the skills: the journal is
+version 3 and covers `settings.json` or `hooks.json` and the plugin directory
+(version-1 and version-2 journals still recover).
+
+**Ownership record.** `.lit-workflows.json` lists everything setup owns, so a later
+run (and removal) acts on exactly that. Schema version 1, strict (an unknown member
+means a newer lit wrote it, and the file is refused):
+
+```json
+{
+  "schema_version": 1,
+  "host": "claude",
+  "skills": {"lit": "<sha256 of the skill tree>"},
+  "plugin": {"name": "lit-hooks", "fingerprint": "<sha256 of skills/lit-hooks>"},
+  "status_line": {
+    "installed": {"type": "command", "command": "lit hook --host claude statusline", "padding": 0, "refreshInterval": 2},
+    "original": {"type": "command", "command": "~/.claude/statusline.sh"}
+  }
+}
+```
+
+A Codex record has `"hooks": [{"event": "Stop", "group": {...}}, ...]` instead of
+`plugin` and `status_line`: each group exactly as appended, to be found again by
+value. `original` is present only when lit wrapped a foreign status line, and is
+that status line as it was. A skills-only run (the local scope in a directory that
+also holds an agent configuration) leaves these sections as they are.
 
 ## Release archives
 
@@ -305,8 +391,9 @@ to stdin; lit uses the `session_id` as the workflow-session runtime ID, sets up
 the lit session for it and prints host output whose `additionalContext` tells the
 agent its session name, endpoint, runtime ID, selected project and current claims
 (with lease expiry), so the agent runs no setup commands. Nothing is passed through
-environment variables. Hooks are installed into an agent configuration by a
-separate step; this section describes what they do once installed.
+environment variables. `lit setup-workflows` installs the hooks into an agent
+configuration (see [Hooks and the status line](#hooks-and-the-status-line));
+this section describes what they do once installed.
 
 | Source | Behavior |
 | --- | --- |

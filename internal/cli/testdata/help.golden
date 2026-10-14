@@ -24,7 +24,7 @@ Available Commands:
   projects         Create and discover project containers
   search           Search current content ranked by relevance
   session          Inspect or change session preferences
-  setup-workflows  Install the workflow skills for Codex or Claude
+  setup-workflows  Install the workflow skills, hooks and Claude status line for Codex or Claude
   transactions     Reconcile uncertain mutation outcomes
   tui              Open the terminal UI (lit-tui)
   version          Print the binary version
@@ -1851,19 +1851,24 @@ Global Flags:
 == lit setup-workflows --help
 setup-workflows --scope local|user --agent codex|claude|both
 setup-workflows --agent codex|claude --config-dir DIRECTORY
-Installs the embedded workflow skills and the managed instruction block offline; never starts lit-server.
-Output is a JSON installation receipt; --format does not apply.
-local: .codex/.claude in the current directory. user: .codex/.claude in the home directory.
+Installs the embedded workflow skills and the managed instruction block, and into an agent configuration (--scope user or --config-dir) the lit hooks and the Claude status line, offline; never starts lit-server.
+Output is a JSON installation receipt on stdout (agent, scope, directory, adopted, hooks, status_line, warnings, notes); --format does not apply. Warnings and notes are also printed on stderr.
+local: .codex/.claude in the current directory; skills and the managed block only, never hooks. user: .codex/.claude in the home directory.
 --config-dir: one agent configuration directory, for example ~/.claude-work. It takes exactly one --agent,
 installs into that one directory and must already exist. CLAUDE_CONFIG_DIR and CODEX_HOME are not read;
 install each configuration with its own run, each with its own ownership record (.lit-workflows.json).
+Claude hooks: the lit-owned plugin directory skills/lit-hooks (SessionStart, SubagentStart, Stop). Claude status line: settings.json statusLine is set when unset or already lit's; a foreign one is wrapped as 'lit hook --host claude statusline --original COMMAND' and recorded.
+Codex hooks: lit's groups are appended to hooks.json and recorded exactly. Codex skips them until you approve them in /hooks; setup never trusts hooks. It warns about [hooks] in config.toml and disabled hooks.
+Hook commands run lit (the path of this executable when lit is not on PATH) and read LIT_ENDPOINT from the environment of the agent that runs them.
+Setup warns about lit hooks found elsewhere (other configurations, the project's .claude and .codex, the hand-written ones) and never edits them.
 An install made by the removed setup-skills command (.lit-skills.json) is adopted in the same transaction.
-Existing owned files upgrade; local edits and collisions fail.
+Existing owned files upgrade; local edits, collisions, symlinks and settings.json or hooks.json that are not valid JSON objects fail.
 Both agents are preflighted before writes; unexpected errors can leave one host completed. Rerun safely.
 
 Requirements:
   Required flags: --agent, and --scope or --config-dir.
   --scope and --config-dir are mutually exclusive; --config-dir takes exactly one --agent (codex or claude).
+  Hooks and the Claude status line are installed for --scope user and --config-dir only, never for --scope local.
   No tracker session or service is needed.
 
 Valid forms:

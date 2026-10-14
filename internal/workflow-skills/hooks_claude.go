@@ -40,6 +40,7 @@ func claudePlugin(binary string) map[string][]byte {
 	manifest.set("name", marshalRaw(pluginName))
 	manifest.set("version", marshalRaw(pluginVersion))
 	manifest.set("description", marshalRaw("Session hooks of lit workflows, installed by lit setup-workflows. Do not edit: setup replaces this directory."))
+	manifest.set("author", marshalRaw(map[string]string{"name": "lit setup-workflows"}))
 	events := newObject()
 	for _, d := range hookDefs {
 		events.set(d.event, marshalRaw([]json.RawMessage{hookGroupFor("claude", binary, d)}))

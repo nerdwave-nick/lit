@@ -31,7 +31,7 @@ func TestClaudeInstallWritesTheHooksPlugin(t *testing.T) {
 		t.Error("the result does not report the hooks")
 	}
 	plugin := filepath.Join(target.Dir, "skills", "lit-hooks")
-	if m := readObject(t, filepath.Join(plugin, ".claude-plugin", "plugin.json")); m["name"] != "lit-hooks" {
+	if m := readObject(t, filepath.Join(plugin, ".claude-plugin", "plugin.json")); m["name"] != "lit-hooks" || m["version"] == nil || m["author"] == nil {
 		t.Errorf("plugin manifest %v", m)
 	}
 	hooks, _ := readObject(t, filepath.Join(plugin, "hooks", "hooks.json"))["hooks"].(map[string]any)
@@ -357,5 +357,21 @@ func TestClaudeInstallCreatesSettingsWhenTheHostNeverWroteOne(t *testing.T) {
 	m := readObject(t, settingsPath(target))
 	if len(m) != 1 || m["statusLine"] == nil {
 		t.Errorf("settings.json holds more than the status line: %v", m)
+	}
+}
+
+func TestAnInvalidHostFileOfTheSecondHostStopsBothFromBeingWritten(t *testing.T) {
+	home := t.TempDir()
+	put(t, filepath.Join(home, ".claude", "settings.json"), `{"statusLine": `)
+	targets := []Target{
+		{Host: "codex", Dir: filepath.Join(home, ".codex"), Scope: ScopeUser},
+		{Host: "claude", Dir: filepath.Join(home, ".claude"), Scope: ScopeUser},
+	}
+	before := snapshot(t, home)
+	if _, err := Install(Bundle(), targets); err == nil {
+		t.Fatal("accepted")
+	}
+	if after := snapshot(t, home); after != before {
+		t.Fatalf("the first host was written before the second was checked:\n%s\n---\n%s", before, after)
 	}
 }

@@ -13,6 +13,19 @@ which must already exist and is the configuration itself, not a parent of
 runs and two independent installs. `--agent` and either `--scope` or
 `--config-dir` are required.
 
+`--scope user` and `--config-dir` also install the lit hooks (session start,
+subagent start, stop) into the agent configuration; `--scope local` never does,
+because a hook in a repository would run next to the user-level one. Claude gets
+the lit-owned plugin directory `skills/lit-hooks` and the `statusLine` of
+`settings.json` (set when unset or already lit's; a foreign status line is
+wrapped as `lit hook --host claude statusline --original COMMAND` and recorded).
+Codex gets lit's entries appended to `hooks.json`, recorded exactly; Codex skips
+them until they are approved in `/hooks`, and setup never trusts hooks for you.
+The hook commands run `lit` and read `LIT_ENDPOINT` from the environment of the
+agent that runs them. Setup warns about lit hooks it finds elsewhere (other
+configurations, the project's `.claude` and `.codex`, hand-written hooks and
+status lines) and never edits them.
+
 The installer copies all sixteen skills into each host's `skills` directory,
 adds a bounded managed block to `AGENTS.md` or `CLAUDE.md`, and records version 1
 ownership in `.lit-workflows.json`. An install made by the removed `lit
@@ -20,9 +33,10 @@ setup-skills` command (ownership file `.lit-skills.json`) is adopted in the same
 transaction; the receipt marks it `adopted`. Both destinations are preflighted
 before writes. Each host has its own transaction; an unexpected filesystem
 failure may leave the first host complete. The error identifies completed hosts;
-resolve the error and rerun. Updates stage backups and a version-2 recovery
-journal (version-1 journals left by `setup-skills` still recover). Interrupted
-updates recover on the next run after any stale installer lock is resolved.
+resolve the error and rerun. Updates stage backups and a version-3 recovery
+journal that also covers `settings.json` or `hooks.json` and the hooks plugin
+(older journals still recover). Interrupted updates recover on the next run
+after any stale installer lock is resolved.
 
 In the following recovery guidance, PATH means the host root (.codex or .claude).
 
@@ -36,7 +50,9 @@ them. It preserves unrelated configuration
 and refuses local edits/collisions. Resolve those explicitly; never delete unrelated
 skills to make installation succeed. Retired names are not installed; only entries
 already owned by this installation record may be retired. No shell profiles, binary
-installation, hooks, or service startup are changed.
+installation, or service startup are changed, and hooks change only the files named
+above; `settings.json` and `hooks.json` are written by their hosts too, so recovery
+refuses rather than overwrites an edit made after an interruption.
 
 Codex uses `SKILL.md` with `agents/openai.yaml` invocation policy and `$lit`;
 Claude uses `SKILL.md` frontmatter and `/lit`. The canonical source preserves both

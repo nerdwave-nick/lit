@@ -10,7 +10,8 @@ import "strings"
 func shellQuote(s string) string {
 	plain := s != ""
 	for _, r := range s {
-		if !(r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9' || strings.ContainsRune("_@%+=:,./-", r)) {
+		letter := r >= 'a' && r <= 'z' || r >= 'A' && r <= 'Z' || r >= '0' && r <= '9'
+		if !letter && !strings.ContainsRune("_@%+=:,./-", r) {
 			plain = false
 			break
 		}
