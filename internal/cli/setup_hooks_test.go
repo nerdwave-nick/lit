@@ -81,8 +81,16 @@ func TestSetupWorkflowsHookCommandsCallTheInstalledLit(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, code, report := runSetup(t, "--scope", "user", "--agent", "both"); code != 0 {
+	r, report, code := runSetupSplit(t, "--scope", "user", "--agent", "both")
+	if code != 0 {
 		t.Fatalf("%d %s", code, report)
+	}
+	// The commands name this executable because lit on PATH is not it; the
+	// receipt says so, since moving the executable breaks the hooks.
+	for _, e := range r.Installed {
+		if !strings.Contains(strings.Join(e.Notes, "\n"), "call "+exe) {
+			t.Errorf("%s: no note about the executable the hooks call: %v", e.Agent, e.Notes)
+		}
 	}
 	var doc struct {
 		Hooks map[string][]struct {

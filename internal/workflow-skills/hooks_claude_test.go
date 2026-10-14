@@ -422,3 +422,17 @@ func TestMalformedCreatedFiles(t *testing.T) {
 		})
 	}
 }
+
+func TestClaudeWarnsWhenSettingsDisableAllHooks(t *testing.T) {
+	target := configTarget(t, "claude")
+	put(t, settingsPath(target), `{"disableAllHooks": true}`)
+	res := install(t, target, Options{})
+	if !contains(res.Warnings, "disableAllHooks") {
+		t.Errorf("warnings %v", res.Warnings)
+	}
+	target = configTarget(t, "claude")
+	put(t, settingsPath(target), `{"disableAllHooks": false}`)
+	if res = install(t, target, Options{}); contains(res.Warnings, "disableAllHooks") {
+		t.Errorf("warnings %v", res.Warnings)
+	}
+}

@@ -61,7 +61,8 @@ func runSetupWorkflows(p *nwcli.Parsed, out, errOut io.Writer) int {
 		fmt.Fprintln(errOut, "setup-workflows:", e)
 		return 2
 	}
-	results, e := workflowskills.InstallWith(workflowskills.Bundle(), targets, workflowskills.Options{Binary: litBinary()})
+	binary := litBinary()
+	results, e := workflowskills.InstallWith(workflowskills.Bundle(), targets, workflowskills.Options{Binary: binary})
 	if e != nil {
 		fmt.Fprintln(errOut, "setup-workflows:", e)
 		return 1
@@ -70,6 +71,9 @@ func runSetupWorkflows(p *nwcli.Parsed, out, errOut io.Writer) int {
 	for _, res := range results {
 		t := installedTarget{Agent: res.Target.Host, Scope: res.Target.Scope, Directory: res.Target.Dir, Adopted: res.Adopted,
 			Hooks: res.Hooks, StatusLine: res.StatusLine, Warnings: res.Warnings, Notes: res.Notes}
+		if res.Hooks && binary != "lit" {
+			t.Notes = append(t.Notes, "the hook commands call "+binary+" because the lit on PATH is not this executable; reinstall after moving or replacing it")
+		}
 		if endpoint := os.Getenv("LIT_ENDPOINT"); res.Hooks && endpoint != "" {
 			t.Notes = append(t.Notes, "the lit hooks take LIT_ENDPOINT (here "+endpoint+") from the environment of the agent that runs them, not from setup; without it new sessions use http://127.0.0.1:7411")
 		}
