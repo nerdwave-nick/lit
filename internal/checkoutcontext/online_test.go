@@ -212,8 +212,8 @@ func TestValidateExplainsEveryFailureAndKeepsItsCode(t *testing.T) {
 			if recovery, _ := details["recovery"].(string); !strings.Contains(recovery, "lit context") {
 				t.Errorf("recovery: %v", details["recovery"])
 			}
-			if details["answered_by"] != nil && details["answered_by"] != tc.answered || tc.answered != "" && details["answered_by"] != tc.answered {
-				t.Errorf("answered_by %v, want %q", details["answered_by"], tc.answered)
+			if got, _ := details["answered_by"].(string); got != tc.answered {
+				t.Errorf("answered_by %q, want %q", got, tc.answered)
 			}
 			if !strings.Contains(pe.Message, "feat/old") || !strings.Contains(pe.Message, endpoint) {
 				t.Errorf("message does not name the project and endpoint: %s", pe.Message)
