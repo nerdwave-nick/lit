@@ -11,6 +11,14 @@ help owns command syntax. Use the current installed operations; do not substitut
 local Markdown claims for tracker ownership. Implementation authorization does
 not imply push, PR creation, publication, deployment, or paid consultation.
 
+Workflow stage: when the user invokes this skill directly, or a coordinator
+started you as a worker, record it with `lit session set --stage impl` before
+starting; a worker does this in its own session, never the coordinator's. When
+another workflow skill invokes it in your session, leave the stage unchanged. On
+completion or handoff, run `lit session unset --stage`. The Workflow stage
+section of the [lit skill](../lit/SKILL.md) covers the session and older lit
+versions.
+
 ## Select and claim
 
 For a named ticket, fetch its full body, project, comments, blockers, relationships,

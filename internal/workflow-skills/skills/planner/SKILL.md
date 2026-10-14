@@ -8,6 +8,12 @@ description: Chart and resolve a persistent map of planning decisions in lit, us
 Run this skill only when the user requested it. Otherwise propose it and run it
 only after the user confirms.
 
+Workflow stage: when the user invokes this skill directly, record it with
+`lit session set --stage planner` before starting. When another workflow skill
+invokes it, leave the stage unchanged. On completion or handoff, run
+`lit session unset --stage`. The Workflow stage section of the
+[lit skill](../lit/SKILL.md) covers the session and older lit versions.
+
 Load the shared [lit skill](../lit/SKILL.md) first for session, project, claim,
 recovery, and cross-repository policy. Read skills by their installed discovery
 mechanism or open their SKILL.md; do not assume a host-specific Skill tool.

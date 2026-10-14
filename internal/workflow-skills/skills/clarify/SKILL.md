@@ -3,6 +3,12 @@ name: clarify
 description: Interview the user to settle a plan or decision, recording accepted answers and warranted domain documentation as the discussion proceeds.
 ---
 
+Workflow stage: when the user invokes this skill directly, record it with
+`lit session set --stage clarify` before starting. When another workflow skill
+invokes it, leave the stage unchanged. On completion or handoff, run
+`lit session unset --stage`. The Workflow stage section of the
+[lit skill](../lit/SKILL.md) covers the session and older lit versions.
+
 Build a shared understanding of the decision, its constraints, and the questions
 that depend on it. Read applicable repository instructions and domain docs first.
 Use [modeling](../modeling/SKILL.md) by default when terms or relationships change;

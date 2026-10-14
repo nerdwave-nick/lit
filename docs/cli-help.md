@@ -323,3 +323,7 @@ single hyphens, starting with a letter, at most 32 characters. It is checked for
 that shape only, not against the standard stages (planner, clarify, research,
 prototype, to-spec, to-tickets, triage, impl, orchestrate), which completion
 suggests: the skills own that list and a label mismatch must not stop a workflow.
+The nine stage skills set the stage when the human invokes them directly, leave it
+unchanged when another workflow skill invokes them, and clear it on completion or
+handoff; with an older `lit` that rejects `--stage` they skip it (see the Workflow
+stage section of the [lit skill](../internal/workflow-skills/skills/lit/SKILL.md)).
