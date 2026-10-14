@@ -61,6 +61,7 @@ func TestDynamicCompletionRoutingAndNoLocalWrites(t *testing.T) {
 		{[]string{"issues", "get", "--project"}, "projects"},
 		{[]string{"grep", "--project"}, "projects"},
 		{[]string{"workflow-session", "fresh", "--project"}, "projects"},
+		{[]string{"context", "set", "--project"}, "projects"},
 	} {
 		path, prefix = "/v1/completions/"+tc.kind, "fe"
 		before := calls.Load()

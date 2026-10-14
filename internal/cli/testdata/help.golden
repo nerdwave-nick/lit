@@ -2202,7 +2202,7 @@ Flags:
 Global Flags:
       --host HOST   Required agent HOST: codex or claude
 == lit context --help
-Show or clear the project remembered for the current checkout: a machine-local
+Remember, show, validate or forget the project for the current checkout: a machine-local
 preference recording which lit project, on which lit-server, you chose for one checkout.
 It is project context only: no client identity, claim token or session name is stored,
 so a new agent conversation still gets its own client.
@@ -2219,20 +2219,25 @@ Records are versioned files in checkout-context/ below the workflow state direct
 separate from session associations, checkout-location maps, pending requests and
 output caches. Changes are atomic and serialized per checkout; the last one wins.
 
-These commands are offline: they never contact lit-server and need no logical
-session. They ignore LIT_SESSION and LIT_ENDPOINT.
+No command needs a logical session, and all ignore LIT_SESSION. show and clear are offline:
+they never contact lit-server. Only set and show --validate do, with one read-only request
+that carries no client identity, so no client, claim or session is created. The endpoint is
+--endpoint, then LIT_ENDPOINT, then (validating) the saved endpoint, then http://127.0.0.1:7411.
+A different address reaching the same service is accepted; a different service ID is not.
 
 Usage:
   lit context [flags]
   lit context [command]
 
 Examples:
+  lit context set --project feat/tracker
   lit context show
-  lit context show --format json
+  lit context show --validate
   lit context clear
 
 Available Commands:
   clear       Forget the project remembered for this checkout
+  set         Remember a project for this checkout
   show        Show the project remembered for this checkout
 
 Flags:
@@ -2240,21 +2245,83 @@ Flags:
   -h, --help            help for context
 
 Use "lit context [command] --help" for more information about a command.
-== lit context show --help
-Show the project remembered for this checkout.
-The saved data is reported as not validated: show reads only the local record and never asks
-lit-server, so the project may since have been renamed, archived or removed.
-Nothing remembered is a successful, explicit empty result.
+== lit context set --help
+Remember a project for this checkout.
+set asks lit-server, in one read-only request without a session or client, to resolve the project, then
+saves its stable ID, its current title, the answering service's ID and the endpoint used, replacing an
+earlier valid preference for this checkout. The title is display text; the ID is the identity.
+REF is a title (case-insensitive), a UUID, a unique UUID prefix, or the title: and id: forms.
+Only set remembers a project: reading a project, selecting one for a session or passing --project to
+another command does not. Nothing is saved, and the earlier preference is preserved, when validation
+fails; set never falls back to another project, endpoint or service.
 
 Requirements:
-  Required flags: none. No session, endpoint or service is needed; the command works offline.
-  The saved preference is reported with validated: false (it is not checked against lit-server).
-  With nothing remembered it succeeds with remembered: false and the message No project remembered for this checkout.
-  A damaged or unsupported record fails with invalid_local_state (exit 1) and stays in place; lit context clear removes it.
+  Required flag: --project REF. set needs no session and creates no client; it makes one request to lit-server.
+  Endpoint: --endpoint > LIT_ENDPOINT > http://127.0.0.1:7411. The saved endpoint is not consulted: set chooses the service,
+  and the service ID it saves is the one that answered.
+  A damaged or unsupported record stops set before the service is asked (invalid_local_state); lit context clear removes it.
+  A request is one GET to lit-server with no client identity: no client, claim, session or pending request is created.
+  Failures exit nonzero and leave the preference untouched; --timeout bounds the wait (default 30s):
+    not_found: no project has that title or ID (exit 1)
+    ambiguous_reference: a UUID prefix names several projects (exit 1)
+    service_unavailable: lit-server could not be reached in time (exit 1); lit context clear works without it
+    incompatible_service, invalid_response: the service does not support project context or answered unusably (exit 1)
+    invalid_endpoint: --endpoint or LIT_ENDPOINT is not an HTTP(S) origin (exit 2); an unusable --endpoint never falls back to another
+    invalid_local_state: a damaged or unsupported record (exit 1); lit context clear removes it
+  Archived projects are not reported yet: lit has no archive state, so every existing project is available (tracked in lit issue 0c14ae79).
+  Output: --format cli (default), markdown or json; outcome applied, with the replaced preference as previous.
+
+Valid forms:
+  lit context set --project REF [--endpoint URL] [--timeout DURATION] [--format cli|markdown|json]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit context set [flags]
+
+Examples:
+  lit context set --project feat/tracker
+  lit context set --project feat/tracker --endpoint http://127.0.0.1:7411
+
+Flags:
+      --endpoint URL       Optional. Service URL to resolve the project on; flag > LIT_ENDPOINT > http://127.0.0.1:7411
+  -h, --help               help for set
+      --project REF        Required Project REF to remember: title, UUID or unique UUID prefix (also the title: and id: forms)
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+
+Global Flags:
+      --format FORMAT   Optional. Output FORMAT: cli, markdown or json (default cli; no session preference applies)
+== lit context show --help
+Show the project remembered for this checkout.
+Without --validate, show is offline: it reads only the local record and reports the saved data as
+not validated, since the project may since have been renamed, archived or removed. It works while lit-server
+is down. Nothing remembered is a successful, explicit empty result.
+With --validate, show also asks lit-server whether the remembered service and project still match
+and reports the project's current identity and title. Neither form changes the preference: a
+renamed project is reported as renamed and the saved title is not rewritten.
+
+Requirements:
+  Required flags: none. Without --validate no session, endpoint or service is needed; the command works offline and
+  the saved preference is reported with validated: false.
+  With --validate: --endpoint > LIT_ENDPOINT > the saved endpoint > http://127.0.0.1:7411 picks the service; the remembered
+  service ID and project ID are checked in one request. --endpoint and --timeout apply only with --validate.
+  A validated project reports validated: true and current (service, project, title and the endpoint used); a project
+  renamed since it was saved reports renamed: true and the saved title is not rewritten.
+  With nothing remembered, show (and show --validate, which makes no network request) succeeds with remembered: false and the
+  message No project remembered for this checkout.
+  A request is one GET to lit-server with no client identity: no client, claim, session or pending request is created.
+  Failures exit nonzero and leave the preference untouched; --timeout bounds the wait (default 30s):
+    wrong_service: the service that answered is not the remembered one (exit 1); lit context set --project REF remembers a project on it
+    not_found: the remembered project no longer exists on the service (exit 1); lit context clear forgets it
+    service_unavailable: lit-server could not be reached in time (exit 1); lit context clear works without it
+    incompatible_service, invalid_response: the service does not support project context or answered unusably (exit 1)
+    invalid_endpoint: --endpoint or LIT_ENDPOINT is not an HTTP(S) origin (exit 2); an unusable --endpoint never falls back to another
+    invalid_local_state: a damaged or unsupported record (exit 1); lit context clear removes it
+  Archived projects are not reported yet: lit has no archive state, so every existing project is available (tracked in lit issue 0c14ae79).
   Output: --format cli (default), markdown or json.
 
 Valid forms:
   lit context show [--format cli|markdown|json]
+  lit context show --validate [--endpoint URL] [--timeout DURATION] [--format cli|markdown|json]
   [] means optional; | separates alternatives; ... means repeatable.
 
 Usage:
@@ -2263,9 +2330,13 @@ Usage:
 Examples:
   lit context show
   lit context show --format json
+  lit context show --validate
 
 Flags:
-  -h, --help   help for show
+      --endpoint URL       Optional. Service URL to validate against, with --validate; flag > LIT_ENDPOINT > saved endpoint > http://127.0.0.1:7411
+  -h, --help               help for show
+      --timeout DURATION   Optional. Positive request DURATION with --validate, for example 30s (default 30s)
+      --validate           Optional. Also check the saved project against lit-server (one request, no session); changes nothing
 
 Global Flags:
       --format FORMAT   Optional. Output FORMAT: cli, markdown or json (default cli; no session preference applies)

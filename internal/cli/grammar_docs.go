@@ -178,8 +178,8 @@ func flagUsage(path []string, f nwcli.Flag) string {
 		u = "Only issues in `STATE`: open or closed"
 	case p == "tui" && f.Name == "endpoint":
 		u = "Service `URL` passed to lit-tui; flag > LIT_ENDPOINT > http://127.0.0.1:7411"
-	case p == "context" && f.Name == "format":
-		u = contextFormatUsage
+	case strings.HasPrefix(p, "context"):
+		u = contextFlagUsage(p, f.Name, u)
 	case p == "workflow-session checkout" && f.Name == "path":
 		u = "Required checkout `DIRECTORY` on this machine"
 	case p == "workflow-session checkout" && f.Name == "repository":
