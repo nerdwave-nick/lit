@@ -120,8 +120,9 @@ receipt listing each target's `agent`, `scope` (`local`, `user` or `config-dir`)
 `--format`. The warnings and notes are also printed on stderr, so stdout stays
 the receipt. If writing that receipt fails, it exits nonzero and reports that
 workflows were installed. The completed installation stays
-in place; the output error does not roll it back. See the installed lit skill's host
-reference for explicit session setup.
+in place; the output error does not roll it back. `--remove` undoes an
+installation, see [Removing the installation](#removing-the-installation). See the
+installed lit skill's host reference for explicit session setup.
 
 ### Hooks and the status line
 
@@ -181,7 +182,8 @@ whose `hooks` or event entries have another shape, a symlinked file, a modified
 `skills/lit-hooks` and an unowned `skills/lit-hooks` are refused with nothing changed.
 Hooks and status line sit in the same transaction as the skills: the journal is
 version 3 and covers `settings.json` or `hooks.json` and the plugin directory
-(version-1 and version-2 journals still recover).
+(version-1 and version-2 journals still recover). [Removal](#removing-the-installation)
+writes the same journal.
 
 **Ownership record.** `.lit-workflows.json` lists everything setup owns, so a later
 run (and removal) acts on exactly that. Schema version 1, strict (an unknown member
@@ -209,6 +211,65 @@ that status line as it was. `created_files` names the host file (`settings.json`
 content is left; it is absent when the file was the user's. A skills-only run (the
 local scope in a directory that also holds an agent configuration) leaves these
 sections as they are.
+
+### Removing the installation
+
+```sh
+lit setup-workflows --remove --scope user --agent both
+lit setup-workflows --remove --agent claude --config-dir ~/.claude-work
+```
+
+`--remove` takes the same target flags as installing (`--agent`, and `--scope` or
+`--config-dir`) and removes exactly what the target's ownership record lists:
+
+- the skills the record names, each checked against its recorded fingerprint first,
+  and the lit-owned `skills/lit-hooks` plugin directory (checked the same way);
+- the managed block of `CLAUDE.md` or `AGENTS.md`, with the line break that ends
+  it; text around the block stays, and an instruction file that held nothing else
+  is deleted;
+- Claude's `statusLine`: when the current value is still what setup wrote (equal
+  by meaning to the record's `installed`), the wrapped original is put back exactly
+  as recorded, or the member is deleted when there was none. A status line that
+  changed since is yours now: it is left as it is and the warning names the
+  original that setup had wrapped;
+- Codex's hook groups: for each recorded `{event, group}` the first group equal to
+  it by meaning is taken out of `hooks.json`, so entries you added or edited stay
+  (an edited group no longer matches and is reported). Event lists that become
+  empty stay as empty lists, since the file does not say whether you wrote them;
+- `settings.json` or `hooks.json` itself, only when `created_files` says setup
+  created it and nothing but an empty `{}` or empty event lists is left;
+- the ownership record, last.
+
+Nothing else is touched: skills and files the record does not list, the rest of
+`settings.json` and `hooks.json` (key order and member texts are kept, only the
+indentation of an edited member is normalized) and `config.toml`, which setup
+never edits, so Codex's remembered approval of the removed hooks stays there. The
+`skills/` directory and the configuration directory remain even when empty.
+`--scope local` in a directory that also holds an agent configuration (the home
+directory) removes what that directory's record lists, hooks included: the record
+decides, not the scope.
+
+Removal uses the same lock, backups, journal and recovery as installing (journal
+version 3; an interrupted removal is rolled back by the next `setup-workflows` run
+with or without `--remove`, which refuses rather than overwrites an edit made
+meanwhile) and the same guards for the files hosts also write. Both agents are
+preflighted first: a skill or plugin directory you modified, a record that cannot
+be read, a `settings.json` or `hooks.json` that is not a JSON object or is a
+symlink all refuse the run with nothing changed (exit 1). A skill that is already
+gone is skipped with a note. A target without an installation is not an error: it
+reports `found: false` and a note, creates nothing, and a second `--remove` is a
+no-op. A managed block without a record is not setup's and stays, with a warning.
+
+An install made by the removed `setup-skills` command (only `.lit-skills.json`) is
+removed through that file, which lists the same skills and owns the block the same
+way, and is deleted in the same transaction; it is not adopted first. A directory
+holding both record files is refused as for installing.
+
+The receipt lists each target as `{"removed": [{"agent", "scope", "directory",
+"found", "skills", "hooks", "status_line", "warnings", "notes"}]}`. `skills` counts
+the skill directories removed, `hooks` says the lit hooks were removed and
+`status_line` is `restored`, `removed` or `left`. Warnings and notes are also
+printed on stderr.
 
 ## Release archives
 

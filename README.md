@@ -168,7 +168,9 @@ status line; the local scope never does
 ([details](docs/installation.md#hooks-and-the-status-line)).
 Rerun setup after a CLI upgrade to update managed skills; unrelated files and
 local modifications are protected. An install made by the removed `lit setup-skills`
-is adopted on the next run.
+is adopted on the next run. `lit setup-workflows --remove` with the same target
+flags removes exactly what setup installed there and restores a wrapped status line
+([details](docs/installation.md#removing-the-installation)).
 
 Agents should load the `lit` skill and use its
 [runtime session guidance](internal/workflow-skills/skills/lit/references/hosts.md)

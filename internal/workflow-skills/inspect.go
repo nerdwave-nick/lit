@@ -83,16 +83,22 @@ func inspect(root string, t Target, o Options) (plan, error) {
 	p.hooks, e = planHooks(root, t, o, p.previous)
 	return p, e
 }
-func preflight(t Target, o Options) error {
+
+// preflight checks that a target can be changed, before anything is written:
+// no installer is active, an interrupted transaction can be recovered, and
+// check accepts the recovered state. check reads the configuration at the root
+// it is given (the target's directory, or a copy of it with the recovery
+// applied).
+func preflight(t Target, check func(root string) error) error {
 	if e := safe(t.Dir); e != nil {
 		return e
 	}
-	if exists(filepath.Join(t.Dir, ".lit-install.lock")) {
+	if exists(filepath.Join(t.Dir, lockName)) {
 		return errors.New("installation busy or interrupted; inspect .lit-install.lock")
 	}
-	return preflightUnlocked(t, o)
+	return preflightUnlocked(t, check)
 }
-func preflightUnlocked(t Target, o Options) error {
+func preflightUnlocked(t Target, check func(root string) error) error {
 	root := t.Dir
 	if e := recoverInstallation(root, true); e != nil {
 		return e
@@ -109,9 +115,7 @@ func preflightUnlocked(t Target, o Options) error {
 		if e = recoverInstallation(tmp, false); e != nil {
 			return e
 		}
-		_, e = inspect(tmp, t, o)
-		return e
+		return check(tmp)
 	}
-	_, e := inspect(root, t, o)
-	return e
+	return check(root)
 }
