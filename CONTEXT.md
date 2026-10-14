@@ -227,5 +227,7 @@ A user's explicit project choice for one checkout, kept as a machine-local
 preference holding the project ID and display title, the service ID and the
 endpoint. It carries project context only, never a client ID, claim token or
 session name, and is not validated until a command or new session checks it
-against the service.
+against the service. A fresh agent session adopts a valid one unless a project is
+named explicitly, and records which it did (its project selection); subagents
+never adopt it.
 _Avoid_: default project, active project

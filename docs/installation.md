@@ -375,9 +375,11 @@ falling back, and a changed service identity is still rejected as `wrong_service
 The client never starts the service or falls back after a connection failure.
 
 `workflow-session fresh` and `workflow-session subagent` use `--endpoint`, then
-`LIT_ENDPOINT`, then the same loopback default. `resume`, `reconcile`, and `run`
-keep the endpoint and identity saved in their runtime association, even when the
-shell's `LIT_ENDPOINT` changes.
+`LIT_ENDPOINT`, then the same loopback default; a `fresh` that adopts the project
+remembered for the checkout (see [CLI help](cli-help.md#remembered-project-per-checkout))
+inserts the endpoint saved with that project between `LIT_ENDPOINT` and the default.
+`resume`, `reconcile`, and `run` keep the endpoint and identity saved in their
+runtime association, even when the shell's `LIT_ENDPOINT` changes.
 
 A session can also carry a workflow stage (`lit session set --stage impl`, cleared
 with `lit session unset --stage`). lit-server stores it with the client, so it is
