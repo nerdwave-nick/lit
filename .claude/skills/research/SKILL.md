@@ -5,6 +5,12 @@ description: Investigate a question using primary sources and preserve findings 
 
 # Research
 
+Workflow stage: when the user invokes this skill directly, record it with
+`lit session set --stage research` before starting. When another workflow skill
+invokes it, leave the stage unchanged. On completion or handoff, run
+`lit session unset --stage`. The Workflow stage section of the
+[lit skill](../lit/SKILL.md) covers the session and older lit versions.
+
 State the question and scope. Prefer the source that owns a claim: official docs,
 specifications, source code, first-party APIs, or direct observations. Distinguish
 verified facts, inference, conflicting sources, and unanswered questions. Include

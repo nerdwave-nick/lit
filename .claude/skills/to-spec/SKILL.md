@@ -8,6 +8,12 @@ description: Synthesize settled discussion or requirements into a shared specifi
 Run this skill only when the user requested it. Otherwise propose it and run it
 only after the user confirms.
 
+Workflow stage: when the user invokes this skill directly, record it with
+`lit session set --stage to-spec` before starting. When another workflow skill
+invokes it, leave the stage unchanged. On completion or handoff, run
+`lit session unset --stage`. The Workflow stage section of the
+[lit skill](../lit/SKILL.md) covers the session and older lit versions.
+
 Turn existing discussion, requirements, or a referenced issue into a specification.
 No planner map or earlier skill invocation is required. Synthesize settled choices;
 do not restart an interview or require a test-seam confirmation already answered.

@@ -5,6 +5,12 @@ description: Build the smallest disposable artifact that answers a design questi
 
 # Prototype
 
+Workflow stage: when the user invokes this skill directly, record it with
+`lit session set --stage prototype` before starting. When another workflow skill
+invokes it, leave the stage unchanged. On completion or handoff, run
+`lit session unset --stage`. The Workflow stage section of the
+[lit skill](../lit/SKILL.md) covers the session and older lit versions.
+
 State the question, constraints, and what observation would answer it. Choose the
 smallest useful form: an outline, table, diagram, paper flow, script, code sketch,
 or UI demo. A logic question does not automatically need HTML; a visual question

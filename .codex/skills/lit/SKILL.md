@@ -48,6 +48,25 @@ blockers. Read [milestone guidance](references/milestones.md) when planning,
 specifying, publishing, or selecting a milestone scope; installed command help
 remains authoritative for syntax.
 
+## Workflow stage
+
+A session can show which outer workflow skill it is running (planner, clarify,
+research, prototype, to-spec, to-tickets, triage, impl or orchestrate) to the
+status line and other agents. A stage skill records it with
+`lit session set --stage STAGE` when the human invokes or confirms it directly,
+leaves it unchanged when another workflow skill invokes it (planner using
+clarify, research, prototype or challenge), and clears it with
+`lit session unset --stage` on completion or handoff. A stage left by an
+interrupted run stays until the next stage skill overwrites it. Orchestrate keeps
+`orchestrate` in the coordinator's session; each coordinated worker records
+`impl` in its own session.
+
+Use the session already selected for the work, passed like every other call; do
+not connect only to record a stage. The stage is a label: it needs no claim,
+creates no issue history, and never blocks the work. If the installed lit rejects
+`--stage` as an unknown flag (an older lit) or lit is unavailable, skip the stage
+and continue without retrying.
+
 ## Recommended workflow
 
 When guiding a human through an effort, explain the recommended sequence:
