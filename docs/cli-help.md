@@ -204,6 +204,75 @@ lit grep -E 'econn(refused|reset)' --all-projects -n -C 1
   through the search index; a pattern without one, such as `^\d+$`, reads every
   record in scope and is slower on a large tracker.
 
+## Remembered project per checkout
+
+`lit context` manages the project remembered for a checkout, so that a later
+agent conversation can start from the same project. The preference is a
+machine-local record of the project's ID and display title, the ID of the
+lit-server it belongs to, and the endpoint used to reach it. It never holds a
+client ID, claim token or session name, and it does not decide the work: it
+carries project context only.
+
+```sh
+lit context show
+lit context show --format json
+lit context clear
+```
+
+- **`show`** reports the saved preference with `validated: false`: it reads only
+  the local record, never asks lit-server, and so works while the server is down.
+  The title is the one saved with the preference; the project may since have
+  been renamed, archived or removed. With nothing remembered, `show` succeeds and
+  says so explicitly (`remembered: false`, `preference: null`, message "No project
+  remembered for this checkout").
+- **`clear`** removes only this checkout's preference. It is idempotent (clearing
+  nothing succeeds with outcome `already_satisfied` and creates nothing) and does
+  not delete projects, disconnect sessions, release claims or touch pending
+  requests, session associations or any other workflow state. It also removes a
+  damaged or unsupported record, reporting `removed: damaged_record`.
+- Both commands are offline: they need no logical session and no service, and
+  ignore `LIT_SESSION` and `LIT_ENDPOINT`. They accept only `--format`
+  (default `cli`; no session preference applies) and offer no `--session`,
+  `--endpoint` or `--timeout`.
+
+**The checkout** is the Git worktree root containing the current directory. All
+subdirectories share it; each linked worktree and each nested repository
+(including a submodule) is its own checkout and never inherits an outer one;
+symlinked paths resolve to the same physical checkout. Outside Git the checkout
+is the exact current directory, and parents are never searched. Moving a
+checkout gives it a new path, so it remembers nothing until a project is
+remembered again. Git is detected from the files on disk (a `.git` directory
+holding `HEAD`, `objects` and `refs`, or a `.git` file whose `gitdir:` target
+exists), without the `git` executable; `GIT_DIR` and `GIT_WORK_TREE` are
+ignored. Paths are compared as the file system spells them: case-only
+differences on case-insensitive file systems and Windows 8.3 short names are not
+folded together.
+
+**Storage.** Each preference is the file `checkout-context/<hash>.json` below the
+workflow state directory (`LIT_WORKFLOW_STATE_DIR`, otherwise the platform
+default, see [installation](installation.md)), where `<hash>` is the SHA-256 of
+the checkout's physical path. It is mode 0600 in a 0700 directory and separate
+from `vendor-sessions/`, `checkouts/` (repository location maps), the client
+state directory's `sessions/`, `pending/` and caches. Records are versioned
+(`schema_version: 1`), decoded strictly and validated on every read: IDs are
+lower-case UUIDs, the endpoint is an HTTP(S) origin, the stored checkout path
+must equal the resolved one, and a record is at most 64 KiB.
+
+**Concurrency.** Changes are written to a temporary file, synced and renamed over
+the record, and serialized per checkout by an advisory lock on
+`checkout-context/<hash>.lock` (an empty file that stays; the lock dies with its
+process). The last successful change wins, readers take no lock and see the
+complete old or new record, and a failed write leaves the old record intact. A
+change waits up to five seconds for another invocation's; a lock held longer
+fails with `context_locked` (exit 3).
+
+**Damaged or unsupported records.** A record that cannot be decoded, fails
+validation, belongs to another checkout, is not a regular file, or has another
+`schema_version` is reported as `invalid_local_state` (exit 1) with the file,
+the problem (`damaged` or `unsupported`), the reason and the recovery command.
+It is never replaced or deleted silently: `show` leaves it alone and only an
+explicit `lit context clear` removes it.
+
 ## Existing record references
 
 A reference selects an existing record; it is not the syntax for naming a new

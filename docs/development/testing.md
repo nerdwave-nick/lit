@@ -41,6 +41,31 @@ Installer and workflow-session regression tests live in
 `internal/workflow-skills` and `internal/workflowsession`. Protocol fixtures in
 `internal/protocol/testdata` pin canonical request bytes and hashes.
 
+`internal/checkoutcontext` tests run against temporary directories and real Git
+repositories created with the `git` executable and no inherited configuration
+(skipped where `git` is missing): every subdirectory of a repository resolving
+to its worktree root, linked worktrees, symlink aliases, a nested repository, a
+submodule-style `.git` file, `.git` lookalikes that must not count (an empty
+directory, one without `refs`, junk or dangling `gitdir:` files), the exact
+directory outside Git, and a moved checkout inheriting nothing. The store tests
+cover the round trip, the exact set of stored fields (no client IDs or tokens),
+rejected preferences writing nothing, every damaged and unsupported record shape
+(each is reported by `Load`, refused by `Save`, byte-for-byte preserved, and
+removed only by `Clear`), reads and clears of nothing creating no directory,
+neighbouring workflow state left untouched, a failed write in a read-only
+directory leaving the old record complete, and the state location following
+`LIT_WORKFLOW_STATE_DIR` and the platform default. The concurrency tests run
+writers and lock-free readers as goroutines and as re-executed test-binary
+processes (no reader ever sees a partial record), hold the lock in another
+process to see `ErrLocked` after the timeout and a waiting `Save` win after the
+release, and kill the holder to see that the lock dies with its process.
+`internal/cli` `TestContext*` tests drive `lit context show` and `clear` through
+`Run` in all three formats from subdirectories, linked worktrees and symlink
+aliases, with an ambient `LIT_SESSION` and `LIT_ENDPOINT` pointing at a service
+that fails the test on any request, hashed copies of the private client state
+and neighbouring workflow state proving they are untouched, the error mapping,
+argument rejection, help and completion in real bash, zsh and fish.
+
 `internal/storage` tests run against real SQLite databases in temporary
 directories, without mocks: the owner lock, connection settings, `BEGIN
 IMMEDIATE` and typed busy errors (a second connection holds the write lock),

@@ -81,3 +81,15 @@ readable labels; single-record Markdown documents retain the complete metadata.
 
 The separate `setup-skills` and `workflow-session` helpers retain their own
 machine-readable result formats.
+
+`context show` and `context clear` are offline and use these formats with no
+session preference: `--format` defaults to `cli`. Their single result item has
+`schema_version`, `checkout` (`path` and `kind`, `git` or `directory`) and a
+`message`. `show` adds `remembered`, `validated` (always `false`: the saved data
+is not checked against lit-server) and `preference` (`service_id`, `project_id`,
+`project_title`, `endpoint`, `saved_at`), which is `null` when nothing is
+remembered. `clear` adds `removed` (`preference`, `damaged_record` or `none`),
+`previous` (the removed preference) and `damage` (`problem` and `reason` of a
+removed damaged or unsupported record); its outcome is `applied` or
+`already_satisfied`. Errors use the usual envelope with `invalid_local_state`,
+`context_locked` or `local_state_error`; see [command help](cli-help.md).

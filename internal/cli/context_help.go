@@ -31,7 +31,7 @@ const contextExample = "  lit context show\n  lit context show --format json\n  
 
 func contextDocs(path []string) (summary, description, example string) {
 	if len(path) == 1 {
-		return contextSummary, contextGroupHelp, ""
+		return contextSummary, contextGroupHelp, contextExample
 	}
 	switch path[1] {
 	case "show":

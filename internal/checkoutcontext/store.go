@@ -147,7 +147,7 @@ func (s *Store) read(c Checkout) (*Record, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 	b, err := io.ReadAll(io.LimitReader(f, maxRecordBytes+1))
 	if err != nil {
 		return nil, err

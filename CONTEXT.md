@@ -177,3 +177,17 @@ finishing the window validates and applies the edits together.
 **workflow skills**:
 The collection of skills gathered from other sources and adapted to my coding
 workflows and preferences.
+
+**Checkout**:
+The place on one machine a remembered project belongs to: the Git worktree root
+containing the current directory (a linked worktree or nested repository is its
+own checkout), or, outside Git, the exact current directory. Symlink aliases
+resolve to the same physical checkout, and a moved checkout is a different one.
+
+**Remembered project**:
+A user's explicit project choice for one checkout, kept as a machine-local
+preference holding the project ID and display title, the service ID and the
+endpoint. It carries project context only, never a client ID, claim token or
+session name, and is not validated until a command or new session checks it
+against the service.
+_Avoid_: default project, active project

@@ -2163,6 +2163,11 @@ Usage:
   lit context [flags]
   lit context [command]
 
+Examples:
+  lit context show
+  lit context show --format json
+  lit context clear
+
 Available Commands:
   clear       Forget the project remembered for this checkout
   show        Show the project remembered for this checkout
