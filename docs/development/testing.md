@@ -58,6 +58,20 @@ malformed input, an unreadable association, the log, its rotation and
 `internal/workflowsession/adapter_test.go` covers the adapter library API that
 `lit hook` shares with `workflow-session`.
 
+The `subagent-start` tests set up the root conversation's session and feed the
+recorded SubagentStart input of each host. The Claude input is only partly
+recorded: `session_id`, `agent_id` and `agent_type` were observed in the planning
+prototype (Claude Code 2.1.296; its log kept those three fields), the rest follows
+the documented example. codex-cli 0.162.1 does have a SubagentStart event; its
+input is built from the embedded schema (`testdata/codex/subagent-start.*.schema.json`,
+extracted verbatim) and, like the hook's output, validated against it. The tests
+cover the child's own client without the parent's claims, explicit project
+propagation (a later parent change does not move the child, a parent without a
+project gives none), byte-identical repeats that need no server, eight concurrent
+runs (one child client), a held lock, a parent without a ready session, a server that
+is down, a stalled `/v1/connect` under the real one-second budget (the pending child
+association is kept), a service that is not the parent's, and malformed input.
+
 `internal/checkoutcontext` tests run against temporary directories and real Git
 repositories created with the `git` executable and no inherited configuration
 (skipped where `git` is missing): every subdirectory of a repository resolving

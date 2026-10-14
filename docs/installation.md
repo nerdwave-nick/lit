@@ -340,6 +340,38 @@ the note and logs the error. The hook runs lit in a directory of its own
 (`<workflow state>/hooks/work`), so the CLI's output cache stays out of your
 project.
 
+### Subagent sessions
+
+`lit hook --host claude|codex subagent-start` gives each subagent a lit session of
+its own, so that a subagent never works on its parent's session or claims. The
+hook input's `agent_id` is the subagent's runtime ID and its `session_id` (on both
+hosts the root conversation's) is the parent. The hook runs
+`workflow-session subagent --parent-runtime-id <session_id> --runtime-id <agent_id>`
+against the parent's endpoint and, when the parent has selected one, with the
+parent's project passed as an explicit `--project`; a remembered project of the
+checkout is never adopted for a subagent. The child gets its own client and starts
+without claims, and the hook prints host output whose `additionalContext` names the
+subagent's session, endpoint, runtime ID and project and tells it not to use another
+agent's session. The hook does not change anything the parent owns.
+
+The hook is idempotent per `agent_id`. Claude runs it again when a subagent is
+resumed, and an in-process teammate runs it with every message; a repeat registers
+no client and prints exactly the same text, from the local association alone (no
+server needed), because Claude injects hook output into a subagent only when it does
+not already hold that text.
+
+The whole event has a budget of about one second (the reachability probe gets 0.4 s
+of it). A conversation without a ready lit session of its own gets no subagent
+session and the hook prints nothing; that is a log warning, not a failure. If the
+server does not answer, nothing is created and the subagent is told that lit is
+unavailable and which `workflow-session subagent` command sets its session up
+later. If connecting does not finish in time the pending association is kept and the
+subagent is told to run `workflow-session reconcile`. Anything else (a lock that
+persists, a service that is not the parent's, malformed input) is logged as a hook
+failure and prints nothing. As for every hook, the command exits 0. Codex does not
+run its start hooks again when a subagent compacts, so nothing restores the session
+text in a compacted Codex subagent.
+
 ## Optional systemd user service
 
 The checked-in `packaging/lit.service.in` (also in Linux archives) is a template,
