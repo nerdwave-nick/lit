@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/nerdwave-nick/lit/internal/protocol"
+	"github.com/nerdwave-nick/lit/internal/workflowstate"
 )
 
 // Association is the durable binding of one host runtime to a logical client:
@@ -71,7 +72,7 @@ func (a Adapter) binary() (string, error) {
 
 // StateDir is the workflow state directory: LIT_WORKFLOW_STATE_DIR, otherwise
 // the platform default.
-func StateDir() (string, error) { return stateDirectory() }
+func StateDir() (string, error) { return workflowstate.Dir() }
 
 func (a Adapter) sessions() (string, error) {
 	dir := a.Dir

@@ -225,7 +225,9 @@ The client uses separate private state. `LIT_STATE_DIR` overrides these defaults
 
 Workflow records default to the `local` subdirectory of each platform's client
 state directory above. `LIT_WORKFLOW_STATE_DIR` overrides that location independently
-of `LIT_STATE_DIR`. Neither location is the service data directory.
+of `LIT_STATE_DIR`. Neither location is the service data directory. The project
+remembered for a checkout (`lit context`) is kept there too, in `checkout-context/`;
+see [command help](cli-help.md#remembered-project-per-checkout).
 
 ## Connect a client
 

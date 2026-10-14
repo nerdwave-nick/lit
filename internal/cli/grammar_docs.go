@@ -20,7 +20,7 @@ var topSummaries = map[string]string{
 	"session": "Inspect or change session preferences", "projects": "Create and discover project containers", "issues": "Track work, state and relationships",
 	"milestones": "Group project issues into named worksets", "comments": "Discuss issues with durable comments", "claims": "Reserve issues with expiring work claims",
 	"transactions": "Reconcile uncertain mutation outcomes", "grep": "Search current content using a literal substring",
-	"setup-workflows": "Install the workflow skills for Codex or Claude", "workflow-session": "Bind explicit agent runtime sessions to lit clients",
+	"setup-workflows": "Install the workflow skills for Codex or Claude", "workflow-session": "Bind explicit agent runtime sessions to lit clients", "context": contextSummary,
 	"hook":       "Serve agent host hooks",
 	"completion": "Generate the autocompletion script for the specified shell",
 	"tui":        "Open the terminal UI (lit-tui)",
@@ -69,6 +69,8 @@ func completionDocs(path []string) (summary, description string) {
 func commandDocs(path []string, group bool) (summary, description, example string) {
 	name := path[0]
 	switch {
+	case name == "context":
+		summary, description, example = contextDocs(path)
 	case len(path) == 2 && name == "workflow-session":
 		summary = workflowSummaries[path[1]]
 		description = summary + ".\nOutput is a JSON association record; --format does not apply."
@@ -176,6 +178,8 @@ func flagUsage(path []string, f nwcli.Flag) string {
 		u = "Only issues in `STATE`: open or closed"
 	case p == "tui" && f.Name == "endpoint":
 		u = "Service `URL` passed to lit-tui; flag > LIT_ENDPOINT > http://127.0.0.1:7411"
+	case p == "context" && f.Name == "format":
+		u = contextFormatUsage
 	case p == "workflow-session checkout" && f.Name == "path":
 		u = "Required checkout `DIRECTORY` on this machine"
 	case p == "workflow-session checkout" && f.Name == "repository":

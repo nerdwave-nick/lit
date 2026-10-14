@@ -148,6 +148,7 @@ func newGrammar() *nwcli.Command {
 			Flags: join(flags("project state limit cursor"), switches("all-projects"))},
 		workflowSession(),
 		hookCommand(),
+		contextCommand(),
 		completionCommand(),
 	)
 	documentGrammar(root)

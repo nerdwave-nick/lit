@@ -7,6 +7,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"github.com/nerdwave-nick/lit/internal/workflowstate"
 )
 
 // checkCommand refuses tracker commands that would leave the selected
@@ -103,7 +105,7 @@ func (a Adapter) Checkout(ctx context.Context, repository, path string) (Associa
 	if r.Project == nil {
 		return Association{}, errors.New("checkout mapping requires explicit session project selection")
 	}
-	checkout, e := expand(path)
+	checkout, e := workflowstate.Expand(path)
 	if e != nil {
 		return Association{}, e
 	}

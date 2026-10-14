@@ -185,16 +185,3 @@ func TestRealServiceLifecycle(t *testing.T) {
 		t.Fatal("lock changed record")
 	}
 }
-
-func TestPlatformStateDefaults(t *testing.T) {
-	home := filepath.Join(t.TempDir(), "home")
-	for _, tc := range []struct{ platform, xdg, local, want string }{{"linux", "relative", "", filepath.Join(home, ".local", "state", "lit", "local")}, {"linux", home, "", filepath.Join(home, "lit", "local")}, {"darwin", "", "", filepath.Join(home, "Library", "Application Support", "lit", "local")}, {"windows", "", home, filepath.Join(home, "lit", "local")}} {
-		got, e := statePath(tc.platform, home, tc.xdg, tc.local)
-		if e != nil || got != tc.want {
-			t.Fatal(got, e, tc)
-		}
-	}
-	if _, e := statePath("windows", home, "", ""); e == nil {
-		t.Fatal("missing LOCALAPPDATA accepted")
-	}
-}

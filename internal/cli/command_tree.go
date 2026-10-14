@@ -48,6 +48,12 @@ func Run(argv []string, out, errOut io.Writer) int {
 			return argumentError(argv, out, errOut, err)
 		}
 		return 0
+	case "context":
+		p, err := grammar.Parse(argv)
+		if err != nil {
+			return argumentError(argv, out, errOut, err)
+		}
+		return runContext(p, out, errOut)
 	case "hook":
 		p, err := grammar.Parse(argv)
 		if err != nil {
