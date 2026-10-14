@@ -187,6 +187,14 @@ func journalFiles(j journal) ([]string, bool) {
 	return nil, false
 }
 
+// instructionOf is the instruction file of host.
+func instructionOf(host string) string {
+	if host == "claude" {
+		return "CLAUDE.md"
+	}
+	return "AGENTS.md"
+}
+
 // hostFileOf is the file the hook installation edits for the host whose
 // instruction file is instruction.
 func hostFileOf(instruction string) string {

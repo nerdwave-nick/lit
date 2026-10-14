@@ -25,6 +25,7 @@ func planCodex(root string, o Options, prev owned) (hookPlan, error) {
 		return hp, fmt.Errorf("hooks.json: %w; fix or move it, then rerun", err)
 	}
 	hp.file = hostFileChange("hooks.json", old, edit.content, before)
+	hp.created = createdFiles(prev.created, "hooks.json", before)
 	hp.hooks = edit.entries
 	for _, w := range edit.warnings {
 		hp.warnings = append(hp.warnings, path+": "+w)

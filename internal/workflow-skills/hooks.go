@@ -51,6 +51,7 @@ type hookPlan struct {
 	// hooks and statusLine are the record sections after the run.
 	hooks      []hookEntry
 	statusLine *statusLineRecord
+	created    []string
 	// state reports the status line outcome, see Result.StatusLine.
 	state    string
 	warnings []string
@@ -122,3 +123,17 @@ func marshalRaw(v any) json.RawMessage {
 }
 
 func pluginDir(root string) string { return filepath.Join(root, "skills", pluginName) }
+
+// createdFiles returns the host files setup created: name when it did not exist
+// before this run or was created by an earlier one.
+func createdFiles(prev []string, name string, before *string) []string {
+	for _, p := range prev {
+		if p == name {
+			return []string{name}
+		}
+	}
+	if before == nil {
+		return []string{name}
+	}
+	return nil
+}

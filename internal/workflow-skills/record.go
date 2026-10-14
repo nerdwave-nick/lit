@@ -30,6 +30,10 @@ type record struct {
 	Plugin     *pluginRecord     `json:"plugin,omitempty"`
 	Hooks      []hookEntry       `json:"hooks,omitempty"`
 	StatusLine *statusLineRecord `json:"status_line,omitempty"`
+	// CreatedFiles lists the host files (settings.json, hooks.json) that did not
+	// exist before setup wrote them, so removal can delete one again when
+	// nothing but lit's content is left in it.
+	CreatedFiles []string `json:"created_files,omitempty"`
 }
 
 // pluginRecord is the lit-owned Claude plugin directory skills/<Name>.
@@ -79,6 +83,7 @@ type owned struct {
 	plugin     *pluginRecord
 	hooks      []hookEntry
 	statusLine *statusLineRecord
+	created    []string
 	exists     bool // a record, new or legacy, exists
 	legacy     bool // it is the setup-skills ownership file
 }
@@ -104,7 +109,7 @@ func readOwned(root, host string) (owned, error) {
 			return o, fmt.Errorf("invalid ownership record: %w", e)
 		}
 		o.skills, o.exists = r.Skills, true
-		o.plugin, o.hooks, o.statusLine = r.Plugin, r.Hooks, r.StatusLine
+		o.plugin, o.hooks, o.statusLine, o.created = r.Plugin, r.Hooks, r.StatusLine, r.CreatedFiles
 	case exists(old):
 		var r legacyRecord
 		if e := readJSON(old, &r); e != nil {
@@ -151,6 +156,9 @@ func validHookSections(r record) error {
 		if _, e := parseObject(h.Group); !known || e != nil {
 			return fmt.Errorf("invalid hook entry for %q", h.Event)
 		}
+	}
+	if len(r.CreatedFiles) > 1 || (len(r.CreatedFiles) == 1 && r.CreatedFiles[0] != hostFileOf(instructionOf(r.Host))) {
+		return errors.New("invalid created files")
 	}
 	if s := r.StatusLine; s != nil {
 		if r.Host != "claude" {

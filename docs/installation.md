@@ -196,15 +196,19 @@ means a newer lit wrote it, and the file is refused):
   "status_line": {
     "installed": {"type": "command", "command": "lit hook --host claude statusline", "padding": 0, "refreshInterval": 2},
     "original": {"type": "command", "command": "~/.claude/statusline.sh"}
-  }
+  },
+  "created_files": ["settings.json"]
 }
 ```
 
 A Codex record has `"hooks": [{"event": "Stop", "group": {...}}, ...]` instead of
 `plugin` and `status_line`: each group exactly as appended, to be found again by
 value. `original` is present only when lit wrapped a foreign status line, and is
-that status line as it was. A skills-only run (the local scope in a directory that
-also holds an agent configuration) leaves these sections as they are.
+that status line as it was. `created_files` names the host file (`settings.json` or
+`hooks.json`) when setup created it, so removal can delete it again once only lit's
+content is left; it is absent when the file was the user's. A skills-only run (the
+local scope in a directory that also holds an agent configuration) leaves these
+sections as they are.
 
 ## Release archives
 

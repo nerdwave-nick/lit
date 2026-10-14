@@ -12,6 +12,7 @@ import (
 // line cannot come from a plugin; it is the one member of settings.json that
 // setup edits.
 const (
+	// pluginVersion changes only when the hook definitions do.
 	pluginVersion = "1.0.0"
 	// statusLineRefresh is the refresh interval (seconds) setup configures, so
 	// the lit part follows resizes and idle changes.
@@ -72,6 +73,7 @@ func planClaude(root string, o Options, prev owned) (hookPlan, error) {
 		return hp, fmt.Errorf("settings.json: %w; fix or move it, then rerun", err)
 	}
 	hp.file = hostFileChange("settings.json", old, edit.content, before)
+	hp.created = createdFiles(prev.created, "settings.json", before)
 	hp.statusLine, hp.state, hp.warnings, hp.notes = edit.statusLine, edit.state, edit.warnings, edit.notes
 	return hp, nil
 }

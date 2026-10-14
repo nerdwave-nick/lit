@@ -96,9 +96,9 @@ func installHost(stage string, t Target, o Options) (res Result, e error) {
 		j.AfterSkills[pluginName] = ptr(plugin.Fingerprint)
 	}
 	// A local scope leaves the hooks an earlier run installed as they are.
-	m.Plugin, m.Hooks, m.StatusLine = p.previous.plugin, p.previous.hooks, p.previous.statusLine
+	m.Plugin, m.Hooks, m.StatusLine, m.CreatedFiles = p.previous.plugin, p.previous.hooks, p.previous.statusLine, p.previous.created
 	if hp.active {
-		m.Plugin, m.Hooks, m.StatusLine = plugin, hp.hooks, hp.statusLine
+		m.Plugin, m.Hooks, m.StatusLine, m.CreatedFiles = plugin, hp.hooks, hp.statusLine, hp.created
 	}
 	// Files are written in this order and the setup-skills ownership file is
 	// removed last; the journal covers every one of them.

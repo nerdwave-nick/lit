@@ -375,3 +375,50 @@ func TestAnInvalidHostFileOfTheSecondHostStopsBothFromBeingWritten(t *testing.T)
 		t.Fatalf("the first host was written before the second was checked:\n%s\n---\n%s", before, after)
 	}
 }
+
+func TestTheRecordSaysWhichHostFilesSetupCreated(t *testing.T) {
+	for _, host := range []string{"claude", "codex"} {
+		_, hostFile := hostFiles(host)
+		t.Run(host+"/created", func(t *testing.T) {
+			target := configTarget(t, host)
+			install(t, target, Options{})
+			if got := readRecordFile(t, target.Dir).CreatedFiles; !reflect.DeepEqual(got, []string{hostFile}) {
+				t.Fatalf("created files %v", got)
+			}
+			// A later run, and a skills-only run, keep the knowledge.
+			install(t, target, Options{Binary: "/opt/lit"})
+			if _, err := Install(Bundle(), []Target{{Host: host, Dir: target.Dir, Scope: ScopeLocal}}); err != nil {
+				t.Fatal(err)
+			}
+			if got := readRecordFile(t, target.Dir).CreatedFiles; !reflect.DeepEqual(got, []string{hostFile}) {
+				t.Errorf("created files after later runs: %v", got)
+			}
+		})
+		t.Run(host+"/existing", func(t *testing.T) {
+			target := configTarget(t, host)
+			userConfiguration(t, target)
+			install(t, target, Options{})
+			if got := readRecordFile(t, target.Dir).CreatedFiles; len(got) != 0 {
+				t.Errorf("setup claims to have created a file the user had: %v", got)
+			}
+		})
+	}
+}
+
+func TestMalformedCreatedFiles(t *testing.T) {
+	for name, tc := range map[string]struct{ host, files string }{
+		"unknown file":     {"claude", `["../settings.json"]`},
+		"other hosts file": {"claude", `["hooks.json"]`},
+		"codex settings":   {"codex", `["settings.json"]`},
+		"duplicate":        {"claude", `["settings.json","settings.json"]`},
+		"not a list":       {"claude", `"settings.json"`},
+	} {
+		t.Run(name, func(t *testing.T) {
+			target := configTarget(t, tc.host)
+			put(t, filepath.Join(target.Dir, recordName), `{"schema_version":1,"host":"`+tc.host+`","skills":{},"created_files":`+tc.files+`}`)
+			if _, err := InstallWith(Bundle(), []Target{target}, Options{}); err == nil {
+				t.Fatal("accepted")
+			}
+		})
+	}
+}

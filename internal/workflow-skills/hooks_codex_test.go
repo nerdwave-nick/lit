@@ -285,7 +285,7 @@ func TestEverythingTheRecordListsIsInstalled(t *testing.T) {
 			if err := json.Unmarshal([]byte(text), &generic); err != nil {
 				t.Fatal(err)
 			}
-			want := map[string][]string{"claude": {"schema_version", "host", "skills", "plugin", "status_line"}, "codex": {"schema_version", "host", "skills", "hooks"}}[host]
+			want := map[string][]string{"claude": {"schema_version", "host", "skills", "plugin", "status_line", "created_files"}, "codex": {"schema_version", "host", "skills", "hooks", "created_files"}}[host]
 			if len(generic) != len(want) {
 				t.Errorf("record members %v, want %v", keysOf(t, text), want)
 			}
