@@ -13,7 +13,10 @@ import (
 // instruction file and the new record, plus the old record when it adopts an
 // install. Version 3 adds the host file the hook installation edits
 // (settings.json for Claude, hooks.json for Codex) and lets the touched
-// directories include the hooks plugin. Versions 1 and 2 still recover.
+// directories include the hooks plugin. Removal (setup-workflows --remove)
+// uses the same version: its journals name the record as a file that is deleted
+// and, for an install made by setup-skills, the old ownership file on its own.
+// Versions 1 and 2 still recover.
 const journalVersion = 3
 
 type journal struct {
@@ -136,6 +139,11 @@ func recoverInstallation(root string, dry bool) error {
 			return e
 		}
 		if j.Backups[n] != nil {
+			// A removal that took every skill leaves skills/ without entries, and
+			// the recovery view of a configuration has none at all.
+			if e := os.MkdirAll(filepath.Dir(p), 0755); e != nil {
+				return e
+			}
 			if e := restoreTree(filepath.Join(backup, n), p); e != nil {
 				return e
 			}
@@ -177,7 +185,8 @@ func journalFiles(j journal) ([]string, bool) {
 		sets = [][]string{{j.Instruction, recordName}, {j.Instruction, recordName, legacyRecordName}}
 	case journalVersion:
 		sets = [][]string{{j.Instruction, recordName}, {j.Instruction, recordName, legacyRecordName},
-			{j.Instruction, recordName, hostFile}, {j.Instruction, recordName, legacyRecordName, hostFile}}
+			{j.Instruction, recordName, hostFile}, {j.Instruction, recordName, legacyRecordName, hostFile},
+			{j.Instruction, legacyRecordName}}
 	}
 	for _, names := range sets {
 		if exact(j.Files, names) && exact(j.AfterFiles, names) {
