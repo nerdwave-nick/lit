@@ -1,0 +1,14 @@
+{
+  "session_id": "d754184c-431a-489d-b36b-e6a448f068e7",
+  "transcript_path": "/home/example/.claude/projects/-home-example-project/d754184c-431a-489d-b36b-e6a448f068e7.jsonl",
+  "cwd": "/home/example/project",
+  "permission_mode": "default",
+  "effort": {
+    "level": "high"
+  },
+  "hook_event_name": "Stop",
+  "stop_hook_active": false,
+  "last_assistant_message": "The change is committed and the checks pass.",
+  "background_tasks": [],
+  "session_crons": []
+}

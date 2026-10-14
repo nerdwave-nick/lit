@@ -1,0 +1,11 @@
+{
+  "cwd": "/home/example/project",
+  "hook_event_name": "Stop",
+  "last_assistant_message": "The change is committed and the checks pass.",
+  "model": "gpt-5.5",
+  "permission_mode": "default",
+  "session_id": "019a1c2e-7b44-7d10-9a3e-5c8f2d6e1b09",
+  "stop_hook_active": false,
+  "transcript_path": null,
+  "turn_id": "019a1c2e-9f10-7c52-8b3d-2a6e4f1c7d05"
+}

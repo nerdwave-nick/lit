@@ -2167,6 +2167,7 @@ Usage:
 
 Available Commands:
   session-start Hand the agent its lit session at session start
+  stop          Remind the agent once about held claims before it stops
 
 Flags:
   -h, --help        help for hook
@@ -2198,6 +2199,35 @@ Examples:
 
 Flags:
   -h, --help   help for session-start
+
+Global Flags:
+      --host HOST   Required agent HOST: codex or claude
+== lit hook stop --help
+Serve the host's Stop hook. Read the hook JSON on stdin; when this session holds claims and the stop is not already the
+result of a stop hook (stop_hook_active is false), print a block decision whose reason names the claims and asks the agent to
+record a checkpoint or handoff and release them, or to continue. The stop that follows is allowed. Without claims, without a
+connected session, when the server does not answer, and on any internal error nothing is printed and the stop is allowed. The
+guard only reads: it never releases, renews or closes anything. The command exits 0 whatever happens; errors go to the hook log.
+
+Requirements:
+  Required flag: --host.
+  The host's hook JSON is read from stdin and its output written to stdout.
+  No tracker session is needed: the runtime ID is the hook input's session_id.
+  Endpoint: LIT_ENDPOINT, otherwise http://127.0.0.1:7411, for a new runtime; a known runtime keeps its saved endpoint.
+  Exits 0 whatever happens once the event is served; errors go to the hook log.
+
+Valid forms:
+  lit hook --host codex|claude stop < hook-input.json
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit hook stop [flags]
+
+Examples:
+  lit hook --host claude stop < hook-input.json
+
+Flags:
+  -h, --help   help for stop
 
 Global Flags:
       --host HOST   Required agent HOST: codex or claude
