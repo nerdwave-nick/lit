@@ -65,6 +65,8 @@ they do not invoke either model CLI or assume vendor environment variables.
 Use the installed CLI directly; workflow-session runs the same executable for tracker calls by default:
 
 ```sh
+lit workflow-session --host codex --runtime-id THREAD_ID fresh
+lit workflow-session --host codex --runtime-id THREAD_ID fresh --project feat/tracker
 lit workflow-session --host codex --runtime-id THREAD_ID fresh --endpoint http://127.0.0.1:7411 --discussion-id TICKET_OR_DISCUSSION_ID
 lit workflow-session --host codex --runtime-id THREAD_ID run -- projects list
 lit workflow-session --host codex --runtime-id THREAD_ID run -- session set --project feat/tracker
@@ -92,14 +94,30 @@ Resume in another
 checkout retains the same logical client and server project. Hooks may call these
 commands but are optional; no child export into a parent shell is required.
 
+Without `--project`, `fresh` performs validated adoption of the project the user
+remembered for the current checkout and reports how the project was chosen in the
+record's `project_selection`; with `--project` it uses that project and leaves the
+remembered one untouched; with nothing remembered the session has no project. A
+remembered project that cannot be validated stops `fresh` before any client or
+association exists. `subagent` never adopts. Do not add `--endpoint` on your own: it
+outranks `LIT_ENDPOINT` and the endpoint saved with the remembered project. With
+hooks installed the session-start hook has already run `fresh` for the
+conversation's runtime; read its injected context rather than running `fresh`
+again. [Remembered project](context.md) covers the commands, both setups and the
+announcement.
+
 `LIT_WORKFLOW_STATE_DIR` overrides the workflow directory. Defaults are Linux
 `${XDG_STATE_HOME:-$HOME/.local/state}/lit/local` (ignore relative XDG values), macOS
 `~/Library/Application Support/lit/local`, Windows `%LOCALAPPDATA%\lit\local`.
 `vendor-sessions/` contains version-1 host/runtime associations with service,
 client, project and optional discussion IDs. `checkouts/` contains version-1
-service/project/repository/path mappings and optional discussion IDs. They are
-separate from consultation records, CLI private `LIT_STATE_DIR`, and per-cwd caches.
-Checkout mappings locate repositories; they never choose CLI project context.
+service/project/repository/path mappings and optional discussion IDs.
+`checkout-context/` contains the versioned projects users remembered per checkout
+(service ID, project ID and title, endpoint; never a client or claim). They are
+separate from each other, consultation records, CLI private `LIT_STATE_DIR`, and
+per-cwd caches. Checkout mappings locate repositories; they never choose CLI
+project context. Only a remembered project, through validated adoption in `fresh`,
+lets a checkout supply one.
 
 Fresh setup persists a pending association before calling the CLI. On failure,
 keep that association and all CLI diagnostics/private pending state. If the CLI

@@ -29,11 +29,15 @@ If the installed CLI lacks milestone support, report the version mismatch; do
 not approximate milestones with labels or invented commands.
 
 Bind the coordinator runtime to its own fresh `lit` client and explicitly select
-the confirmed service and project. Give each native worker a unique runtime ID,
-client, branch, and worktree. Do not share client identity, claim credentials,
-or a worker's live session. Consult the current host's native-agent interface
-for available model and effort choices; do not assume an API or identifier that
-the host does not expose.
+the confirmed service and project. A project the session adopted because the user
+remembered it for the checkout is only a starting selection: it does not authorize
+a project-wide scope, so confirm the scope with the user. Give each native worker
+a unique runtime ID, client, branch, and worktree, and an explicit project in its
+dispatch (`workflow-session fresh` or `subagent` with `--project REF`); a worker
+checkout's remembered project never overrides it. Do not share client identity,
+claim credentials, or a worker's live session. Consult the current host's
+native-agent interface for available model and effort choices; do not assume an
+API or identifier that the host does not expose.
 
 Persist a Markdown ledger with `schema_version: 1` front matter under the
 workflow state directory (`LIT_WORKFLOW_STATE_DIR`, otherwise the host's

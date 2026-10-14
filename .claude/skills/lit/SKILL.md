@@ -17,14 +17,20 @@ not establish tracker state or ownership.
 Establish an explicit logical session using [host setup](references/hosts.md).
 Independent agents and subagents need distinct sessions. Resume only the same
 logical working session. Pass session selection on every call; a child process
-cannot export settings into its parent. Changing cwd never selects a project.
-Select a project explicitly or retain the confirmed server session selection.
-Ask when project context is ambiguous. Repository evidence can support a proposal,
-not silently select a project.
+cannot export settings into its parent. A directory name, checkout name, branch or
+`.lit` cache never selects a project. The one project a checkout can supply is
+the project the user explicitly remembered for the checkout: a new conversation
+validates it, announces it and may use it, and an explicit instruction for the
+conversation overrides it. Otherwise select a project explicitly or retain the
+confirmed server session selection. Ask when project context is ambiguous.
+Repository evidence can support a proposal, not silently select a project.
 
 Use the relevant short recipe:
 
 - [Connect and select a project](references/connect.md).
+- [Remembered project for this checkout](references/context.md): remember,
+  inspect, validate and clear it, and start a new conversation with or without
+  hooks.
 - [Find, claim, and read work](references/work.md).
 - [Checkpoint, recover, and finish](references/recovery.md).
 
