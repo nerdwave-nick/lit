@@ -51,10 +51,9 @@ func TestLitHookCommandRejectsBadInvocations(t *testing.T) {
 	g := newRig(t, nil)
 	in, _ := input(t, "claude", "startup")
 	for name, args := range map[string][]string{
-		"no host":       {"hook", "session-start"},
-		"unknown host":  {"hook", "--host", "gemini", "session-start"},
-		"unknown event": {"hook", "--host", "claude", "nonsense"},
-		"no event":      {"hook", "--host", "claude"},
+		"no host":      {"hook", "session-start"},
+		"unknown host": {"hook", "--host", "gemini", "session-start"},
+		"no event":     {"hook", "--host", "claude"},
 	} {
 		t.Run(name, func(t *testing.T) {
 			r := litHook(t, g, in, args...)

@@ -164,6 +164,13 @@ session, and hands the agent its details only through the hook output. Once an
 event is being served it exits successfully whatever happens and writes failures
 to the hook log. Distinct from the lease helper, which renews claims.
 
+**Stop guard**:
+The `stop` event of lit hook. When an agent tries to end its turn while its
+session holds live claims, it blocks the stop once with a reminder to record a
+checkpoint or handoff and release, or to continue; the host's `stop_hook_active`
+makes the next attempt pass. It only reads: it never releases, renews or closes
+a claim, and any doubt allows the stop.
+
 **Agent configuration**:
 A host's configuration directory (for example `~/.claude`, `~/.claude-work` or a
 Codex home) into which lit installs skills, instructions, hooks and the status

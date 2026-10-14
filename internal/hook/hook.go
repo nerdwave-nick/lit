@@ -82,13 +82,21 @@ type Call struct {
 // Run serves one hook event: host is claude or codex, event one of Events.
 // The host's hook JSON is read from in and its output written to out; errOut
 // receives usage errors and, when the hook log cannot be written, failures.
-// The result is the exit status: 2 for an unknown host or event, otherwise 0.
+// The result is the exit status: 2 for an unknown host, otherwise 0. An event
+// this lit does not know is a hook entry installed by a newer lit: for a Stop
+// hook the status 2 would block the agent from stopping, so it is a quiet no-op
+// that the hook log records as a failure.
 func Run(host, event string, in io.Reader, out, errOut io.Writer, opt Options) int {
 	h, ok := lookupHost(host)
-	e, known := events[event]
-	if !ok || !known {
-		fmt.Fprintf(errOut, "lit hook: unsupported host %q or event %q\n", host, event)
+	if !ok {
+		fmt.Fprintf(errOut, "lit hook: unsupported host %q\n", host)
 		return 2
+	}
+	e, known := events[event]
+	if !known {
+		log := &Log{Host: h.Name, Event: event, fallback: errOut, now: time.Now}
+		log.Error(fmt.Sprintf("this lit does not serve the hook event %q: update lit, or reinstall the hooks with the lit that serves it", event))
+		return 0
 	}
 	budget := e.Budget
 	if opt.Budget > 0 {

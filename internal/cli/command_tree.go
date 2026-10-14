@@ -21,6 +21,9 @@ func Run(argv []string, out, errOut io.Writer) int {
 	where := strings.Join(append([]string{grammar.Name}, r.Path...), " ")
 	switch {
 	case r.Unknown != "":
+		if code, ok := unknownHookEvent(argv, r, errOut); ok {
+			return code
+		}
 		return argumentError(argv, out, errOut, &nwcli.ParseError{Kind: nwcli.UnknownCommand, Command: where, Arg: r.Unknown})
 	case r.Help:
 		grammar.WriteHelp(out, r.Path...)

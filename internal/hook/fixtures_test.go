@@ -106,6 +106,9 @@ func TestRecordedInputsMatchTheirHostsAndStateTheirProvenance(t *testing.T) {
 	schema := loadSchema(t, "session-start.input.schema.json")
 	covered := map[string]bool{}
 	for _, f := range set.Fixtures {
+		if f.Event != "session-start" {
+			continue // each other event's inputs are checked by that event's own test
+		}
 		t.Run(f.File, func(t *testing.T) {
 			if set.Provenance[f.Provenance] == "" {
 				t.Fatalf("no provenance %q", f.Provenance)
