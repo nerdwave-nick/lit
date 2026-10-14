@@ -231,5 +231,8 @@ against the service. A fresh agent session adopts a valid one unless a project i
 named explicitly, and records which it did (its project selection); subagents
 never adopt it. The session-start hook asks `fresh` to adopt it and tells the agent
 whether it did; a preference that cannot be adopted creates no session, and the hook
-explains it (a warning in the hook log, not a failure).
+explains it (a warning in the hook log, not a failure). The installed lit skill teaches
+agents the same workflow with or without hooks: announce a validated adoption, ask the
+user to choose when nothing is remembered, and never infer a project from a directory,
+branch or checkout name.
 _Avoid_: default project, active project

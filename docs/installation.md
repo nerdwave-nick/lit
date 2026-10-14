@@ -124,6 +124,39 @@ in place; the output error does not roll it back. `--remove` undoes an
 installation, see [Removing the installation](#removing-the-installation). See the
 installed lit skill's host reference for explicit session setup.
 
+### Starting a new conversation
+
+The installed `lit` skill (`references/context.md`) teaches the same new-conversation
+workflow in both setups, so a user with hooks and a user with skills only get the
+same behavior from their agents. It explains the four `lit context` commands
+(`set` only when the user asks, `show` offline, `show --validate`, `clear`) and
+separates the project a user explicitly remembered for a checkout from the
+inference that stays forbidden: a directory name, checkout name, branch,
+timestamp, the most recent agent or a single search result never selects a
+project.
+
+- An explicit project the user names for the conversation wins and leaves the
+  remembered one alone (`fresh --project REF`, or `session set --project REF` on a
+  session a hook already created).
+- Otherwise the new session adopts the remembered project after validating it. With
+  hooks installed, the session-start hook has already run `fresh`, and the agent reads
+  the hook's `remembered project:` line; with skills only (`--scope local`), or when
+  no hook context is present (for example Codex has not been told to trust the
+  hooks), the agent runs `workflow-session fresh` itself and reads
+  `project_selection`. Either way it announces briefly which project was
+  selected because it was remembered for the checkout.
+- With nothing remembered the agent lists candidates from the repository's
+  conventions and current tracker queries and asks, rather than choosing.
+- A stale, damaged, other-service or unreachable preference creates no session. The
+  agent explains why and offers `lit context clear` or `--project REF` for this
+  conversation; it never substitutes a project, rewrites the binding or creates one.
+- The remembered project is not a remembered issue, takes no claim, renews nothing
+  and takes nothing over. Subagents never adopt: their coordinator gives them an
+  explicit project, and a worker checkout's own preference never overrides it.
+
+Archived projects are not reported yet because lit has no archive state; the
+guidance already treats them like any other preference that cannot be used.
+
 ### Hooks and the status line
 
 `--scope user` and `--config-dir` also install the lit hooks (`SessionStart`,
