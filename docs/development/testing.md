@@ -58,6 +58,15 @@ malformed input, an unreadable association, the log, its rotation and
 `internal/workflowsession/adapter_test.go` covers the adapter library API that
 `lit hook` shares with `workflow-session`.
 
+`internal/hook/compact_test.go` covers the `compact` source for both hosts against
+a real service: claims present (each with the excerpt of its latest comment), none,
+a lease that really ran out (a one-second lease, polled until the tracker drops it),
+a claim the tracker still lists with an ended lease (a wrapper rewrites the listing),
+long checkpoints and many claims (the context stays under 10000 UTF-16 units), an
+unreachable server (no remembered claim may appear), claims or comments that cannot
+be read, no association and a pending one. A request wrapper counts every request
+that could change the tracker and the tests require none after the compaction.
+
 The Stop guard tests (`stop_test.go`, `stopfixtures_test.go`, `skew_test.go`) use
 the same service rig. The Stop inputs are not captured: the Claude ones are built
 from the Stop section of the Claude Code hooks reference and the captured

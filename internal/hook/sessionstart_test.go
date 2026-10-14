@@ -110,23 +110,6 @@ func TestSessionStartWithoutAnAssociationStartsOneEvenOnResume(t *testing.T) {
 	}
 }
 
-func TestSessionStartLeavesCompactionToItsOwnHandler(t *testing.T) {
-	for _, host := range hosts {
-		t.Run(host, func(t *testing.T) {
-			g := newRig(t, nil)
-			in, id := input(t, host, "compact")
-			r := g.hook(host, "session-start", in, Options{})
-			if r.Code != 0 || r.Stdout != "" {
-				t.Fatalf("compact must emit nothing yet: %d %q", r.Code, r.Stdout)
-			}
-			if _, e := g.association(host, id); !os.IsNotExist(e) {
-				t.Fatalf("compact created an association: %v", e)
-			}
-			noFailures(t)
-		})
-	}
-}
-
 func TestSessionStartWhenTheServerIsUnreachable(t *testing.T) {
 	for _, host := range hosts {
 		t.Run(host+"/new", func(t *testing.T) {

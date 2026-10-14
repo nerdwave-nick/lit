@@ -24,7 +24,9 @@ func init() {
 		Description: "Serve the host's SessionStart hook. Read the hook JSON on stdin; create the lit session for a new runtime (startup, clear,\n" +
 			"fork) or reconnect the known one (resume), keyed by the host session_id, and print host output whose additionalContext names\n" +
 			"the session, endpoint, runtime ID, selected project and current claims. A server that does not answer creates nothing and is\n" +
-			"reported in the context. The command exits 0 whatever happens; errors go to the hook log.",
+			"reported in the context. After a compaction (source compact) print the session, project, the claims it holds with their lease\n" +
+			"expiry and an excerpt of each claimed issue's latest comment, without writing anything to the tracker. The command exits 0\n" +
+			"whatever happens; errors go to the hook log.",
 		Budget: 3 * time.Second,
 		Handle: sessionStart,
 		Failed: sessionStartFailed,
@@ -32,9 +34,7 @@ func init() {
 }
 
 // startSources maps the SessionStart sources to their handlers. The compact
-// source is deliberately absent: restoring context after compaction is its own
-// handler, added to this table by its own change; until then nothing is
-// printed for it.
+// source adds its own from compact.go.
 var startSources = map[string]func(*Call) ([]byte, error){
 	"startup": startRuntime,
 	"clear":   startRuntime,
@@ -45,9 +45,7 @@ var startSources = map[string]func(*Call) ([]byte, error){
 func sessionStart(c *Call) ([]byte, error) {
 	handler, ok := startSources[c.Input.Source]
 	if !ok {
-		if c.Input.Source != "compact" {
-			c.Log.Warn(fmt.Sprintf("ignored the unsupported SessionStart source %q", c.Input.Source))
-		}
+		c.Log.Warn(fmt.Sprintf("ignored the unsupported SessionStart source %q", c.Input.Source))
 		return nil, nil
 	}
 	return handler(c)

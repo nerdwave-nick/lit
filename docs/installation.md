@@ -312,7 +312,7 @@ separate step; this section describes what they do once installed.
 | --- | --- |
 | `startup`, `clear`, `fork` | A new runtime: `workflow-session fresh` with the `session_id`. |
 | `resume` | A known runtime reconnects (`resume`); one that was never set up gets `fresh`. |
-| `compact` | Prints nothing yet. |
+| `compact` | Restores tracker context after compaction (see below). |
 
 Before connecting, the hook probes the endpoint (`GET /v1/meta`, one second); the
 whole event has a budget of about three seconds. When the endpoint does not answer
@@ -339,6 +339,33 @@ outlasts the wait is a failure: the hook leaves it alone, names its directory in
 the note and logs the error. The hook runs lit in a directory of its own
 (`<workflow state>/hooks/work`), so the CLI's output cache stays out of your
 project.
+
+### After compaction
+
+When a conversation compacts, the host fires `session-start` with source
+`compact` (Codex only in root sessions). The hook reminds the agent what it was
+doing: the session name, endpoint, runtime ID and project, the issues this
+session has claimed with their lease expiry, and a bounded excerpt of each
+claimed issue's latest comment with its issue ID and the commands to reread the
+full records. lit comments carry no type, so the latest comment of a claimed issue
+stands for its latest checkpoint; its author and time are shown. Excerpts keep the
+start and the end of a long comment (350 and 150 characters) and say how many
+characters they omit; only the five most recently acquired claims carry an excerpt,
+at most twenty are named, and the whole context stays under the 10000 characters
+hosts accept. The excerpts are quoted and flagged as data, not instructions.
+
+The hook only reads. It creates no session or client, and it never acquires,
+renews, releases or reacquires a claim; nothing is written to the tracker. The
+tracker lists only live claims, so a lease that ran out disappears from the list
+without notice: the context tells the agent that an issue it was working on and
+that is not listed as held has expired or been released, and that it must recheck
+the issue and reacquire only deliberately. A claim that the tracker still lists
+with a lease that had already ended at its reading time is reported as expired.
+When the server does not answer, the context carries the session name, endpoint
+and the project ID from the local association and says that the claims could not
+be read and must be rechecked (`claims list`); it never names remembered claims. A
+conversation without an association gets a note with the `fresh` command, and a
+pending one the `reconcile` command.
 
 ### Stop guard
 
