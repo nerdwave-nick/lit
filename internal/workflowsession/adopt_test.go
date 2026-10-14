@@ -88,6 +88,7 @@ func TestFreshExplicitProjectLeavesThePreferenceAlone(t *testing.T) {
 	f := newAdoption(t)
 	f.project(f.endpoint, "feat/alpha")
 	beta := f.project(f.endpoint, "feat/beta")
+	via := proxy(t, f.endpoint) // an address other than the one the preference was saved with
 	for _, tc := range []struct {
 		name   string
 		break_ func(dir string)
@@ -108,9 +109,12 @@ func TestFreshExplicitProjectLeavesThePreferenceAlone(t *testing.T) {
 			tc.break_(dir)
 			before, contexts0 := readFile(t, f.preferenceFile(dir)), f.seen.count(contexts)
 
-			r, e := f.adapter("explicit-"+tc.name).Fresh(context.Background(), FreshOptions{Endpoint: f.endpoint, Project: "feat/beta", Remembered: remembered(dir, noEndpoint)})
+			r, e := f.adapter("explicit-"+tc.name).Fresh(context.Background(), FreshOptions{Endpoint: via, Project: "feat/beta", Remembered: remembered(dir, noEndpoint)})
 			if e != nil {
 				t.Fatal(e)
+			}
+			if r.Endpoint != via {
+				t.Fatalf("an explicit project adopted the preference's endpoint: %s", r.Endpoint)
 			}
 			if r.Project == nil || *r.Project != beta || r.Selection == nil || *r.Selection != (Selection{Source: SourceExplicit}) {
 				t.Fatalf("association: project %v selection %+v", r.Project, r.Selection)
