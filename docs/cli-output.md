@@ -81,7 +81,10 @@ original control characters through normal JSON escaping. CLI and structured Mar
 readable labels; single-record Markdown documents retain the complete metadata.
 
 The separate `setup-workflows` and `workflow-session` helpers retain their own
-machine-readable result formats.
+machine-readable result formats. The association record `workflow-session` prints
+gains an optional `project_selection` object (`source` `explicit`, `remembered` or
+`none`, see [CLI help](cli-help.md#remembered-project-per-checkout)); the other
+fields are unchanged.
 
 The `context` commands use these formats with no session preference: `--format`
 defaults to `cli`. Their single result item has `schema_version`, `checkout`

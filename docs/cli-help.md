@@ -335,6 +335,51 @@ It is never replaced or deleted silently: `show` (with or without `--validate`)
 leaves it alone, `set` stops before it asks the service, and only an explicit
 `lit context clear` removes it.
 
+**Adoption by a new session.** `workflow-session fresh` is where a remembered
+project is used. Without `--project` it looks up the preference of the current
+directory's checkout, validates it with the same one-request check as `show
+--validate` (no client, no session, nothing written), and registers the new
+session with that project selected, so the agent starts in the project the user
+chose. With `--project REF` it selects that project and does not read the
+preference at all: a stale or damaged preference neither blocks nor changes
+under an explicit choice, and an explicit choice never adopts the preference's
+binding. With nothing remembered the session is created with no project selected,
+as before. Each runtime ID is its own client; the preference never holds one.
+
+- **Endpoint.** An adopted project registers at `--endpoint`, then `LIT_ENDPOINT`,
+  then the endpoint saved with the preference, then `http://127.0.0.1:7411`; a
+  different address reaching the same service is accepted and the saved endpoint
+  is not rewritten. With `--project`, or with nothing remembered, the endpoint is
+  `--endpoint`, then `LIT_ENDPOINT`, then the default, as for any fresh session.
+- **A preference that cannot be adopted** (damaged or unsupported record,
+  unreachable service, another service at the address, project gone) makes `fresh`
+  exit 1 with a message that names the cause and the fix (`lit context clear`, or
+  `--project REF` to start with an explicit project), before it saves a pending
+  association or registers a client. It never falls back to another project,
+  endpoint or service, and never rewrites the preference.
+- **Existing sessions do not change.** `resume`, `reconcile` and `run` never read
+  the preference, so a later `context set` or `clear`, or a damaged record, neither
+  redirects an active session nor makes resume fail. A runtime that already has an
+  association, pending or ready, gets the "already associated" error from `fresh`
+  before the preference is looked at, so recovery evidence is preserved.
+- **Subagents never adopt.** `workflow-session subagent` takes its project only from
+  its own `--project` (the scope the coordinator gives it) and does not read the
+  preference.
+- **Provenance.** The association record `fresh` prints (and saves) carries
+  `project_selection`, so a skill or hook can tell whether remembered context was
+  adopted:
+
+  | `source` | Meaning | Other fields |
+  | --- | --- | --- |
+  | `explicit` | `--project` named the project (or a subagent's scope); the preference was not read. | none |
+  | `remembered` | The checkout's preference was validated and adopted. | `checkout`, `project_id`, `project_title` (as validated now), `saved_at`, and `saved_title` only if the project was renamed since it was remembered |
+  | `none` | No project is selected and nothing was adopted. | `checkout` when the checkout was consulted and had nothing remembered |
+
+  The field describes how the session was created: `resume`, `reconcile` and
+  `run` keep it as it was, even after the session selects another project (the
+  association's `project_id` is the current selection). Records written by older
+  versions lack it.
+
 ## Existing record references
 
 A reference selects an existing record; it is not the syntax for naming a new

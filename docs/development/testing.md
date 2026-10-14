@@ -58,6 +58,23 @@ malformed input, an unreadable association, the log, its rotation and
 `internal/workflowsession/adapter_test.go` covers the adapter library API that
 `lit hook` shares with `workflow-session`.
 
+`internal/workflowsession/adopt_test.go` and `adopt_command_test.go` cover the
+adoption of a remembered project by `fresh` against an in-process service and the
+built `lit`, with isolated workflow and client state: two runtime IDs adopting
+with distinct clients, an explicit project winning over a valid, stale or damaged
+preference (which is not even read), no preference, every refusal (another
+service, a project that is gone, a service that is not running, a damaged or
+unsupported record, an environment endpoint naming another service) leaving no
+association, no client request and no changed file, the endpoint precedence with
+one service at two addresses, subagents that never adopt, a resume that ignores a
+later or damaged preference, a pending association from an interrupted connect
+keeping its provenance and not being judged by a stale preference, a renamed
+project, and the command's flag, environment and working-directory wiring and its
+JSON. Command tests never leave the endpoint to default: a regression would
+otherwise reach a developer's own lit-server. `integration/workflow_adoption_test.go`
+repeats the flow with the built binaries, real Git worktrees (one linked) and two
+real services.
+
 `internal/hook/compact_test.go` covers the `compact` source for both hosts against
 a real service: claims present (each with the excerpt of its latest comment), none,
 a lease that really ran out (a one-second lease, polled until the tracker drops it),
