@@ -89,11 +89,13 @@ type AdoptionError struct {
 
 func (e *AdoptionError) Error() string {
 	text := e.Reason + "; no session was created."
-	if e.Recovery != "" {
-		text += " " + strings.ToUpper(e.Recovery[:1]) + e.Recovery[1:] + "."
+	// The remedies below say that the remembered project stays as it is.
+	recovery := strings.TrimSuffix(e.Recovery, "; the remembered project was not changed")
+	if recovery != "" {
+		text += " " + strings.ToUpper(recovery[:1]) + recovery[1:] + "."
 	}
-	text += " To start without it, pass --project REF to workflow-session fresh; the remembered project stays as it is."
-	if !strings.Contains(e.Recovery, "lit context clear") {
+	text += " To start this conversation with an explicit project instead, pass --project REF to workflow-session fresh; the remembered project stays as it is."
+	if !strings.Contains(recovery, "lit context clear") {
 		text += " 'lit context clear' forgets it."
 	}
 	return text
