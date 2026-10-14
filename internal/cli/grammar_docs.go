@@ -73,7 +73,7 @@ func commandDocs(path []string, group bool) (summary, description, example strin
 		summary, description, example = contextDocs(path)
 	case len(path) == 2 && name == "workflow-session":
 		summary = workflowSummaries[path[1]]
-		description = summary + ".\nOutput is a JSON association record; --format does not apply."
+		description = summary + ".\nOutput is a JSON association record; --format does not apply." + workflowDetails[path[1]]
 		if path[1] == "run" {
 			description = summary + ".\nOutput is forwarded from the tracker command; the adapter supplies --format json.\nHelp and version retain their own text output.\nUse the direct lit tracker command for CLI or Markdown output."
 		}
@@ -180,6 +180,10 @@ func flagUsage(path []string, f nwcli.Flag) string {
 		u = "Service `URL` passed to lit-tui; flag > LIT_ENDPOINT > http://127.0.0.1:7411"
 	case strings.HasPrefix(p, "context"):
 		u = contextFlagUsage(p, f.Name, u)
+	case p == "workflow-session fresh" && f.Name == "project":
+		u = freshProjectUsage
+	case p == "workflow-session subagent" && f.Name == "project":
+		u = subagentProjectUsage
 	case p == "workflow-session checkout" && f.Name == "path":
 		u = "Required checkout `DIRECTORY` on this machine"
 	case p == "workflow-session checkout" && f.Name == "repository":

@@ -204,9 +204,12 @@ func workflowRequirements(action string) (string, string) {
 		req += "\nRequired operand: a tracker COMMAND after --. connect is forbidden.\nThe command cannot override --session, --endpoint, --client-id, --runtime-vendor,\n--runtime-session-id or --format; use the adapter lifecycle."
 		form += " -- COMMAND [ARGS...]"
 	}
-	if action == "fresh" || action == "subagent" {
+	switch {
+	case action == "fresh":
+		req += "\n" + freshEndpointRule
+	case action == "subagent":
 		req += "\nEndpoint: --endpoint > LIT_ENDPOINT > http://127.0.0.1:7411."
-	} else {
+	default:
 		req += "\nUses the saved runtime binding and endpoint; --endpoint and --project do not apply."
 	}
 	return req, form
