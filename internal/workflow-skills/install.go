@@ -15,6 +15,7 @@ var retired = strings.Fields("wayfinder grilling domain-modeling codebase-design
 const start = "<!-- BEGIN lit managed -->"
 const end = "<!-- END lit managed -->"
 const transactionName = ".lit-install-transaction"
+const lockName = ".lit-install.lock"
 
 func allowed(n string) bool {
 	for _, v := range append(append([]string{}, suite...), retired...) {
@@ -46,15 +47,8 @@ func Install(bundle fs.FS, targets []Target) ([]Result, error) {
 // Claude status line. Every target is preflighted before changes; each target
 // commits separately.
 func InstallWith(bundle fs.FS, targets []Target, opt Options) ([]Result, error) {
-	if len(targets) == 0 {
-		return nil, errors.New("no agents selected")
-	}
-	dirs := map[string]bool{}
-	for _, t := range targets {
-		if (t.Host != "codex" && t.Host != "claude") || t.Dir == "" || dirs[t.Dir] {
-			return nil, errors.New("invalid agent selection")
-		}
-		dirs[t.Dir] = true
+	if e := checkTargets(targets); e != nil {
+		return nil, e
 	}
 	stage, e := os.MkdirTemp("", "lit-skills-")
 	if e != nil {
@@ -87,29 +81,21 @@ func InstallWith(bundle fs.FS, targets []Target, opt Options) ([]Result, error) 
 	if e != nil {
 		return nil, e
 	}
+	inspectTarget := func(t Target) func(string) error {
+		return func(root string) error { _, e := inspect(root, t, opt); return e }
+	}
 	for _, t := range targets {
-		if e := preflight(t, opt); e != nil {
+		if e := preflight(t, inspectTarget(t)); e != nil {
 			return nil, fmt.Errorf("%s preflight: %w", t.Host, e)
 		}
 	}
-	locks := []string{}
-	defer func() {
-		for _, p := range locks {
-			os.Remove(p)
-		}
-	}()
-	for _, t := range targets {
-		if e := os.MkdirAll(t.Dir, 0755); e != nil {
-			return nil, e
-		}
-		l := filepath.Join(t.Dir, ".lit-install.lock")
-		if e := os.Mkdir(l, 0700); e != nil {
-			return nil, fmt.Errorf("installation busy or interrupted: %w", e)
-		}
-		locks = append(locks, l)
+	unlock, e := lockTargets(targets, true)
+	defer unlock()
+	if e != nil {
+		return nil, e
 	}
 	for _, t := range targets {
-		if e := preflightUnlocked(t, opt); e != nil {
+		if e := preflightUnlocked(t, inspectTarget(t)); e != nil {
 			return nil, e
 		}
 	}
@@ -137,3 +123,45 @@ func InstallWith(bundle fs.FS, targets []Target, opt Options) ([]Result, error) 
 // crashAt is called at the steps of a transaction; tests replace it to stop
 // the installer where a killed process would stop.
 var crashAt = func(step string) {}
+
+// checkTargets validates the selection: at least one target, known hosts and
+// one target per directory.
+func checkTargets(targets []Target) error {
+	if len(targets) == 0 {
+		return errors.New("no agents selected")
+	}
+	dirs := map[string]bool{}
+	for _, t := range targets {
+		if (t.Host != "codex" && t.Host != "claude") || t.Dir == "" || dirs[t.Dir] {
+			return errors.New("invalid agent selection")
+		}
+		dirs[t.Dir] = true
+	}
+	return nil
+}
+
+// lockTargets takes the installer lock of every target; the returned function
+// releases the locks taken so far and is safe to call after an error. With
+// create, missing configuration directories are created (installing); without,
+// the directories must exist.
+func lockTargets(targets []Target, create bool) (unlock func(), err error) {
+	locks := []string{}
+	unlock = func() {
+		for _, p := range locks {
+			os.Remove(p)
+		}
+	}
+	for _, t := range targets {
+		if create {
+			if e := os.MkdirAll(t.Dir, 0755); e != nil {
+				return unlock, e
+			}
+		}
+		l := filepath.Join(t.Dir, lockName)
+		if e := os.Mkdir(l, 0700); e != nil {
+			return unlock, fmt.Errorf("installation busy or interrupted: %w", e)
+		}
+		locks = append(locks, l)
+	}
+	return unlock, nil
+}
