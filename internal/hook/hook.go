@@ -98,7 +98,7 @@ func Run(host, event string, in io.Reader, out, errOut io.Writer, opt Options) i
 	defer cancel()
 	c := &Call{Ctx: ctx, Host: h, Event: e, Opt: opt, Log: &Log{Host: h.Name, Event: e.Name, fallback: errOut, now: time.Now}}
 	if reply := c.serve(in); len(reply) > 0 {
-		out.Write(reply)
+		_, _ = out.Write(reply)
 	}
 	return 0
 }

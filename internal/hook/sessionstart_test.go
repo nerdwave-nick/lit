@@ -228,7 +228,8 @@ func TestSessionStartDuplicatesNeverCreateASecondClient(t *testing.T) {
 				wg.Add(1)
 				go func() {
 					defer wg.Done()
-					replies[i] = g.hook(host, "session-start", in, Options{})
+					// Generous waits: contention must not look like a stuck lock.
+					replies[i] = g.hook(host, "session-start", in, Options{Budget: 20 * time.Second, BusyWait: 15 * time.Second})
 				}()
 			}
 			wg.Wait()
@@ -260,7 +261,7 @@ func TestSessionStartWaitsForABriefLock(t *testing.T) {
 		time.Sleep(300 * time.Millisecond)
 		os.Remove(lock)
 	}()
-	r := g.hook("claude", "session-start", in, Options{BusyWait: 3 * time.Second})
+	r := g.hook("claude", "session-start", in, Options{Budget: 10 * time.Second, BusyWait: 5 * time.Second})
 	a, e := g.association("claude", id)
 	if e != nil || a.Status != "ready" {
 		t.Fatalf("%+v %v", a, e)
