@@ -278,7 +278,11 @@ func workflowSession() *nwcli.Command {
 func hookCommand() *nwcli.Command {
 	g := group("hook")
 	for _, e := range hook.Events() {
-		g.Commands = append(g.Commands, &nwcli.Command{Name: e.Name})
+		cmd := &nwcli.Command{Name: e.Name}
+		if e.Name == "statusline" {
+			cmd.Flags = flags("original")
+		}
+		g.Commands = append(g.Commands, cmd)
 	}
 	g.Flags, g.Without = flags("host"), strings.Fields(globals)
 	return g

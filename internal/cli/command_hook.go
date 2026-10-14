@@ -20,5 +20,9 @@ func runHook(p *nwcli.Parsed, in io.Reader, out, errOut io.Writer) int {
 		fmt.Fprintln(errOut, "lit hook: --host codex|claude is required")
 		return 2
 	}
-	return hook.Run(host, p.Path[len(p.Path)-1], in, out, errOut, hook.Options{})
+	opt := hook.Options{}
+	if v := p.Flags["original"]; len(v) > 0 {
+		opt.Original = v[0]
+	}
+	return hook.Run(host, p.Path[len(p.Path)-1], in, out, errOut, opt)
 }

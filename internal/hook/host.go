@@ -28,6 +28,8 @@ type Input struct {
 	Cwd    string
 	// Raw holds every field of the input for events that need more.
 	Raw map[string]json.RawMessage
+	// Body is the input exactly as the host wrote it.
+	Body []byte
 }
 
 // Decode parses the hook JSON of event e. Unknown fields are ignored: hosts add
@@ -44,8 +46,8 @@ func (h Host) Decode(e Event, raw []byte) (Input, error) {
 		}
 		return s
 	}
-	in := Input{SessionID: text("session_id"), Source: text("source"), Cwd: text("cwd"), Raw: fields}
-	if name := text("hook_event_name"); name != "" && name != e.HostName {
+	in := Input{SessionID: text("session_id"), Source: text("source"), Cwd: text("cwd"), Raw: fields, Body: raw}
+	if name := text("hook_event_name"); name != "" && e.HostName != "" && name != e.HostName {
 		return in, fmt.Errorf("the hook input is for %s, not %s", name, e.HostName)
 	}
 	if in.SessionID == "" {

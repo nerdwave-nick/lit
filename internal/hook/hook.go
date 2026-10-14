@@ -30,6 +30,9 @@ type Options struct {
 	ProbeTimeout time.Duration
 	// BusyWait replaces how long a held runtime lock is waited for.
 	BusyWait time.Duration
+	// Original is the status line command that statusline puts lit's part
+	// after (--original).
+	Original string
 }
 
 const (
@@ -41,7 +44,7 @@ const (
 // Event is one hook event lit serves as `lit hook --host HOST NAME`.
 type Event struct {
 	Name        string // the command's spelling, for example "session-start"
-	HostName    string // the host's hook_event_name, for example "SessionStart"
+	HostName    string // the host's hook_event_name, for example "SessionStart"; empty when the host sends none
 	Summary     string // one line for help
 	Description string // help text
 	Budget      time.Duration
