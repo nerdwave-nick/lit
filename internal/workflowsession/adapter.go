@@ -45,10 +45,16 @@ type Adapter struct {
 
 // FreshOptions select what Fresh and Subagent register. Endpoint is the
 // resolved service origin.
+//
+// Project selects the session's project explicitly. Without it, Fresh adopts
+// the project remembered for a checkout when Remembered is set (see
+// Remembered); Subagent never does.
 type FreshOptions struct {
 	Endpoint   string
 	Project    string
 	Discussion *string
+	// Remembered lets Fresh adopt the project remembered for a checkout.
+	Remembered *Remembered
 }
 
 func (a Adapter) forRuntime(id string) Adapter {
@@ -190,7 +196,11 @@ func (a Adapter) create(ctx context.Context, parent string, o FreshOptions) (Ass
 			return Association{}, errors.New("parent association is not ready")
 		}
 	}
-	r := record{Version: 1, Host: a.Host, Runtime: a.RuntimeID, Session: "agent-" + protocol.UUID(), Endpoint: o.Endpoint, Status: "pending", Discussion: o.Discussion}
+	choice, e := a.choose(ctx, parent != "", o)
+	if e != nil {
+		return Association{}, e
+	}
+	r := record{Version: 1, Host: a.Host, Runtime: a.RuntimeID, Session: "agent-" + protocol.UUID(), Endpoint: choice.endpoint, Status: "pending", Discussion: o.Discussion, Selection: &choice.selection}
 	if parent != "" {
 		r.Parent = &parent
 	}
@@ -198,8 +208,8 @@ func (a Adapter) create(ctx context.Context, parent string, o FreshOptions) (Ass
 		return Association{}, e
 	}
 	cmd := []string{"connect", "--actor-name", a.Host, "--actor-kind", "agent", "--runtime-vendor", a.Host, "--runtime-session-id", a.RuntimeID}
-	if o.Project != "" {
-		cmd = append(cmd, "--project", o.Project)
+	if choice.project != "" {
+		cmd = append(cmd, "--project", choice.project)
 	}
 	current, e := h.item(ctx, r, cmd...)
 	if e != nil {

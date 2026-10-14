@@ -14,6 +14,7 @@ import (
 	"strings"
 	"unicode/utf16"
 
+	"github.com/nerdwave-nick/lit/internal/checkoutcontext"
 	"github.com/nerdwave-nick/lit/internal/clientendpoint"
 	"github.com/nerdwave-nick/lit/internal/protocol"
 )
@@ -30,6 +31,9 @@ type record struct {
 	Discussion *string `json:"discussion_id"`
 	Parent     *string `json:"parent_runtime_id"`
 	Status     string  `json:"status"`
+	// Selection says how the project was chosen when the session was created.
+	// Records written before it existed lack it.
+	Selection *Selection `json:"project_selection,omitempty"`
 }
 
 // key retains Python json.dumps(tuple)'s separators and ensure_ascii encoding.
@@ -132,7 +136,7 @@ func validate(r record, host, id string) error {
 	return nil
 }
 
-const help = "lit workflow-session --host codex|claude --runtime-id ID [--cli PATH] ACTION\n  fresh [--endpoint URL] [--project REF] [--discussion-id ID]\n  subagent --parent-runtime-id ID [--endpoint URL] [--project REF] [--discussion-id ID]\n  resume | reconcile\n  run -- COMMAND ARGS...\n  checkout --repository REF --path DIRECTORY\nExplicit runtime identity is required. Defaults to this executable. Endpoint: --endpoint > LIT_ENDPOINT > http://127.0.0.1:7411; resume preserves the saved endpoint. Never starts a service.\n"
+const help = "lit workflow-session --host codex|claude --runtime-id ID [--cli PATH] ACTION\n  fresh [--endpoint URL] [--project REF] [--discussion-id ID]\n  subagent --parent-runtime-id ID [--endpoint URL] [--project REF] [--discussion-id ID]\n  resume | reconcile\n  run -- COMMAND ARGS...\n  checkout --repository REF --path DIRECTORY\nExplicit runtime identity is required. Defaults to this executable. Endpoint: --endpoint > LIT_ENDPOINT > http://127.0.0.1:7411; resume preserves the saved endpoint. Without --project, fresh adopts the project remembered for the current checkout (lit context set) and reports it as project_selection; subagent never does. Never starts a service.\n"
 
 func Run(args []string, out, errOut io.Writer) int {
 	code, e := run(args, out, errOut)
@@ -196,6 +200,7 @@ func run(args []string, out, errOut io.Writer) (int, error) {
 	if (*host != "codex" && *host != "claude") || strings.TrimSpace(*id) == "" {
 		return 1, errors.New("explicit host and nonempty runtime-id required")
 	}
+	var inputs checkoutcontext.Endpoint
 	if action == "fresh" || action == "subagent" {
 		supplied := false
 		sub.Visit(func(f *flag.Flag) {
@@ -203,8 +208,9 @@ func run(args []string, out, errOut io.Writer) (int, error) {
 				supplied = true
 			}
 		})
+		inputs = checkoutcontext.Endpoint{Explicit: endpoint, Supplied: supplied, Environment: os.Getenv("LIT_ENDPOINT")}
 		var err error
-		endpoint, err = clientendpoint.Resolve(endpoint, supplied, os.Getenv("LIT_ENDPOINT"), "")
+		endpoint, err = clientendpoint.Resolve(endpoint, supplied, inputs.Environment, "")
 		if err != nil {
 			return 1, err
 		}
@@ -233,6 +239,8 @@ func run(args []string, out, errOut io.Writer) (int, error) {
 			}
 		})
 		if action == "fresh" {
+			// Without --project the current checkout's remembered project is adopted.
+			o.Remembered = &Remembered{Endpoint: inputs}
 			r, e = a.Fresh(ctx, o)
 		} else {
 			r, e = a.Subagent(ctx, parent, o)
