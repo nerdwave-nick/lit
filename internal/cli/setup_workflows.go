@@ -13,8 +13,8 @@ import (
 	workflowskills "github.com/nerdwave-nick/lit/internal/workflow-skills"
 )
 
-const setupWorkflowsHelp = `setup-workflows --scope local|user --agent codex|claude|both
-setup-workflows --agent codex|claude --config-dir DIRECTORY
+const setupWorkflowsHelp = `setup-workflows [--remove] --scope local|user --agent codex|claude|both
+setup-workflows [--remove] --agent codex|claude --config-dir DIRECTORY
 Installs the embedded workflow skills and the managed instruction block, and into an agent configuration (--scope user or --config-dir) the lit hooks and the Claude status line, offline; never starts lit-server.
 Output is a JSON installation receipt on stdout (agent, scope, directory, adopted, hooks, status_line, warnings, notes); --format does not apply. Warnings and notes are also printed on stderr.
 local: .codex/.claude in the current directory; skills and the managed block only, never hooks. user: .codex/.claude in the home directory.
@@ -28,6 +28,8 @@ Setup warns about lit hooks found elsewhere (other configurations, the project's
 An install made by the removed setup-skills command (.lit-skills.json) is adopted in the same transaction.
 Existing owned files upgrade; local edits, collisions, symlinks and settings.json or hooks.json that are not valid JSON objects fail.
 Both agents are preflighted before writes; unexpected errors can leave one host completed. Rerun safely.
+--remove takes the same target flags and removes exactly what each target's ownership record lists: the skills, the managed instruction block, the lit-hooks plugin directory, lit's groups in hooks.json and lit's status line (a wrapped original is restored exactly), then the record. It uses the same lock, journal and recovery as installing, so an interrupted removal is rolled back by the next run. Owned files you changed are refused and nothing setup does not own is touched; settings.json, hooks.json and the instruction file setup created are deleted once only lit's content is left.
+A target with no installation is reported ("nothing to remove") and is not an error; an install made by the removed setup-skills command (.lit-skills.json) is removed through that file. Output with --remove is a JSON receipt on stdout: {"removed": [{agent, scope, directory, found, skills, hooks, status_line (restored, removed or left), warnings, notes}]}.
 `
 
 // installReceipt is the JSON result of a successful setup-workflows run.
@@ -61,6 +63,9 @@ func runSetupWorkflows(p *nwcli.Parsed, out, errOut io.Writer) int {
 		fmt.Fprintln(errOut, "setup-workflows:", e)
 		return 2
 	}
+	if _, remove := p.Flags["remove"]; remove {
+		return runRemoveWorkflows(targets, out, errOut)
+	}
 	binary := litBinary()
 	results, e := workflowskills.InstallWith(workflowskills.Bundle(), targets, workflowskills.Options{Binary: binary})
 	if e != nil {
@@ -78,7 +83,7 @@ func runSetupWorkflows(p *nwcli.Parsed, out, errOut io.Writer) int {
 			t.Notes = append(t.Notes, "the lit hooks take LIT_ENDPOINT (here "+endpoint+") from the environment of the agent that runs them, not from setup; without it new sessions use http://127.0.0.1:7411")
 		}
 		r.Installed = append(r.Installed, t)
-		reportTarget(errOut, t)
+		reportTarget(errOut, t.Agent, t.Directory, t.Warnings, t.Notes)
 	}
 	if e = json.NewEncoder(out).Encode(r); e != nil {
 		fmt.Fprintln(errOut, "setup-workflows: workflows installed, but could not write result:", e)
@@ -89,15 +94,15 @@ func runSetupWorkflows(p *nwcli.Parsed, out, errOut io.Writer) int {
 
 // reportTarget prints a target's warnings and notes for the person running
 // setup; stdout stays the JSON receipt.
-func reportTarget(w io.Writer, t installedTarget) {
-	if len(t.Warnings) == 0 && len(t.Notes) == 0 {
+func reportTarget(w io.Writer, agent, directory string, warnings, notes []string) {
+	if len(warnings) == 0 && len(notes) == 0 {
 		return
 	}
-	fmt.Fprintf(w, "%s %s\n", t.Agent, t.Directory)
-	for _, warning := range t.Warnings {
+	fmt.Fprintf(w, "%s %s\n", agent, directory)
+	for _, warning := range warnings {
 		fmt.Fprintln(w, "  warning:", warning)
 	}
-	for _, note := range t.Notes {
+	for _, note := range notes {
 		if strings.HasPrefix(note, " ") {
 			fmt.Fprintln(w, "   ", strings.TrimSpace(note))
 		} else {

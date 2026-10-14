@@ -1849,8 +1849,8 @@ Global Flags:
       --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
       --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
 == lit setup-workflows --help
-setup-workflows --scope local|user --agent codex|claude|both
-setup-workflows --agent codex|claude --config-dir DIRECTORY
+setup-workflows [--remove] --scope local|user --agent codex|claude|both
+setup-workflows [--remove] --agent codex|claude --config-dir DIRECTORY
 Installs the embedded workflow skills and the managed instruction block, and into an agent configuration (--scope user or --config-dir) the lit hooks and the Claude status line, offline; never starts lit-server.
 Output is a JSON installation receipt on stdout (agent, scope, directory, adopted, hooks, status_line, warnings, notes); --format does not apply. Warnings and notes are also printed on stderr.
 local: .codex/.claude in the current directory; skills and the managed block only, never hooks. user: .codex/.claude in the home directory.
@@ -1864,16 +1864,19 @@ Setup warns about lit hooks found elsewhere (other configurations, the project's
 An install made by the removed setup-skills command (.lit-skills.json) is adopted in the same transaction.
 Existing owned files upgrade; local edits, collisions, symlinks and settings.json or hooks.json that are not valid JSON objects fail.
 Both agents are preflighted before writes; unexpected errors can leave one host completed. Rerun safely.
+--remove takes the same target flags and removes exactly what each target's ownership record lists: the skills, the managed instruction block, the lit-hooks plugin directory, lit's groups in hooks.json and lit's status line (a wrapped original is restored exactly), then the record. It uses the same lock, journal and recovery as installing, so an interrupted removal is rolled back by the next run. Owned files you changed are refused and nothing setup does not own is touched; settings.json, hooks.json and the instruction file setup created are deleted once only lit's content is left.
+A target with no installation is reported ("nothing to remove") and is not an error; an install made by the removed setup-skills command (.lit-skills.json) is removed through that file. Output with --remove is a JSON receipt on stdout: {"removed": [{agent, scope, directory, found, skills, hooks, status_line (restored, removed or left), warnings, notes}]}.
 
 Requirements:
   Required flags: --agent, and --scope or --config-dir.
   --scope and --config-dir are mutually exclusive; --config-dir takes exactly one --agent (codex or claude).
   Hooks and the Claude status line are installed for --scope user and --config-dir only, never for --scope local.
+  --remove takes the same target flags and removes what the target's ownership record lists instead of installing; a target without an installation is reported, not an error.
   No tracker session or service is needed.
 
 Valid forms:
-  lit setup-workflows --scope local|user --agent codex|claude|both
-  lit setup-workflows --agent codex|claude --config-dir DIRECTORY
+  lit setup-workflows [--remove] --scope local|user --agent codex|claude|both
+  lit setup-workflows [--remove] --agent codex|claude --config-dir DIRECTORY
   [] means optional; | separates alternatives; ... means repeatable.
 
 Usage:
@@ -1887,6 +1890,7 @@ Flags:
       --agent AGENT            Required Target AGENT: codex, claude or both (codex or claude with --config-dir)
       --config-dir DIRECTORY   Required unless --scope is given; conflicts with --scope. Agent configuration DIRECTORY, for example ~/.claude-work; installs one agent there
   -h, --help                   help for setup-workflows
+      --remove                 Optional. Remove what setup installed in the selected targets instead of installing; see the requirements
       --scope SCOPE            Required unless --config-dir is given; conflicts with --config-dir. Install SCOPE: local or user
 == lit tui --help
 Open the terminal UI for people: the separate lit-tui executable.

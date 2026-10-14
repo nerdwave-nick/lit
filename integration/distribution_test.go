@@ -11,6 +11,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"runtime"
+	"slices"
 	"strings"
 	"testing"
 
@@ -129,7 +130,7 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 		hooks      bool
 	}
 	targets := []target{}
-	for _, tc := range []struct {
+	installs := []struct {
 		args    []string
 		targets []target
 		adopt   bool
@@ -138,7 +139,8 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 		{[]string{"--scope", "user", "--agent", "both"}, []target{{"codex", filepath.Join(home, ".codex"), true}, {"claude", filepath.Join(home, ".claude"), true}}, false},
 		{[]string{"--agent", "claude", "--config-dir", claudeConfig}, []target{{"claude", claudeConfig, true}}, true},
 		{[]string{"--agent", "codex", "--config-dir", codexConfig}, []target{{"codex", codexConfig, true}}, false},
-	} {
+	}
+	for _, tc := range installs {
 		for repeat := 0; repeat < 2; repeat++ {
 			receipt := call(append([]string{"setup-workflows"}, tc.args...)...)["installed"].([]any)
 			if len(receipt) != len(tc.targets) {
@@ -304,7 +306,49 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 	if err != nil || len(mappings) != 4 {
 		t.Fatal("checkout mappings", mappings, err)
 	}
-	t.Log("PASS: standard Go install (lit, lit-server, lit-tui); non-terminal lit/lit tui dispatch; source-free offline setup all scopes/both hosts/16 skills; hooks and status line in agent configurations only (installed commands run); real service; four isolated sessions; cross-checkout resume/mappings; claims/checkpoints/closure")
+	// setup-workflows --remove undoes every installation above with the same
+	// flags, leaving only what the user wrote.
+	for _, tc := range installs {
+		for repeat := 0; repeat < 2; repeat++ {
+			receipt := call(append([]string{"setup-workflows", "--remove"}, tc.args...)...)["removed"].([]any)
+			if len(receipt) != len(tc.targets) {
+				t.Fatalf("remove %v receipt: %v", tc.args, receipt)
+			}
+			for i, want := range tc.targets {
+				got := receipt[i].(map[string]any)
+				// The second run finds nothing left to remove.
+				first, skills := repeat == 0, 0
+				if first {
+					skills = len(expected)
+				}
+				if got["agent"] != want.host || got["directory"] != want.root || got["found"] != first || got["hooks"] != (first && want.hooks) || got["skills"] != float64(skills) {
+					t.Fatalf("remove %v run %d receipt %v, want %v (found %v)", tc.args, repeat, got, want, first)
+				}
+			}
+		}
+	}
+	for _, tg := range targets {
+		var left []string
+		if err := filepath.WalkDir(tg.root, func(path string, d fs.DirEntry, err error) error {
+			if err == nil && !d.IsDir() {
+				left = append(left, strings.TrimPrefix(path, tg.root+string(filepath.Separator)))
+			}
+			return err
+		}); err != nil {
+			t.Fatal(err)
+		}
+		// The claude configuration keeps the line the user wrote before setup.
+		if tg.root == claudeConfig {
+			if b, err := os.ReadFile(filepath.Join(claudeConfig, "CLAUDE.md")); err != nil || string(b) != "mine\n" {
+				t.Fatalf("CLAUDE.md after removal: %q %v", b, err)
+			}
+			left = slices.DeleteFunc(left, func(f string) bool { return f == "CLAUDE.md" })
+		}
+		if len(left) != 0 {
+			t.Fatalf("removal left files in %s: %v", tg.root, left)
+		}
+	}
+	t.Log("PASS: standard Go install (lit, lit-server, lit-tui); non-terminal lit/lit tui dispatch; source-free offline setup all scopes/both hosts/16 skills; hooks and status line in agent configurations only (installed commands run); real service; four isolated sessions; cross-checkout resume/mappings; claims/checkpoints/closure; setup-workflows --remove leaves only the user's files")
 }
 
 // checkHooks verifies the hook installation of one target and runs the installed
