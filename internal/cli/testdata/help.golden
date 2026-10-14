@@ -2166,7 +2166,8 @@ Usage:
   lit hook [command]
 
 Available Commands:
-  session-start Hand the agent its lit session at session start
+  session-start  Hand the agent its lit session at session start
+  subagent-start Give a subagent its own lit session
 
 Flags:
   -h, --help        help for hook
@@ -2198,6 +2199,35 @@ Examples:
 
 Flags:
   -h, --help   help for session-start
+
+Global Flags:
+      --host HOST   Required agent HOST: codex or claude
+== lit hook subagent-start --help
+Serve the host's SubagentStart hook. Read the hook JSON on stdin and register the subagent, keyed by the input's agent_id, as a child
+of the conversation's lit session (the input's session_id): its own client, endpoint and selected project taken explicitly from the
+parent, and no claims. Print host output whose additionalContext names the subagent's session, endpoint, runtime ID and project.
+Running again for the same agent_id (a resumed subagent) registers nothing and prints the same text. A conversation without a
+lit session gets no subagent session. The command exits 0 whatever happens; errors go to the hook log.
+
+Requirements:
+  Required flag: --host.
+  The host's hook JSON is read from stdin and its output written to stdout.
+  No tracker session is needed: the subagent's runtime ID is the hook input's agent_id and its parent is the input's session_id.
+  Endpoint and project: those of the parent's lit session (workflow-session subagent --endpoint --project); LIT_ENDPOINT is not read.
+  Exits 0 whatever happens once the event is served; errors go to the hook log.
+
+Valid forms:
+  lit hook --host codex|claude subagent-start < hook-input.json
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit hook subagent-start [flags]
+
+Examples:
+  lit hook --host claude subagent-start < hook-input.json
+
+Flags:
+  -h, --help   help for subagent-start
 
 Global Flags:
       --host HOST   Required agent HOST: codex or claude

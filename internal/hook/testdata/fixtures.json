@@ -2,7 +2,9 @@
   "provenance": {
     "claude-captured": "Captured from Claude Code 2.1.296 (claude -p with a temporary CLAUDE_CONFIG_DIR whose SessionStart hook dumped stdin), source startup. Only the home directory, project path and transcript path were replaced with example paths; the field set is exactly what the host sent (in -p mode model, effort and permission_mode were absent).",
     "claude-documented": "Not captured: derived from the captured startup input and the SessionStart section of https://code.claude.com/docs/en/hooks (common fields session_id, transcript_path, cwd, permission_mode, effort, hook_event_name; SessionStart adds source and model; resume and fork add seconds_since_last_response, context_tokens, prompt_cache_likely_expired and estimated_cache_write_usd). Session IDs for clear and fork are new, resume and compact keep the startup ID.",
-    "codex-schema": "Not captured: built from the SessionStart input schema embedded in codex-cli 0.162.1 (strings /opt/openai-codex/bin/codex, 'session-start.command.input'; see session-start.input.schema.json, whose closing braces were restored because strings drops short lines). Every required field is present and no other field is added. A real Codex capture was deliberately not made: SessionStart does not fire without credentials and the user ruled out copying auth.json."
+    "codex-schema": "Not captured: built from the SessionStart input schema embedded in codex-cli 0.162.1 (strings /opt/openai-codex/bin/codex, 'session-start.command.input'; see session-start.input.schema.json, whose closing braces were restored because strings drops short lines). Every required field is present and no other field is added. A real Codex capture was deliberately not made: SessionStart does not fire without credentials and the user ruled out copying auth.json.",
+    "claude-subagent-observed": "Not captured in full: the field values are observed, the rest is documented. In the planning prototype for the hooks plugin (lit issue 345c8d1d, Claude Code 2.1.296) a SubagentStart hook fired when Claude started a general-purpose subagent with the Agent tool; the prototype's log kept only session_id, agent_id and agent_type, and those three values (including the format of agent_id and that session_id is the root conversation's, the one its SessionStart reported) are used here unchanged. The complete stdin was not recorded, so transcript_path, cwd and hook_event_name follow the documented SubagentStart input (https://code.claude.com/docs/en/hooks#subagentstart; the common fields plus agent_id and agent_type, no permission_mode or effort), with the home directory and project replaced by example paths. A later SubagentStart for the same agent_id (a resumed subagent, or an in-process teammate handling a new message) carries the same input.",
+    "codex-subagent-schema": "Not captured: built from the SubagentStart input schema embedded in codex-cli 0.162.1 ('subagent-start.command.input' in /opt/openai-codex/bin/codex, extracted verbatim into subagent-start.input.schema.json; its output schema is subagent-start.output.schema.json). So codex-cli 0.162.1 does have a SubagentStart event. Every required field is present and none is added; session_id is the root thread's and agent_id the subagent's (example UUIDv7 values), agent_type is an example value. No Codex run was made, and no auth.json was read or copied."
   },
   "fixtures": [
     {
@@ -74,6 +76,18 @@
       "event": "session-start",
       "source": "compact",
       "provenance": "codex-schema"
+    },
+    {
+      "file": "claude/subagent-start.json",
+      "host": "claude",
+      "event": "subagent-start",
+      "provenance": "claude-subagent-observed"
+    },
+    {
+      "file": "codex/subagent-start.json",
+      "host": "codex",
+      "event": "subagent-start",
+      "provenance": "codex-subagent-schema"
     }
   ]
 }
