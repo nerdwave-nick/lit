@@ -2177,7 +2177,9 @@ Use "lit hook [command] --help" for more information about a command.
 Serve the host's SessionStart hook. Read the hook JSON on stdin; create the lit session for a new runtime (startup, clear,
 fork) or reconnect the known one (resume), keyed by the host session_id, and print host output whose additionalContext names
 the session, endpoint, runtime ID, selected project and current claims. A server that does not answer creates nothing and is
-reported in the context. The command exits 0 whatever happens; errors go to the hook log.
+reported in the context. After a compaction (source compact) print the session, project, the claims it holds with their lease
+expiry and an excerpt of each claimed issue's latest comment, without writing anything to the tracker. The command exits 0
+whatever happens; errors go to the hook log.
 
 Requirements:
   Required flag: --host.
