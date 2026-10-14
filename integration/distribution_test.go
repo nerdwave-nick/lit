@@ -62,9 +62,12 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 		c := exec.Command(cli, args...)
 		c.Dir = cwd
 		c.Env = env
-		out, err := c.CombinedOutput()
+		// stderr carries setup's warnings and notes; stdout is the JSON result.
+		var stderr bytes.Buffer
+		c.Stderr = &stderr
+		out, err := c.Output()
 		if err != nil {
-			t.Fatalf("%v: %v: %s", args, err, out)
+			t.Fatalf("%v: %v: %s%s", args, err, out, &stderr)
 		}
 		var result map[string]any
 		if err := json.Unmarshal(out, &result); err != nil {
@@ -119,17 +122,22 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 		}
 	}
 	// Setup has no service available and no usable inherited tracker selection.
-	type target struct{ host, root string }
+	// hooks: the target is an agent configuration (user scope or --config-dir),
+	// which also gets the lit hooks; a local scope never does.
+	type target struct {
+		host, root string
+		hooks      bool
+	}
 	targets := []target{}
 	for _, tc := range []struct {
 		args    []string
 		targets []target
 		adopt   bool
 	}{
-		{[]string{"--scope", "local", "--agent", "both"}, []target{{"codex", filepath.Join(repo1, ".codex")}, {"claude", filepath.Join(repo1, ".claude")}}, false},
-		{[]string{"--scope", "user", "--agent", "both"}, []target{{"codex", filepath.Join(home, ".codex")}, {"claude", filepath.Join(home, ".claude")}}, false},
-		{[]string{"--agent", "claude", "--config-dir", claudeConfig}, []target{{"claude", claudeConfig}}, true},
-		{[]string{"--agent", "codex", "--config-dir", codexConfig}, []target{{"codex", codexConfig}}, false},
+		{[]string{"--scope", "local", "--agent", "both"}, []target{{"codex", filepath.Join(repo1, ".codex"), false}, {"claude", filepath.Join(repo1, ".claude"), false}}, false},
+		{[]string{"--scope", "user", "--agent", "both"}, []target{{"codex", filepath.Join(home, ".codex"), true}, {"claude", filepath.Join(home, ".claude"), true}}, false},
+		{[]string{"--agent", "claude", "--config-dir", claudeConfig}, []target{{"claude", claudeConfig, true}}, true},
+		{[]string{"--agent", "codex", "--config-dir", codexConfig}, []target{{"codex", codexConfig, true}}, false},
 	} {
 		for repeat := 0; repeat < 2; repeat++ {
 			receipt := call(append([]string{"setup-workflows"}, tc.args...)...)["installed"].([]any)
@@ -138,7 +146,7 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 			}
 			for i, want := range tc.targets {
 				got := receipt[i].(map[string]any)
-				if got["agent"] != want.host || got["directory"] != want.root || got["adopted"] != (tc.adopt && repeat == 0) {
+				if got["agent"] != want.host || got["directory"] != want.root || got["adopted"] != (tc.adopt && repeat == 0) || got["hooks"] != want.hooks {
 					t.Fatalf("%v run %d receipt %v, want %v (adopted %v)", tc.args, repeat, got, want, tc.adopt && repeat == 0)
 				}
 			}
@@ -161,9 +169,14 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 			t.Fatalf("%s keeps the old ownership file: %v", hostRoot, err)
 		}
 		entries, err := os.ReadDir(skills)
-		if err != nil || len(entries) != len(expected) {
+		wantEntries := len(expected)
+		if tg.hooks && host == "claude" {
+			wantEntries++ // the lit-owned hooks plugin directory
+		}
+		if err != nil || len(entries) != wantEntries {
 			t.Fatalf("suite %s: %d %v", skills, len(entries), err)
 		}
+		checkHooks(t, tg.host, tg.root, tg.hooks, bin, env, repo1)
 		for _, name := range expected {
 			b, err := os.ReadFile(filepath.Join(skills, name, "SKILL.md"))
 			if err != nil || len(b) == 0 {
@@ -291,5 +304,78 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 	if err != nil || len(mappings) != 4 {
 		t.Fatal("checkout mappings", mappings, err)
 	}
-	t.Log("PASS: standard Go install (lit, lit-server, lit-tui); non-terminal lit/lit tui dispatch; source-free offline setup all scopes/both hosts/16 skills; real service; four isolated sessions; cross-checkout resume/mappings; claims/checkpoints/closure")
+	t.Log("PASS: standard Go install (lit, lit-server, lit-tui); non-terminal lit/lit tui dispatch; source-free offline setup all scopes/both hosts/16 skills; hooks and status line in agent configurations only (installed commands run); real service; four isolated sessions; cross-checkout resume/mappings; claims/checkpoints/closure")
+}
+
+// checkHooks verifies the hook installation of one target and runs the installed
+// hook commands the way the host does (a shell, the host's input on stdin, a
+// PATH that holds only the installed lit). lit-server is unreachable at the
+// walkthrough's LIT_ENDPOINT, so the commands answer that lit is unavailable.
+func checkHooks(t *testing.T, host, root string, hooks bool, bin string, env []string, cwd string) {
+	t.Helper()
+	present := func(p string) bool { _, err := os.Stat(filepath.Join(root, p)); return err == nil }
+	plugin := filepath.Join("skills", "lit-hooks")
+	if present("settings.json") != (hooks && host == "claude") || present(plugin) != (hooks && host == "claude") || present("hooks.json") != (hooks && host == "codex") {
+		t.Fatalf("%s: hook files: settings.json=%v plugin=%v hooks.json=%v, want hooks=%v", root, present("settings.json"), present(plugin), present("hooks.json"), hooks)
+	}
+	if !hooks {
+		return
+	}
+	hooksFile := "hooks.json"
+	if host == "claude" {
+		hooksFile = filepath.Join(plugin, "hooks", "hooks.json")
+	}
+	var doc struct {
+		Hooks map[string][]struct {
+			Hooks []struct {
+				Type, Command string
+				Timeout       int
+			}
+		}
+	}
+	b, err := os.ReadFile(filepath.Join(root, hooksFile))
+	if err != nil || json.Unmarshal(b, &doc) != nil || len(doc.Hooks) != 3 {
+		t.Fatalf("%s: %v %s", hooksFile, err, b)
+	}
+	run := func(command, input string) string {
+		t.Helper()
+		c := exec.Command("sh", "-c", command)
+		c.Dir, c.Env, c.Stdin = cwd, append(append([]string{}, env...), "COLUMNS=100"), strings.NewReader(input)
+		var stdout, stderr bytes.Buffer
+		c.Stdout, c.Stderr = &stdout, &stderr
+		if err := c.Run(); err != nil {
+			t.Fatalf("%s: %v: %s%s", command, err, &stdout, &stderr)
+		}
+		return stdout.String()
+	}
+	for event, input := range map[string]string{
+		"SessionStart":  `{"session_id":"walkthrough-hooks-` + host + `","hook_event_name":"SessionStart","source":"startup","cwd":"` + cwd + `"}`,
+		"SubagentStart": `{"session_id":"walkthrough-hooks-` + host + `","agent_id":"walkthrough-agent","agent_type":"general-purpose","hook_event_name":"SubagentStart","cwd":"` + cwd + `"}`,
+		"Stop":          `{"session_id":"walkthrough-hooks-` + host + `","hook_event_name":"Stop","stop_hook_active":false,"cwd":"` + cwd + `"}`,
+	} {
+		groups := doc.Hooks[event]
+		if len(groups) != 1 || len(groups[0].Hooks) != 1 || groups[0].Hooks[0].Type != "command" || !strings.Contains(groups[0].Hooks[0].Command, "hook --host "+host+" ") {
+			t.Fatalf("%s %s: %+v", root, event, groups)
+		}
+		out := run(groups[0].Hooks[0].Command, input)
+		if event == "SessionStart" && !strings.Contains(out, "unavailable") {
+			t.Errorf("%s SessionStart answered %q, want the lit-unavailable note", root, out)
+		}
+	}
+	if host != "claude" {
+		return
+	}
+	var settings struct {
+		StatusLine struct {
+			Type, Command   string
+			RefreshInterval int
+		} `json:"statusLine"`
+	}
+	b, err = os.ReadFile(filepath.Join(root, "settings.json"))
+	if err != nil || json.Unmarshal(b, &settings) != nil || settings.StatusLine.Type != "command" || settings.StatusLine.RefreshInterval != 2 || !strings.Contains(settings.StatusLine.Command, "hook --host claude statusline") {
+		t.Fatalf("settings.json: %v %s", err, b)
+	}
+	if line := run(settings.StatusLine.Command, `{"session_id":"walkthrough-hooks-claude","cwd":"`+cwd+`","model":{"display_name":"Opus"}}`); !strings.Contains(line, "not lit") {
+		t.Errorf("%s status line %q, want the not-lit state", root, line)
+	}
 }

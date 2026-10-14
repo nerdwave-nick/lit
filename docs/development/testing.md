@@ -116,6 +116,26 @@ without `git`) and `--original` as shell scripts: stdin passed through exactly,
 timeout (the process group is killed too) leaving lit's part alone. A test runs
 the built binary and logs how long a cold and a cached status line took.
 
+The hook installation (`internal/workflow-skills/hooks_*_test.go`, `hostscan_test.go`,
+`internal/cli/setup_hooks_test.go`) runs against temporary agent configurations
+for both hosts, with `HOME` pointed at a temporary directory for `--scope user`
+and never touching a real `~/.claude` or `~/.codex`. It covers the plugin
+directory and its record, every status line case (unset, null, lit's own, a
+wrapped foreign command, quoting round trips, a status line that cannot be
+wrapped), key order and member texts of `settings.json` and `hooks.json`, Codex
+groups appended after foreign entries and replaced by exact match, edited or
+pre-existing identical entries, `config.toml` `[hooks]` and disabled hooks, the
+local scope installing nothing, refusals that leave the configuration
+byte-identical, malformed record sections, and the warnings about lit hooks in
+other layers against fixtures shaped like the hand-written interim hooks. The
+transaction is cut at each step with the `crashAt` hook that tests replace (a
+panic stands in for a kill): recovery restores the configuration exactly,
+`Install` recovers it by itself, a foreign edit of `settings.json`,
+`hooks.json` or the instruction file after the crash, between reading and
+journaling, or during the writes is never overwritten, and an adoption with
+hooks is one transaction. Mutation checks (disabling a guard, a journal file set
+or the recovery view's copies) fail these tests.
+
 `internal/checkoutcontext` tests run against temporary directories and real Git
 repositories created with the `git` executable and no inherited configuration
 (skipped where `git` is missing): every subdirectory of a repository resolving

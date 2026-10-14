@@ -269,7 +269,7 @@ func TestInterruptedAdoptionRejectsTampering(t *testing.T) {
 				case "journal files":
 					delete(j["files"].(map[string]any), legacyRecordName)
 				case "journal version":
-					j["schema_version"] = 3
+					j["schema_version"] = journalVersion + 1
 				case "version 1 with the new record":
 					j["schema_version"] = 1
 				case "version 2 without the new record":

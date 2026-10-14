@@ -20,7 +20,7 @@ var topSummaries = map[string]string{
 	"session": "Inspect or change session preferences", "projects": "Create and discover project containers", "issues": "Track work, state and relationships",
 	"milestones": "Group project issues into named worksets", "comments": "Discuss issues with durable comments", "claims": "Reserve issues with expiring work claims",
 	"transactions": "Reconcile uncertain mutation outcomes", "grep": "Search current content using a literal substring",
-	"setup-workflows": "Install the workflow skills for Codex or Claude", "workflow-session": "Bind explicit agent runtime sessions to lit clients", "context": contextSummary,
+	"setup-workflows": "Install the workflow skills, hooks and Claude status line for Codex or Claude", "workflow-session": "Bind explicit agent runtime sessions to lit clients", "context": contextSummary,
 	"hook":       "Serve agent host hooks",
 	"completion": "Generate the autocompletion script for the specified shell",
 	"tui":        "Open the terminal UI (lit-tui)",
