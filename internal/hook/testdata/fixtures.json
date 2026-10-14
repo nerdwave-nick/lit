@@ -1,0 +1,79 @@
+{
+  "provenance": {
+    "claude-captured": "Captured from Claude Code 2.1.296 (claude -p with a temporary CLAUDE_CONFIG_DIR whose SessionStart hook dumped stdin), source startup. Only the home directory, project path and transcript path were replaced with example paths; the field set is exactly what the host sent (in -p mode model, effort and permission_mode were absent).",
+    "claude-documented": "Not captured: derived from the captured startup input and the SessionStart section of https://code.claude.com/docs/en/hooks (common fields session_id, transcript_path, cwd, permission_mode, effort, hook_event_name; SessionStart adds source and model; resume and fork add seconds_since_last_response, context_tokens, prompt_cache_likely_expired and estimated_cache_write_usd). Session IDs for clear and fork are new, resume and compact keep the startup ID.",
+    "codex-schema": "Not captured: built from the SessionStart input schema embedded in codex-cli 0.162.1 (strings /opt/openai-codex/bin/codex, 'session-start.command.input'; see session-start.input.schema.json, whose closing braces were restored because strings drops short lines). Every required field is present and no other field is added. A real Codex capture was deliberately not made: SessionStart does not fire without credentials and the user ruled out copying auth.json."
+  },
+  "fixtures": [
+    {
+      "file": "claude/session-start-startup.json",
+      "host": "claude",
+      "event": "session-start",
+      "source": "startup",
+      "provenance": "claude-captured"
+    },
+    {
+      "file": "claude/session-start-resume.json",
+      "host": "claude",
+      "event": "session-start",
+      "source": "resume",
+      "provenance": "claude-documented"
+    },
+    {
+      "file": "claude/session-start-clear.json",
+      "host": "claude",
+      "event": "session-start",
+      "source": "clear",
+      "provenance": "claude-documented"
+    },
+    {
+      "file": "claude/session-start-fork.json",
+      "host": "claude",
+      "event": "session-start",
+      "source": "fork",
+      "provenance": "claude-documented"
+    },
+    {
+      "file": "claude/session-start-compact.json",
+      "host": "claude",
+      "event": "session-start",
+      "source": "compact",
+      "provenance": "claude-documented"
+    },
+    {
+      "file": "codex/session-start-startup.json",
+      "host": "codex",
+      "event": "session-start",
+      "source": "startup",
+      "provenance": "codex-schema"
+    },
+    {
+      "file": "codex/session-start-resume.json",
+      "host": "codex",
+      "event": "session-start",
+      "source": "resume",
+      "provenance": "codex-schema"
+    },
+    {
+      "file": "codex/session-start-clear.json",
+      "host": "codex",
+      "event": "session-start",
+      "source": "clear",
+      "provenance": "codex-schema"
+    },
+    {
+      "file": "codex/session-start-fork.json",
+      "host": "codex",
+      "event": "session-start",
+      "source": "fork",
+      "provenance": "codex-schema"
+    },
+    {
+      "file": "codex/session-start-compact.json",
+      "host": "codex",
+      "event": "session-start",
+      "source": "compact",
+      "provenance": "codex-schema"
+    }
+  ]
+}

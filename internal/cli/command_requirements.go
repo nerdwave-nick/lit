@@ -33,6 +33,9 @@ func requirementsFor(path string) (string, string) {
 	if strings.HasPrefix(path, "workflow-session ") {
 		return workflowRequirements(strings.TrimPrefix(path, "workflow-session "))
 	}
+	if strings.HasPrefix(path, "hook ") {
+		return "Required flag: --host.\nThe host's hook JSON is read from stdin and its output written to stdout.\nNo tracker session is needed: the runtime ID is the hook input's session_id.\nEndpoint: LIT_ENDPOINT, otherwise http://127.0.0.1:7411, for a new runtime; a known runtime keeps its saved endpoint.\nExits 0 whatever happens once the event is served; errors go to the hook log.", "lit hook --host codex|claude " + strings.TrimPrefix(path, "hook ") + " < hook-input.json"
+	}
 	parts := strings.Fields(path)
 	family, verb := parts[0], parts[1]
 	if family == "session" {

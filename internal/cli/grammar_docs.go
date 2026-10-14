@@ -3,6 +3,7 @@ package cli
 import (
 	"strings"
 
+	"github.com/nerdwave-nick/lit/internal/hook"
 	"github.com/nerdwave-nick/lit/internal/nwcli"
 )
 
@@ -20,6 +21,7 @@ var topSummaries = map[string]string{
 	"milestones": "Group project issues into named worksets", "comments": "Discuss issues with durable comments", "claims": "Reserve issues with expiring work claims",
 	"transactions": "Reconcile uncertain mutation outcomes", "grep": "Search current content using a literal substring",
 	"setup-skills": "Install embedded skills for Codex or Claude", "workflow-session": "Bind explicit agent runtime sessions to lit clients",
+	"hook":       "Serve agent host hooks",
 	"completion": "Generate the autocompletion script for the specified shell",
 	"tui":        "Open the terminal UI (lit-tui)",
 	"search":     "Search current content ranked by relevance",
@@ -75,6 +77,15 @@ func commandDocs(path []string, group bool) (summary, description, example strin
 		}
 		example = "  lit workflow-session --host codex --runtime-id SESSION " + path[1] + map[string]string{
 			"run": " -- issues list", "checkout": " --repository github.com/example/repo --path /work/repo", "subagent": " --parent-runtime-id PARENT"}[path[1]]
+	case name == "hook" && len(path) == 2:
+		for _, e := range hook.Events() {
+			if e.Name == path[1] {
+				summary, description = e.Summary, e.Description
+			}
+		}
+		example = "  lit hook --host claude " + path[1] + " < hook-input.json"
+	case name == "hook":
+		summary, description = topSummaries[name], hookHelp
 	case len(path) == 2:
 		summary, description, example = commandSummary(name, path[1]), commandLong(name, path[1]), commandExample(name, path[1])
 	case name == "workflow-session":
@@ -171,7 +182,7 @@ func flagUsage(path []string, f nwcli.Flag) string {
 		u = "Required repository `REF` to associate with this checkout"
 	case p == "workflow-session subagent" && f.Name == "parent-runtime-id":
 		u = "Required parent runtime session `ID`"
-	case p == "workflow-session" && f.Name == "host":
+	case (p == "workflow-session" || p == "hook") && f.Name == "host":
 		u = "Required agent `HOST`: codex or claude"
 	case p == "workflow-session" && f.Name == "runtime-id":
 		u = "Required explicit vendor runtime session `ID`"
@@ -200,3 +211,9 @@ const tuiHelp = "Open the terminal UI for people: the separate lit-tui executabl
 	"Bare lit with no command opens it too, but only when stdin and stdout are terminals;\n" +
 	"otherwise bare lit reports that a subcommand is required, so scripts are unaffected.\n" +
 	"Install lit-tui with: " + tuiInstall
+
+const hookHelp = "Serve the hooks an agent host (Claude Code or Codex) calls at session events. The host writes its hook JSON to stdin and\n" +
+	"reads the output from stdout; hooks are installed into the host's configuration, not run by hand. Session details reach the\n" +
+	"agent only through the hook output, never through environment variables. Once an event is being served the command exits 0\n" +
+	"whatever happens, so a hook never breaks the host session; failures are written to the hook log in the workflow state\n" +
+	"directory (hooks/hook.log). Argument errors exit 2 like other commands."

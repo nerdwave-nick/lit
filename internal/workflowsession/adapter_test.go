@@ -125,6 +125,9 @@ func TestAdapterLifecycle(t *testing.T) {
 	if json.Unmarshal(items[0]["client_id"], &client); client != *first.Client {
 		t.Fatalf("query used another session: %s", client)
 	}
+	if none, e := main.Query(ctx, "claims", "list"); e != nil || len(none) != 0 {
+		t.Fatalf("a query without items is an empty answer: %v %v", none, e)
+	}
 	var out, errOut bytes.Buffer
 	if code, e := main.Run(ctx, []string{"session", "get"}, &out, &errOut); e != nil || code != 0 || out.Len() == 0 {
 		t.Fatalf("run: %d %v %s", code, e, errOut.String())

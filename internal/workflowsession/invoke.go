@@ -60,10 +60,14 @@ func (l lit) item(ctx context.Context, r record, args ...string) (map[string]jso
 	if e != nil {
 		return nil, e
 	}
+	if len(all) == 0 {
+		return nil, errors.New("CLI response has no item")
+	}
 	return all[0], nil
 }
 
-// items returns every item of the JSON answer of a successful lit call.
+// items returns every item, possibly none, of the JSON answer of a successful
+// lit call.
 func (l lit) items(ctx context.Context, r record, args ...string) ([]map[string]json.RawMessage, error) {
 	out, stderr, code, e := l.invoke(ctx, r, args)
 	if e != nil {
@@ -77,9 +81,6 @@ func (l lit) items(ctx context.Context, r record, args ...string) ([]map[string]
 	}
 	if e = json.Unmarshal(out, &result); e != nil {
 		return nil, e
-	}
-	if len(result.Items) == 0 {
-		return nil, errors.New("CLI response has no item")
 	}
 	return result.Items, nil
 }

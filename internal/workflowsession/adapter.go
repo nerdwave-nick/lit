@@ -98,6 +98,17 @@ func (a Adapter) Paths() (record, lock string, err error) {
 	return record, strings.TrimSuffix(record, ".json") + ".lock", nil
 }
 
+// Busy reports whether a lock directory exists for the runtime: another
+// adapter call is in progress, or one was interrupted.
+func (a Adapter) Busy() bool {
+	_, lock, e := a.Paths()
+	if e != nil {
+		return false
+	}
+	_, e = os.Lstat(lock)
+	return e == nil
+}
+
 // Read returns the runtime's validated association without taking its lock. A
 // runtime without one reports an error satisfying errors.Is(err, fs.ErrNotExist).
 func (a Adapter) Read() (Association, error) {
