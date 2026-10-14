@@ -2,7 +2,9 @@
   "provenance": {
     "claude-captured": "Captured from Claude Code 2.1.296 (claude -p with a temporary CLAUDE_CONFIG_DIR whose SessionStart hook dumped stdin), source startup. Only the home directory, project path and transcript path were replaced with example paths; the field set is exactly what the host sent (in -p mode model, effort and permission_mode were absent).",
     "claude-documented": "Not captured: derived from the captured startup input and the SessionStart section of https://code.claude.com/docs/en/hooks (common fields session_id, transcript_path, cwd, permission_mode, effort, hook_event_name; SessionStart adds source and model; resume and fork add seconds_since_last_response, context_tokens, prompt_cache_likely_expired and estimated_cache_write_usd). Session IDs for clear and fork are new, resume and compact keep the startup ID.",
-    "codex-schema": "Not captured: built from the SessionStart input schema embedded in codex-cli 0.162.1 (strings /opt/openai-codex/bin/codex, 'session-start.command.input'; see session-start.input.schema.json, whose closing braces were restored because strings drops short lines). Every required field is present and no other field is added. A real Codex capture was deliberately not made: SessionStart does not fire without credentials and the user ruled out copying auth.json."
+    "codex-schema": "Not captured: built from the SessionStart input schema embedded in codex-cli 0.162.1 (strings /opt/openai-codex/bin/codex, 'session-start.command.input'; see session-start.input.schema.json, whose closing braces were restored because strings drops short lines). Every required field is present and no other field is added. A real Codex capture was deliberately not made: SessionStart does not fire without credentials and the user ruled out copying auth.json.",
+    "claude-statusline-captured": "Captured from Claude Code 2.1.296: the interactive TUI (python pty) with a temporary CLAUDE_CONFIG_DIR whose settings.json statusLine command dumped stdin, a dummy ANTHROPIC_API_KEY and no model call, so the input is the one sent when a session starts (used_percentage null, no session_name, prompt_id, rate_limits or prompt_cache). Only the session ID, home, project and transcript paths were replaced with example values; every other field is as the host sent it.",
+    "claude-statusline-documented": "Not captured: the mid-session shape written from the 'Full JSON schema' of https://code.claude.com/docs/en/statusline (fetched 2026-10-14 for Claude Code 2.1.296) with values a running session would show; fields the page lists as present only sometimes (vim, agent, pr, worktree, prompt_cache) are left out, the way the host omits them. The field set and types are those of the page and of the captured startup input."
   },
   "fixtures": [
     {
@@ -74,6 +76,18 @@
       "event": "session-start",
       "source": "compact",
       "provenance": "codex-schema"
+    },
+    {
+      "file": "claude/statusline-early.json",
+      "host": "claude",
+      "event": "statusline",
+      "provenance": "claude-statusline-captured"
+    },
+    {
+      "file": "claude/statusline-session.json",
+      "host": "claude",
+      "event": "statusline",
+      "provenance": "claude-statusline-documented"
     }
   ]
 }
