@@ -340,6 +340,52 @@ the note and logs the error. The hook runs lit in a directory of its own
 (`<workflow state>/hooks/work`), so the CLI's output cache stays out of your
 project.
 
+## Claude status line
+
+`lit hook --host claude statusline [--original COMMAND]` is the command Claude
+Code runs for its status line (Claude passes the status line JSON on stdin and
+sets `COLUMNS`). It prints one line, an original status line followed by lit's
+part, joined with ` | `. Installing it into a Claude configuration is a separate
+step.
+
+Without `--original` the original is a built-in line,
+`<model> <effort> | <directory> | <git> | context: N%`: the directory is shortened
+the way fish's `prompt_pwd` does it, git shows the branch with `+` staged, `*`
+modified and `?` untracked changes and `↑n`/`↓n` commits ahead and behind, and
+fields the host did not send are left out. With `--original COMMAND` it is that
+command's output: it runs through `sh -c` with the same stdin, at most one
+second and, in `COLUMNS`, the width left once lit's smallest part, the separator
+and two spare columns are taken from the terminal's. A command that fails, times
+out (it is killed with everything it started) or prints nothing leaves lit's part
+alone; a multi-line original gets lit's part after its last line.
+
+lit's part is `🔥 lit | <project or "no project selected"> | claims:N | <stage>`
+(no stage, no last part), `⚫ not lit` when the server does not answer, `lit:
+pending` while the session's association is pending and `🔥 lit | no session`
+when the server answers but this runtime has none. `[hooks degraded]` follows
+it when a hook of the same host logged an error in the last ten minutes
+(warnings, such as a server that is down, do not count; this is unrelated to
+lit-server's Degraded mode).
+
+In a narrow terminal lit's part shortens first. With `--original` the line uses
+the fullest form of lit's part that fits next to the original, which is never
+cut. The built-in line collapses one step at a time: the ahead/behind counts,
+`no project selected` to `no project`, the effort, the `context:` label, lit's
+wording to `🔥 <project> | c:N` (and `⚫ not lit` to `⚫`), the directory to its
+last component, git, the model, the directory and finally the project; the stage
+and the failure indicator (`[hooks!]` when short) stay. Two columns stay spare
+at the right, where Claude shows notifications.
+
+The status line runs every couple of seconds and answers within about 300 ms
+because it reads what it shows from a cache. There is one entry per host
+session, `<workflow state>/hooks/statusline/<hash>.json` (never in the project;
+`LIT_WORKFLOW_STATE_DIR` relocates it). Reachability, the claim count and the
+stage are trusted for five seconds, the project's title for five minutes; an old
+entry is refreshed with at most 250 ms of requests as the session (three small
+reads, no writes), and a refresh that fails or times out is cached as `⚫ not
+lit` for the same five seconds. Entries nothing has refreshed for a day are
+removed. `git status` has 250 ms. Only unexpected errors reach the hook log.
+
 ## Optional systemd user service
 
 The checked-in `packaging/lit.service.in` (also in Linux archives) is a template,
