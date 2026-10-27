@@ -150,7 +150,8 @@ not dumped. An occupied port fails without selecting another port. CLI commands
 do not start the service. Use `lit --help` for the installed command surface.
 
 Default configuration: `${XDG_CONFIG_HOME:-$HOME/.config}/lit-server/config.json`.
-Default data: `${XDG_DATA_HOME:-$HOME/.local/share}/lit-server`. Relative XDG values are
+Default data: `${XDG_DATA_HOME:-$HOME/.local/share}/lit-server`. macOS uses the
+same XDG paths, not `~/Library/Application Support`. Relative XDG values are
 ignored in favor of HOME defaults. Missing default configuration uses defaults;
 explicitly selecting a missing file is an error. An optional JSON file is:
 
@@ -335,7 +336,11 @@ and stop `lit.service`.
 
 On macOS there is no packaged service unit. Run `lit-server` in the foreground,
 or under a launchd user agent you write yourself with the same explicit
-configuration.
+configuration. A launchd agent does not read your shell profile, so it does not
+see `XDG_CONFIG_HOME` or `XDG_DATA_HOME` set there and falls back to
+`~/.config/lit-server` and `~/.local/share/lit-server`. If you moved either
+directory, pass `--config` and `--data-dir` in the agent's `ProgramArguments`
+or set the variables in its `EnvironmentVariables`.
 
 ## Docker Compose
 
