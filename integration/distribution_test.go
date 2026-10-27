@@ -19,8 +19,8 @@ import (
 // source-free directories. No Python, vendor CLI, shell, or source asset path is
 // present on their PATH. The source tree is used only by normal go install/build.
 func TestGoDistributionWalkthrough(t *testing.T) {
-	if runtime.GOOS != "linux" {
-		t.Skip("lit-server service runtime is supported on Linux")
+	if runtime.GOOS != "linux" && runtime.GOOS != "darwin" {
+		t.Skip("lit-server service runtime is supported on Linux and macOS")
 	}
 	root := t.TempDir()
 	bin := filepath.Join(root, "bin")
