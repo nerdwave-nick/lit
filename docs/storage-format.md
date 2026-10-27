@@ -63,6 +63,13 @@ checkpointed into the database file. The trade-off:
   because the crash left no clean-shutdown marker.
 
 The owner chose this to shorten the time each write holds the write lock.
+
+The "stays consistent" guarantee depends on each checkpoint's fsyncs reaching
+stable storage in order. On macOS a plain `fsync` only hands the writes to the
+drive, which can hold them in its cache and reorder them, so every connection
+also sets `checkpoint_fullfsync=1`: checkpoints use `F_FULLFSYNC`, which flushes
+the drive cache. With `synchronous=NORMAL` only checkpoints sync, so commits
+keep their speed. On Linux the setting has no effect.
 Restoring `synchronous=FULL` in `internal/storage/storage.go` makes every
 acknowledged commit durable again at the cost of one fsync per commit.
 

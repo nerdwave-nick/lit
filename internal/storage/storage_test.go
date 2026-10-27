@@ -108,6 +108,12 @@ func TestEveryConnectionUsesWALForeignKeysAndBusyTimeout(t *testing.T) {
 		if e := q.queryRow(ctx, []any{&timeout}, "PRAGMA busy_timeout"); e != nil || timeout != int(busyTimeout.Milliseconds()) {
 			t.Fatalf("busy_timeout %d: %v", timeout, e)
 		}
+		// Checkpoints flush the drive cache on macOS (F_FULLFSYNC); see
+		// docs/storage-format.md. The flag is a no-op on Linux.
+		var full int
+		if e := q.queryRow(ctx, []any{&full}, "PRAGMA checkpoint_fullfsync"); e != nil || full != 1 {
+			t.Fatalf("checkpoint_fullfsync %d: %v", full, e)
+		}
 	}
 	t.Run("write", func(t *testing.T) {
 		w, e := db.LockWrites(ctx)
