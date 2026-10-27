@@ -1,4 +1,4 @@
-//go:build !linux
+//go:build !linux && !darwin
 
 // Frozen copy of internal/store at c5af73e; see store.go.
 
