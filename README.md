@@ -84,7 +84,7 @@ invoke Claude or Codex directly, reuse explicit vendor sessions, and record
 findings in discussion notes. Install the chosen vendor CLI separately; external
 consultations still require authorization.
 
-On Linux, install the daemon with `go install ./cmd/lit-server`. Start it with
+On Linux or macOS, install the daemon with `go install ./cmd/lit-server`. Start it with
 `lit-server`, then connect locally with
 `lit connect --session poc-human --actor-name Alex --actor-kind human`.
 Without `--session` or `LIT_SESSION`, `connect` creates and displays a random

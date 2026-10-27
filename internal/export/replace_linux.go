@@ -27,13 +27,5 @@ func exchange(a, b string) error {
 	if !errors.Is(e, unix.EINVAL) && !errors.Is(e, unix.ENOSYS) && !errors.Is(e, unix.EOPNOTSUPP) {
 		return e
 	}
-	old := a + ".old"
-	if e = os.Rename(b, old); e != nil {
-		return e
-	}
-	if e = os.Rename(a, b); e != nil {
-		_ = os.Rename(old, b)
-		return e
-	}
-	return os.Rename(old, a)
+	return swapByRenames(a, b)
 }

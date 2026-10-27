@@ -63,8 +63,10 @@ func TestReleaseArchives(t *testing.T) {
 				t.Fatal("checksum mismatch")
 			}
 			expected := map[string]bool{binary: true, tui: true, "INSTALL.md": true}
-			if strings.HasPrefix(target, "linux-") {
+			if strings.HasPrefix(target, "linux-") || strings.HasPrefix(target, "darwin-") {
 				expected["lit-server"] = true
+			}
+			if strings.HasPrefix(target, "linux-") {
 				expected["lit.service.in"] = true
 				expected["lit.socket"] = true
 			}

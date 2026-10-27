@@ -1,4 +1,4 @@
-//go:build !linux
+//go:build !linux && !darwin
 
 package export
 
@@ -7,7 +7,7 @@ import (
 	"os"
 )
 
-var errUnsupported = errors.New("the Markdown export is supported only on Linux, like lit-server")
+var errUnsupported = errors.New("the Markdown export is supported only on Linux and macOS, like lit-server")
 
 func lock(f *os.File) error      { return errUnsupported }
 func unlock(f *os.File) error    { return nil }

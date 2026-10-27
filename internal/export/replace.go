@@ -103,6 +103,20 @@ func (t *target) commit() error {
 	return exchange(t.staging, t.dir)
 }
 
+// swapByRenames exchanges the two directories with two renames, for a file
+// system without an atomic exchange. Readers of b find it missing for a moment.
+func swapByRenames(a, b string) error {
+	old := a + ".old"
+	if e := os.Rename(b, old); e != nil {
+		return e
+	}
+	if e := os.Rename(a, b); e != nil {
+		_ = os.Rename(old, b)
+		return e
+	}
+	return os.Rename(old, a)
+}
+
 // release removes the staging directory (or the replaced tree) and unlocks.
 func (t *target) release() {
 	if t.staging != "" {

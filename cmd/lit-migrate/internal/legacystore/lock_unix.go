@@ -1,6 +1,8 @@
-//go:build linux
+//go:build linux || darwin
 
-package importer
+// Frozen copy of internal/store at c5af73e; see store.go.
+
+package legacystore
 
 import (
 	"os"

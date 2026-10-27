@@ -1,4 +1,4 @@
-//go:build !linux
+//go:build !linux && !darwin
 
 package importer
 
@@ -7,5 +7,5 @@ import (
 	"os"
 )
 
-func lock(f *os.File) error   { return fmt.Errorf("lit-migrate is supported only on Linux") }
+func lock(f *os.File) error   { return fmt.Errorf("lit-migrate is supported only on Linux and macOS") }
 func unlock(f *os.File) error { return nil }
