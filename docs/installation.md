@@ -1,9 +1,9 @@
 # Building and installing lit
 
-The service supports Linux amd64/arm64 with local filesystem storage. The clients,
-`lit` and the terminal UI `lit-tui`, support Linux amd64/arm64, macOS amd64/arm64,
-and Windows amd64. Linux behavior
-is tested; cross-compilation does not demonstrate native macOS/Windows behavior.
+The service supports Linux amd64/arm64 and macOS amd64/arm64 with local filesystem
+storage. The clients, `lit` and the terminal UI `lit-tui`, support Linux amd64/arm64,
+macOS amd64/arm64, and Windows amd64. Linux and macOS behavior
+is tested; cross-compilation does not demonstrate native Windows behavior.
 Python is not required to build, install, or run the binaries and workflow skills.
 
 ## Standard Go build and install
@@ -11,11 +11,11 @@ Python is not required to build, install, or run the binaries and workflow skill
 Install Go matching `go.mod` (1.27 or later). From the repository root:
 
 ```sh
-go build -o ./bin/ ./cmd/lit-server ./cmd/lit ./cmd/lit-tui  # Linux: create all three executables
-go install ./cmd/lit-server ./cmd/lit ./cmd/lit-tui         # Linux: install checkout versions
+go build -o ./bin/ ./cmd/lit-server ./cmd/lit ./cmd/lit-tui  # Linux, macOS: create all three executables
+go install ./cmd/lit-server ./cmd/lit ./cmd/lit-tui         # Linux, macOS: install checkout versions
 ```
 
-On macOS or Windows, build/install only `./cmd/lit` and `./cmd/lit-tui`. Install
+On Windows, build/install only `./cmd/lit` and `./cmd/lit-tui`. Install
 `lit-tui` into the same directory as `lit` (as `go install` does); see
 [Terminal UI](#terminal-ui). Separate commands such as `go build ./cmd/lit` also
 work and leave the executable in the current directory.
@@ -29,7 +29,7 @@ checkout uses an explicit version query:
 ```sh
 go install github.com/nerdwave-nick/lit/cmd/lit@latest
 go install github.com/nerdwave-nick/lit/cmd/lit-tui@latest
-# Linux service, if needed:
+# Linux or macOS service, if needed:
 go install github.com/nerdwave-nick/lit/cmd/lit-server@latest
 ```
 
@@ -108,13 +108,13 @@ reference for explicit session setup.
 
 ## Release archives
 
-CI cross-builds twelve binaries across five targets: Linux amd64/arm64 archives
-contain `lit-server`, `lit` and `lit-tui`; macOS amd64/arm64 and Windows amd64
-archives contain `lit` and `lit-tui` (`lit.exe` and `lit-tui.exe` on Windows). All archives contain `INSTALL.md`; Linux
+CI cross-builds fourteen binaries across five targets: Linux and macOS amd64/arm64
+archives contain `lit-server`, `lit` and `lit-tui`; the Windows amd64 archive
+contains `lit.exe` and `lit-tui.exe`. All archives contain `INSTALL.md`; Linux
 archives also contain the optional `lit.service.in` template and `lit.socket` unit. Skills are embedded
 in the client, so no separate installer or Python program is included.
 
-Pull requests run Go race tests, vet, and cross-builds. Version tags
+Pull requests run Go race tests and vet on Linux and macOS, and cross-builds. Version tags
 (`vMAJOR.MINOR.PATCH`, optionally `-PRERELEASE`) additionally produce five archives
 and `SHA256SUMS` as GitHub Actions artifacts. CI uses ordinary Go commands and
 shell archive utilities; it does not create GitHub Releases. Publishing remains
@@ -133,7 +133,7 @@ No custom build or binary installation tool is necessary.
 
 ## Start and stop explicitly
 
-On Linux:
+On Linux or macOS:
 
 ```sh
 lit-server
@@ -333,6 +333,10 @@ does not exit when idle; it keeps running until stopped. Stopping only
 again. To turn activation off, run `systemctl --user disable --now lit.socket`
 and stop `lit.service`.
 
+On macOS there is no packaged service unit. Run `lit-server` in the foreground,
+or under a launchd user agent you write yourself with the same explicit
+configuration.
+
 ## Docker Compose
 
 The repository's `compose.yaml` runs lit-server as a single container on Linux,
@@ -465,7 +469,7 @@ a `service.json` identity file). lit-server never reads, detects or converts
 that store at runtime: on a data directory that still holds `service.json` it
 refuses to start and names this setup step. The conversion is a separate binary,
 `lit-migrate`, run once while the old lit-server is stopped and before the new
-lit-server first starts. It is Linux-only, like lit-server, is not part of the
+lit-server first starts. It runs on Linux and macOS, like lit-server, is not part of the
 release archives, and is removed in a later release. Build it from the same
 checkout as the new lit-server:
 
@@ -599,7 +603,7 @@ once you are done.
 go test -count=1 -race ./...
 go vet ./...
 GOOS=linux GOARCH=arm64 CGO_ENABLED=0 go build -o ./bin/linux-arm64/ ./cmd/lit-server ./cmd/lit ./cmd/lit-tui
-GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o ./bin/darwin-arm64/ ./cmd/lit ./cmd/lit-tui
+GOOS=darwin GOARCH=arm64 CGO_ENABLED=0 go build -o ./bin/darwin-arm64/ ./cmd/lit-server ./cmd/lit ./cmd/lit-tui
 ```
 
 The workflow in `.github/workflows/lit.yml` contains the full accepted matrix
@@ -611,7 +615,8 @@ LIT_ARCHIVE_DIR=/absolute/path/to/dist LIT_ARCHIVE_VERSION=v0.1.0 go test -count
 
 The archive check verifies all five checksums, exact archive contents, executable
 permissions, and (on Linux amd64) versions from the actual archived executables.
-It does not start or enable systemd or claim native non-Linux runtime validation.
+It does not start or enable systemd; native macOS behavior is covered by the
+macOS test job, not by the archive check.
 
 ## Consultation skill
 
