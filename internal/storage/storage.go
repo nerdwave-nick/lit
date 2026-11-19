@@ -180,18 +180,21 @@ func refuseLegacyStore(dir string) error {
 	return fmt.Errorf("%w in %s (it contains %s); lit-server no longer reads it. Convert it once with the setup import, lit-migrate, into a new, empty data directory, and start lit-server on that directory", ErrLegacyStore, dir, LegacyMarker)
 }
 
-// dsn configures every connection: WAL, enforced foreign keys and the busy
-// timeout. Writer connections begin transactions with BEGIN IMMEDIATE through
-// the driver's _txlock option and commit with synchronous=NORMAL: in WAL mode a
-// commit is not fsynced, only checkpoints are, so power loss can lose the last
-// commits but never corrupts the database (docs/storage-format.md). Reader
-// connections are query-only, and their read-only transactions begin deferred,
-// which in WAL mode takes no write lock.
+// dsn configures every connection: WAL, enforced foreign keys, the busy
+// timeout and checkpoint_fullfsync. Writer connections begin transactions with
+// BEGIN IMMEDIATE through the driver's _txlock option and commit with
+// synchronous=NORMAL: in WAL mode a commit is not fsynced, only checkpoints
+// are, so power loss can lose the last commits but never corrupts the database
+// (docs/storage-format.md). On macOS a plain fsync leaves the writes in the
+// drive's cache, so checkpoint_fullfsync makes checkpoints use F_FULLFSYNC; on
+// Linux it does nothing. Reader connections are query-only, and their
+// read-only transactions begin deferred, which in WAL mode takes no write lock.
 func dsn(path string, readOnly bool) string {
 	q := url.Values{}
 	q.Add("_pragma", fmt.Sprintf("busy_timeout(%d)", busyTimeout.Milliseconds()))
 	q.Add("_pragma", "foreign_keys(1)")
 	q.Add("_pragma", "journal_mode(WAL)")
+	q.Add("_pragma", "checkpoint_fullfsync(1)")
 	if readOnly {
 		q.Add("_pragma", "query_only(1)")
 	} else {

@@ -60,6 +60,16 @@ func safe(p string) error {
 			return e
 		}
 		if e == nil && v.Mode()&os.ModeSymlink != 0 {
+			// Preserve the reviewed macOS system aliases; reject user aliases.
+			if runtime.GOOS == "darwin" && (p == "/tmp" || p == "/var") {
+				target, err := os.Readlink(p)
+				if err != nil {
+					return err
+				}
+				if target == "private"+p || target == "/private"+p {
+					return safe("/private" + p)
+				}
+			}
 			return fmt.Errorf("refusing symlink: %s", p)
 		}
 		q := filepath.Dir(p)

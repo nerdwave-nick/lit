@@ -104,8 +104,8 @@ database snapshots provide backups. See [storage](docs/storage-format.md),
 
 ## Getting started for humans
 
-Use the TUI for everyday tracker work. On Linux, install the service and both
-clients from this checkout with the Go version specified in `go.mod`:
+Use the TUI for everyday tracker work. On Linux or macOS, install the service and
+both clients from this checkout with the Go version specified in `go.mod`:
 
 ```sh
 go install ./cmd/lit-server ./cmd/lit ./cmd/lit-tui
@@ -129,7 +129,7 @@ Install `lit-tui` next to `lit`: `lit` looks for it in its own directory first, 
 on `PATH`. The TUI creates its own human client session and opens the project
 switcher; no manual `lit connect` is needed. It uses `http://127.0.0.1:7411` by
 default; choose another endpoint with `lit tui --endpoint URL` or `LIT_ENDPOINT`.
-Clients also build for macOS and Windows; the service runs on Linux. See
+Clients also build for Windows; the service runs on Linux and macOS. See
 [installation](docs/installation.md) for supported targets, remote access, manual
 updates, Docker Compose, and optional systemd user service or socket activation.
 
