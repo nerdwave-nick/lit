@@ -602,6 +602,51 @@ user's content must be intact. The walkthrough scripts commands; it does not sho
 how a native model follows the guidance, and Codex's `/hooks` approval and live host
 hook firing are not exercised.
 
+The lit-ui Claude Code mod (`internal/workflow-skills/mods/lit-ui/`, see
+[lit-ui](../lit-ui.md)) has three checks, which `TestLitUIModChecks` in
+`internal/workflow-skills/mod_checks_test.go` runs as part of `go test ./...`:
+
+```sh
+claude plugin test internal/workflow-skills/mods/lit-ui      # its tests/*.test.ts(x)
+claude plugin validate internal/workflow-skills/mods/lit-ui  # must pass without warnings
+tsc -p <a tsconfig whose include names the API declarations, hooks/, types/ and tests/>
+```
+
+They need `claude` (Claude Code 2.1.296 or later) and `tsc` on PATH (or `LIT_TSC`),
+and the Claude Code API declarations: `LIT_CLAUDE_TYPES` names a `claude-code.d.ts`
+(Claude Code writes one under its `bundled-skills/<version>/…/plugin-authoring/types/`
+when its `plugin-authoring` skill loads), or the declarations the engine lays into
+the mod's `.claude-plugin/types/` (ignored by Git) once a session has loaded it with
+`claude --plugin-dir`. A missing tool or declaration skips its subtest;
+`LIT_REQUIRE_MOD_CHECKS=1` makes that a failure. CI has neither tool, so the mod
+checks run on developer machines:
+
+```sh
+LIT_REQUIRE_MOD_CHECKS=1 LIT_CLAUDE_TYPES=/path/to/claude-code.d.ts \
+  go test -count=1 -run TestLitUIModChecks -v ./internal/workflow-skills
+```
+
+The mod's tests run in Claude Code's own test kit, which answers every call the mod
+makes on the engine. The pure tests cover the six states and their precedence, the
+derived view (work tickets, ready, mine, blocked, claimed by others, waiting, the
+specification heading), every rule of the recommended next step and the exact
+command strings, the band in both status modes (zero counts and an empty stage
+left out, `3:renew` under five minutes), the claim toasts (under five minutes,
+expired, renewed, released, unreadable claims), the config file and its fallbacks,
+the workflow state directory, which Bash commands run lit, the feed, the refresh
+gate, and the parsing of lit's JSON (malformed output is refused; claim tokens are
+dropped). `tests/register.test.tsx` runs the whole mod against a fake lit and
+tracker: the reads go through `workflow-session show` and the association's session
+and endpoint in the mod's own working directory, never `workflow-session run`; the
+band in each state and mode; `1` filling the prompt; `3` renewing for 30 minutes
+only when pressed (polls never acquire, renew or release); both toasts; buttons
+hidden during a turn; a refresh after a Bash call that runs lit and none after
+other commands; the feed file and `/lit-ui debug`. Mutation checks (no refresh
+after Bash, another renewal lease, no toasts) fail these tests. The live check of
+the band in a real Claude Code session is a manual step, recorded on the ticket:
+an isolated `lit-server` with synthetic data, `claude --plugin-dir` in a private
+tmux server, and the prototype's `lit-probe` mod answering model requests locally.
+
 `cmd/lit/deps_test.go` uses `go list -deps` to prove that only `lit-tui` links the
 Charm, Glamour and chroma packages.
 
