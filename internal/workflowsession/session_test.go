@@ -44,6 +44,9 @@ func TestOfflineValidation(t *testing.T) {
 }
 
 func TestMain(m *testing.M) {
+	if lock := os.Getenv("LIT_LOCK_HOLDER_FIXTURE"); lock != "" {
+		os.Exit(holdLock(lock))
+	}
 	if expected := os.Getenv("LIT_ENDPOINT_SUBPROCESS_FIXTURE"); expected != "" {
 		if len(os.Args) < 5 || os.Args[3] != "--endpoint" || os.Args[4] != expected || os.Getenv("LIT_ENDPOINT") != "" {
 			fmt.Fprintln(os.Stderr, "unexpected endpoint arguments", os.Args)
