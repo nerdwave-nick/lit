@@ -23,3 +23,6 @@ __pycache__/
 /compose.override.yaml
 /backup/
 /export/
+
+# Claude Code API declarations the engine lays beside a mod it loads with --plugin-dir
+/internal/workflow-skills/mods/*/.claude-plugin/types/
