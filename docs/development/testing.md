@@ -68,6 +68,11 @@ example `cwd` with a temporary checkout (a Codex input is checked against the em
 schema again), because session start resolves the checkout of that directory.
 `internal/workflowsession/adapter_test.go` covers the adapter library API that
 `lit hook` shares with `workflow-session`.
+`internal/workflowsession/show_test.go` covers `workflow-session show`: the
+record it prints equals the one `fresh` printed, it sends no request to the
+service and leaves every workflow and client state file byte-identical, a
+runtime without an association exits 3 with `association_not_found` and creates
+nothing, and it answers while a separate process holds the runtime's lock.
 
 `internal/workflowsession/adopt_test.go` and `adopt_command_test.go` cover the
 adoption of a remembered project by `fresh` against an in-process service and the

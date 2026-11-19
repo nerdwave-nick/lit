@@ -136,7 +136,7 @@ func validate(r record, host, id string) error {
 	return nil
 }
 
-const help = "lit workflow-session --host codex|claude --runtime-id ID [--cli PATH] ACTION\n  fresh [--endpoint URL] [--project REF] [--discussion-id ID]\n  subagent --parent-runtime-id ID [--endpoint URL] [--project REF] [--discussion-id ID]\n  resume | reconcile\n  run -- COMMAND ARGS...\n  checkout --repository REF --path DIRECTORY\nExplicit runtime identity is required. Defaults to this executable. Endpoint: --endpoint > LIT_ENDPOINT > http://127.0.0.1:7411; resume preserves the saved endpoint. Without --project, fresh adopts the project remembered for the current checkout (lit context set) and reports it as project_selection; subagent never does. Never starts a service.\n"
+const help = "lit workflow-session --host codex|claude --runtime-id ID [--cli PATH] ACTION\n  fresh [--endpoint URL] [--project REF] [--discussion-id ID]\n  subagent --parent-runtime-id ID [--endpoint URL] [--project REF] [--discussion-id ID]\n  resume | reconcile\n  show\n  run -- COMMAND ARGS...\n  checkout --repository REF --path DIRECTORY\nExplicit runtime identity is required. Defaults to this executable. Endpoint: --endpoint > LIT_ENDPOINT > http://127.0.0.1:7411; resume preserves the saved endpoint. Without --project, fresh adopts the project remembered for the current checkout (lit context set) and reports it as project_selection; subagent never does. show prints the stored association without a lock or service call; exit 3 with an association_not_found error object when there is none. Never starts a service.\n"
 
 func Run(args []string, out, errOut io.Writer) int {
 	code, e := run(args, out, errOut)
@@ -179,7 +179,7 @@ func run(args []string, out, errOut io.Writer) (int, error) {
 	case "checkout":
 		sub.StringVar(&repository, "repository", "", "")
 		sub.StringVar(&path, "path", "", "")
-	case "resume", "reconcile", "run":
+	case "resume", "reconcile", "run", "show":
 	default:
 		return 1, errors.New("unknown workflow-session action")
 	}
@@ -251,6 +251,8 @@ func run(args []string, out, errOut io.Writer) (int, error) {
 		r, e = a.Reconcile(ctx)
 	case "checkout":
 		r, e = a.Checkout(ctx, repository, path)
+	case "show":
+		return a.Show(out)
 	default:
 		return a.Run(ctx, command, out, errOut)
 	}

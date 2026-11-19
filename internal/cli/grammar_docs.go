@@ -30,6 +30,7 @@ var topSummaries = map[string]string{
 var workflowSummaries = map[string]string{
 	"fresh": "Create an isolated logical client", "subagent": "Create an isolated child client", "resume": "Resume the recorded client",
 	"reconcile": "Inspect a pending session binding", "run": "Run a tracker command with the bound client", "checkout": "Record a repository checkout path",
+	"show": "Print the stored association without contacting the service",
 }
 
 // documentGrammar fills in every summary, description, example and flag usage.
@@ -92,7 +93,7 @@ func commandDocs(path []string, group bool) (summary, description, example strin
 		summary, description, example = commandSummary(name, path[1]), commandLong(name, path[1]), commandExample(name, path[1])
 	case name == "workflow-session":
 		summary = topSummaries[name]
-		description = "Bind explicit runtime identity to durable workflow state. Never starts a service.\nFresh sessions and subagents get isolated clients; resume reuses the recorded client.\nLifecycle commands output a JSON association record. run forwards tracker output with --format json;\n--format does not apply to this adapter."
+		description = "Bind explicit runtime identity to durable workflow state. Never starts a service.\nFresh sessions and subagents get isolated clients; resume reuses the recorded client.\nLifecycle commands and show output a JSON association record. run forwards tracker output with --format json;\n--format does not apply to this adapter."
 	case name == "grep":
 		summary = topSummaries[name]
 		description = "Search the selected project, or explicitly use --all-projects. Matching is case-insensitive by default.\n" +

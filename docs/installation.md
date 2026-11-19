@@ -475,6 +475,16 @@ inserts the endpoint saved with that project between `LIT_ENDPOINT` and the defa
 `resume`, `reconcile`, and `run` keep the endpoint and identity saved in their
 runtime association, even when the shell's `LIT_ENDPOINT` changes.
 
+`lit workflow-session --host claude|codex --runtime-id ID show` prints the
+runtime's stored association in the JSON the lifecycle commands print, and exits
+0. It is read-only: it takes no adapter lock, runs no tracker command, never
+connects or contacts lit-server and writes no state, so a status display can call
+it while the agent's own `run` holds the runtime's lock. A runtime without an
+association exits 3 and prints
+`{"error":{"code":"association_not_found","message":"...","details":{"host":"claude","runtime_id":"ID"}}}`
+on stdout, with nothing on stderr. A record that cannot be read or validated exits
+1 with the reason on stderr and is left untouched.
+
 A session can also carry a workflow stage (`lit session set --stage impl`, cleared
 with `lit session unset --stage`). lit-server stores it with the client, so it is
 shared with other sessions and the status line, survives `workflow-session resume`

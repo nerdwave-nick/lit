@@ -209,6 +209,8 @@ func workflowRequirements(action string) (string, string) {
 		req += "\n" + freshEndpointRule
 	case action == "subagent":
 		req += "\nEndpoint: --endpoint > LIT_ENDPOINT > http://127.0.0.1:7411."
+	case action == "show":
+		req += "\nReads the saved association only; --endpoint and --project do not apply."
 	default:
 		req += "\nUses the saved runtime binding and endpoint; --endpoint and --project do not apply."
 	}
