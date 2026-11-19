@@ -1,8 +1,7 @@
 # Checkpoint, recover, finish
 
 Check executable help for available comment, claim, closure, and transaction-status
-operations. Do not invent absent commands. Saved plans, manual editing windows,
-named drafts, archival/moves, and interactive repair are outside the initial scope.
+operations. Do not invent absent commands.
 
 At meaningful milestones, commit ticket-owned changes first, then record full
 hashes, repository/branch identities, checks/results, remaining steps, and current
@@ -24,7 +23,8 @@ Some uncertain outcomes cannot resolve through repeated status checks. A lost
 first-connect response may leave no client identity
 (`registration_identity_not_received`); absent history plus changed original
 preconditions may produce `original_preconditions_no_longer_valid`. Exit 4 can
-persist indefinitely. Initial scope has no repair or evidence-retirement command.
+persist indefinitely. There is no supported registration-identity repair or
+unresolved-evidence retirement command.
 Preserve the exact pending evidence and proof, stop dependent mutations, and
 escalate to the human with confirmed facts and remaining uncertainty in a durable
 handoff. Do not interpret human escalation as permission to delete/move evidence,
@@ -37,7 +37,8 @@ reread issue/comments/relationships before resuming. Do not use stale claim toke
 or assume reconnect extends the lease. If another client owns the work, stop and
 report the conflict; agents never force takeover.
 
-Finish only after acceptance criteria and required checks pass, relevant changes
-are committed, and commit/check evidence is recorded on the ticket. Close afterward;
-closure ends the claim. If final evidence or closure is interrupted, establish which
-operations committed before retrying. Preserve outstanding steps in the handoff.
+For implementation tickets, finish only after acceptance criteria and required
+checks pass, relevant changes are committed, and commit/check evidence is recorded
+on the ticket. Close afterward; closure ends the claim. If final evidence or
+closure is interrupted, establish which operations committed before retrying.
+Preserve outstanding steps in the handoff.

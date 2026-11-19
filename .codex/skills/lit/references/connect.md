@@ -1,8 +1,11 @@
 # Connect and select a project
 
 Use the host adapter described in [host setup](hosts.md), or pass an explicit
-`--session NAME` on **every** direct CLI call. These examples match the current
+`--session NAME` on **every** direct tracker call. These examples match the current
 executable help; check your installed version before using additional commands.
+Offline help, skill setup, and shell completion need no session. For retained
+requests, `transactions status` uses their saved bindings; only an explicit
+`--session NAME` filters them, and `LIT_SESSION` does not supply that filter.
 
 ```sh
 lit connect --session my-explicit-runtime --endpoint http://127.0.0.1:7411 --actor-name Codex --actor-kind agent --runtime-vendor codex --runtime-session-id my-explicit-runtime --format json

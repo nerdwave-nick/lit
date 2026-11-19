@@ -1,8 +1,11 @@
 # Find, claim, and read
 
-Use `lit issues list`, `lit grep`, and `lit claims` for discovery and
+Use `lit issues list`, `lit grep`, `lit search`, and `lit claims` for discovery and
 ownership. Check each command family's `--help` for filters and input syntax.
-These operations are available in the initial release.
+`lit search` ranks words by relevance (titles first, then bodies, then comments;
+diacritics ignored); use it to find work by topic, and
+`lit grep` for literal substrings such as identifiers, paths and error messages,
+or `lit grep -E` for regular expressions.
 
 For user-named work, read its project, issue, comments, blockers, shared spec,
 and current ownership. Without a named implementation ticket, propose an open,
@@ -10,7 +13,7 @@ unblocked, unclaimed ready-for-agent candidate, oldest first, and obtain selecti
 confirmation. Do not substitute another candidate after losing a claim race.
 
 Acquire ownership atomically before sustained work, then reread current state.
-Use server-side structured discovery and grep when available; fetch matching
+Use server-side structured discovery, grep and ranked search; fetch matching
 records and comments and follow relationships. Search excerpts are discovery aids,
 not authority for old revisions. Follow every continuation cursor needed for the
 question. Keep all-project searches explicit.
