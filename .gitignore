@@ -16,6 +16,8 @@ __pycache__/
 !/.codex/AGENTS.md
 !/.codex/.lit-workflows.json
 !/.codex/skills/
+/.claude/skills/.lit/
+/.codex/skills/.lit/
 /.lit/
 
 # Docker Compose: local settings and the bind-mounted backup and export directories
