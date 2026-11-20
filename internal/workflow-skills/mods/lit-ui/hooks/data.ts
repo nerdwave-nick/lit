@@ -86,12 +86,14 @@ export async function readAssoc(io: Io, lit: string, sid: string): Promise<Assoc
 export const trackerArgv = (lit: string, a: Assoc, args: string[]) =>
   [lit, '--session', a.local_session, '--endpoint', a.endpoint, '--format', 'json', ...args]
 
-// The message of lit's JSON error, else the first line it wrote.
+// The message of lit's JSON error (lit writes it to stderr), else the first line it wrote.
 export function errorText(r: RunResult): string {
-  try {
-    const m = JSON.parse(r.stdout)?.error?.message
-    if (typeof m === 'string') return m
-  } catch {}
+  for (const text of [r.stderr, r.stdout]) {
+    try {
+      const m = JSON.parse(text)?.error?.message
+      if (typeof m === 'string') return m
+    } catch {}
+  }
   return (r.stderr || r.stdout).trim().split('\n')[0] || `exit ${r.exitCode}`
 }
 

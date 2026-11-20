@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'claude-code/testing'
 
-import { gather, parseIssues } from '../hooks/data'
+import { errorText, gather, parseIssues } from '../hooks/data'
 import type { Io } from '../hooks/data'
 
 const ASSOC = { schema_version: 1, host: 'claude', runtime_id: 'sid-1', local_session: 'agent-1', endpoint: 'http://127.0.0.1:7472',
@@ -117,5 +117,15 @@ describe('parsing tracker output', () => {
     expect(() => parseIssues('{}')).toThrow('unexpected output')
     expect(parseIssues('{"items":[{"id":"a","title":"A","state":"open","labels":null,"blocked_by":null,"claim":null,"created_at":"x"}]}'))
       .toEqual([{ id: 'a', title: 'A', state: 'open', labels: [], blocked_by: [], claim: null, created_at: 'x' }])
+  })
+})
+
+describe('lit errors', () => {
+  test('the message of lit\'s JSON error, on stderr as lit writes it, or on stdout', async () => {
+    const error = '{"error":{"code":"claim_expired","message":"cannot renew an absent or expired claim","details":{}}}'
+    expect(errorText({ exitCode: 3, stdout: '', stderr: error })).toBe('cannot renew an absent or expired claim')
+    expect(errorText({ exitCode: 3, stdout: error, stderr: '' })).toBe('cannot renew an absent or expired claim')
+    expect(errorText({ exitCode: 1, stdout: '', stderr: 'boom\nmore' })).toBe('boom')
+    expect(errorText({ exitCode: 2, stdout: '', stderr: '' })).toBe('exit 2')
   })
 })

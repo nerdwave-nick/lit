@@ -1,12 +1,12 @@
 # lit-ui: lit in Claude Code
 
 `lit-ui` is a Claude Code mod (Claude Code 2.1.287 or later) that shows a
-conversation's lit state in one band above the prompt, toasts when a claim is
-about to lapse, and writes a status feed a user-defined status line can read. All
-tracker behavior stays in lit commands: the mod reads, presents and calls them.
-Its source is `internal/workflow-skills/mods/lit-ui/`; `lit setup-workflows`
-installs it next to `lit-hooks`. The pane the band's `2:lit` will open is not part
-of this version: `2`, `1:choose project` and `/lit-ui` say so in a toast.
+conversation's lit state in one band above the prompt and in the lit pane, launches
+the workflows by selection, toasts when a claim is about to lapse, and writes a
+status feed a user-defined status line can read. All tracker behavior stays in lit
+commands: the mod reads, presents and calls them. Its source is
+`internal/workflow-skills/mods/lit-ui/`; `lit setup-workflows` installs it next to
+`lit-hooks`. The pane's Board and Project views are placeholders in this version.
 
 ## The band
 
@@ -29,7 +29,9 @@ In an empty prompt a digit presses the button:
 - `1` puts the recommended command in the prompt (`/planner P`, `/planner P
   decision: T`, `/to-spec P`, `/to-tickets P`, `/impl P:T`, `/orchestrate P
   [milestone M]`); Enter runs it. In the other states it connects
-  (`workflow-session fresh`), reconciles (`workflow-session reconcile`) or retries.
+  (`workflow-session fresh`), reconciles (`workflow-session reconcile`) or retries;
+  without a project it opens the pane on Project.
+- `2` opens the pane.
 - `3` renews this conversation's expiring claim for 30 minutes.
 
 The recommendation is the first that matches: no issues, planner; a claim of this
@@ -44,6 +46,41 @@ most of them); one ready ticket, impl on it. Ready tickets are open
 Toasts: one when a claim of this conversation falls under 5 minutes
 (`lit: claim on "T" expires in 3m`) and one when it has expired. Timers, refreshes
 and hooks never acquire, renew, reacquire, force or release a claim; only `3` renews.
+
+## The pane
+
+`2` on the band, `/lit-ui` and `1:choose project` open the pane, focused; Esc
+closes it. Its header reads `lit · <project>` with the views Home, Launch, Board
+and Project, switched with `h`, `l`, `b` and `p`; without a selected project it
+shows Project and the other views are dim. Below 60 columns the right-hand meta
+drops and the views go under the title. Every view ends with a dim line of key
+hints. Choices are numbered rows pressed by their digit (or Tab and Enter); after a
+choice the focus moves to the action Enter should take. A failed action shows once
+as a toast and as a red `⚠` row at the top of the view until the next successful
+refresh. Outside `ready` and `noproject` the pane shows the band's line and its
+one action.
+
+- **Home:** NEXT STEP shows `❯ <command>` and why; Enter puts it in the prompt,
+  `r` runs it now. MY CLAIMS lists this conversation's claims; selecting one
+  offers `r renew` (30 minutes) and `x release`, which asks for a second `x`.
+  WAITING FOR YOU lists open decisions and `needs-info` and `ready-for-human`
+  issues; a digit puts that item's command in the prompt. Empty sections are left
+  out.
+- **Launch:** planner, to-spec, to-tickets, impl and orchestrate, in that order,
+  the recommended one marked `★ recommended`; to-tickets without a specification,
+  impl without ready tickets (or a claim of this conversation) and orchestrate
+  with fewer than two ready tickets stay dim with that reason. Choosing one opens
+  its target step: planner the open decisions and the whole planning map,
+  to-tickets and orchestrate the milestones and the whole project, impl this
+  conversation's and the ready tickets (blocked tickets and other agents' claims
+  are shown dim and cannot be chosen); to-spec has none. The step shows
+  `→ <command>`; Enter puts it in the prompt, `r` runs it now, `back` or Esc
+  returns to the list, and Esc there closes the pane.
+
+Putting a command in the prompt and running it now both close the pane.
+Orchestrate is never run from the pane: it always goes through the prompt. Run
+now runs the slash command from a timer after the press, as the person typing it
+would.
 
 ## Next-stage suggestion
 
@@ -71,8 +108,9 @@ cache into its working directory. Claim tokens are dropped when lit's output is
 read and are never shown or written.
 
 The mod refreshes every 5 seconds, right after the agent runs a Bash command that
-invokes lit, after every button press, and on `/lit-refresh`. A refresh requested
-while one runs is served by one more run after it.
+invokes lit, after every press in the band or the pane that fills the prompt or runs
+lit, and on `/lit-refresh`. A refresh requested while one runs is served by one more
+run after it.
 
 ## Configuration
 
@@ -123,6 +161,7 @@ The Claude session ID is the `session_id` a status line command receives on stdi
 
 ## Commands
 
+- `/lit-ui` opens the pane.
 - `/lit-refresh` refreshes now and answers with the state.
 - `/lit-ui debug` prints the endpoint, the status mode and its source, the lit
   session, the state, the stage, the last refresh's time and duration, and any read

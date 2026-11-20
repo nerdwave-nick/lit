@@ -101,11 +101,26 @@ export type View = {
   errors: string[]
 }
 
+// The pane's views, and what the person chose in it.
+export type Tab = 'home' | 'launch' | 'board' | 'project'
+export type PaneUi = {
+  tab: Tab
+  // The workflow whose target step Launch shows.
+  step: Flow | null
+  // The chosen row of that step.
+  sel: number
+  // The claim selected on Home, and the claim whose release waits for a second x.
+  claim: string | null
+  confirm: string | null
+  // A failed action, shown until the next successful refresh.
+  failure: string | null
+}
+
 // What /lit-ui debug reports about the last refresh.
 export type RefreshInfo = { at: string; ms: number; session: string | null }
 
 declare module 'claude-code' {
   interface PluginState {
-    'lit-ui': { view: View | null; refresh: RefreshInfo | null }
+    'lit-ui': { view: View | null; refresh: RefreshInfo | null; ui: PaneUi }
   }
 }
