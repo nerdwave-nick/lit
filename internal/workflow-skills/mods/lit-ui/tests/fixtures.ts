@@ -28,7 +28,7 @@ export function seed(overrides: Partial<Raw> = {}): Raw {
   return {
     sid: 's1', endpoint: 'http://127.0.0.1:7411', reachable: true, degraded: false, prefixes: ['feat', 'fix'],
     assoc: { local_session: 'agent-1', endpoint: 'http://127.0.0.1:7411', client_id: 'me', project_id: 'p1', status: 'ready' },
-    projectId: 'p1', stage: null,
+    projectId: 'p1', stage: null, stageKnown: true,
     projects: [{ id: 'p1', title: 'feat/demo', description: '# Demo\n\n## Shared specification\n\nText.', repository_refs: [] }],
     issues, claims: [], otherTitles: {}, milestones: [], errors: [], ...overrides,
   }

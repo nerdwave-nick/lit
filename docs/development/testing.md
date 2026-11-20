@@ -634,13 +634,16 @@ command strings, the band in both status modes (zero counts and an empty stage
 left out, `3:renew` under five minutes), the claim toasts (under five minutes,
 expired, renewed, released, unreadable claims), the config file and its fallbacks,
 the workflow state directory, which Bash commands run lit, the feed, the refresh
-gate, and the parsing of lit's JSON (malformed output is refused; claim tokens are
-dropped). `tests/register.test.tsx` runs the whole mod against a fake lit and
+gate, the next-stage suggestion (each of the three stages, no repeat, nothing for
+other changes, without a project or for an unreadable stage), and the parsing of
+lit's JSON (malformed output is refused; claim tokens are dropped).
+`tests/register.test.tsx` runs the whole mod against a fake lit and
 tracker: the reads go through `workflow-session show` and the association's session
 and endpoint in the mod's own working directory, never `workflow-session run`; the
 band in each state and mode; `1` filling the prompt; `3` renewing for 30 minutes
-only when pressed (polls never acquire, renew or release); both toasts; buttons
-hidden during a turn; a refresh after a Bash call that runs lit and none after
+only when pressed (polls never acquire, renew or release); both toasts; the
+next-stage ghost text once, held through a turn until the prompt can show it;
+buttons hidden during a turn; a refresh after a Bash call that runs lit and none after
 other commands; the feed file and `/lit-ui debug`. Mutation checks (no refresh
 after Bash, another renewal lease, no toasts) fail these tests. The live check of
 the band in a real Claude Code session is a manual step, recorded on the ticket:

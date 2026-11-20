@@ -45,6 +45,19 @@ Toasts: one when a claim of this conversation falls under 5 minutes
 (`lit: claim on "T" expires in 3m`) and one when it has expired. Timers, refreshes
 and hooks never acquire, renew, reacquire, force or release a claim; only `3` renews.
 
+## Next-stage suggestion
+
+When the session's stage (`lit session set|unset --stage`) goes from `planner`,
+`to-spec` or `to-tickets` to none between two refreshes, the mod proposes the
+following stage's command as the prompt's ghost text (Tab takes it): `/to-spec P`,
+`/to-tickets P` or `/orchestrate P` for the selected project P. It does so once per
+cleared stage, never at every turn end, and only when the same lit session keeps the
+same project selected. Other changes (a stage replaced by another, `impl` or
+`orchestrate` cleared, no project) suggest nothing, and a refresh that could not read
+the stage counts as no reading. A stage cleared while a turn runs, or while the
+prompt holds text, is proposed at the turn's end or the next refresh after that,
+until the prompt has shown it or a new stage, project or session replaces it.
+
 ## Data and refreshes
 
 Every refresh reads `$.session.id()` (it changes on `/clear`) and the association
