@@ -6,7 +6,7 @@ the workflows by selection, toasts when a claim is about to lapse, and writes a
 status feed a user-defined status line can read. All tracker behavior stays in lit
 commands: the mod reads, presents and calls them. Its source is
 `internal/workflow-skills/mods/lit-ui/`; `lit setup-workflows` installs it next to
-`lit-hooks`. The pane's Board and Project views are placeholders in this version.
+`lit-hooks`.
 
 ## The band
 
@@ -76,6 +76,29 @@ one action.
   are shown dim and cannot be chosen); to-spec has none. The step shows
   `→ <command>`; Enter puts it in the prompt, `r` runs it now, `back` or Esc
   returns to the list, and Esc there closes the pane.
+- **Board** (read-only): a summary of the non-zero counts (in progress, ready,
+  blocked, claimed by others, done), or "No implementation tickets yet · N other
+  open issues"; then one row per open ticket: this conversation's `◷` with the
+  time left, ready `●`, blocked `◌` with `← <blockers>`, another agent's `◐` with
+  its name and time left (a blocked ticket counts as blocked only), and the last
+  three closed `✓`, most recently changed first. LONGEST CHAIN shows the longest
+  run of open issues each blocking the next, when it is longer than one; each
+  milestone has a progress bar with `n of m done`.
+- **Project:** CHOOSE A PROJECT lists the selected project and this repository's
+  projects (the session directory's git origin among the projects' repository
+  refs, compared in their https form and ignoring case), numbered, then `more…`
+  for all the others. A project is selected only when chosen (`lit session set
+  --project <ID>`), and the pane goes to Home; Esc folds the full list back first.
+  NEW PROJECT: `n` moves to the title field. Once something is typed, a title lit
+  would refuse shows why in red: a prefix outside the tracker's `title_prefixes`,
+  a part that is not letters, digits, `-` and `_` starting with a letter or digit,
+  over 128 characters, or a title that exists in any case. Enter creates it with
+  `lit projects create --project-title <title> --repository <https ref>` (the
+  origin's https form: `git@github.com:o/r.git` becomes `https://github.com/o/r`;
+  without a git origin, no repository), selects it with `lit session set
+  --project title:<title>`, puts `/planner <title>` in the prompt and closes the
+  pane. A refused create or select shows as the failure row and leaves the title
+  in the field.
 
 Putting a command in the prompt and running it now both close the pane.
 Orchestrate is never run from the pane: it always goes through the prompt. Run
@@ -105,7 +128,8 @@ the association's `--session` and `--endpoint` with `--format json`: `/v1/meta`
 Without an association it probes `LIT_ENDPOINT` or `http://127.0.0.1:7411`. lit
 runs in `<workflow state>/lit-ui/`, outside any checkout, because it writes a
 cache into its working directory. Claim tokens are dropped when lit's output is
-read and are never shown or written.
+read and are never shown or written. `git remote get-url origin` runs once per
+session directory (`$.session.cwd()`), in that directory, for the Project view.
 
 The mod refreshes every 5 seconds, right after the agent runs a Bash command that
 invokes lit, after every press in the band or the pane that fills the prompt or runs

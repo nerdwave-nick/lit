@@ -47,6 +47,7 @@ export function parseIssues(text: string): Issue[] {
     return {
       id: str(o, 'id'), title: str(o, 'title'), state, labels: strs(o, 'labels'), blocked_by: strs(o, 'blocked_by'),
       claim: o.claim === null || o.claim === undefined ? null : parseClaim(o.claim), created_at: str(o, 'created_at'),
+      updated_at: strOrNull(o, 'updated_at') ?? str(o, 'created_at'),
     }
   })
 }
@@ -101,7 +102,7 @@ export async function gather(io: Io, input: GatherInput): Promise<Raw> {
   const { sid, lit } = input
   const raw: Raw = {
     sid, endpoint: input.defaultEndpoint, reachable: false, degraded: false, prefixes: [], assoc: null, projectId: null,
-    stage: null, stageKnown: false, projects: [], issues: [], claims: null, otherTitles: {}, milestones: [], errors: [],
+    stage: null, stageKnown: false, projects: [], issues: [], claims: null, otherTitles: {}, milestones: [], origin: null, errors: [],
   }
   const note = (what: string, err: unknown) => raw.errors.push(`${what}: ${err instanceof Error ? err.message : String(err)}`)
   try {

@@ -7,7 +7,8 @@ export const has = (i: Issue, label: string) => i.labels.includes(label)
 const isDecision = (i: Issue) => has(i, 'decision')
 const isWaitingLabel = (i: Issue) => WAITING_LABELS.some(l => has(i, l))
 // Only triaged tickets are work: ideas, findings, research and decisions never count.
-const isWork = (i: Issue) => i.state === 'open' && has(i, 'ready-for-agent') && !isDecision(i) && !isWaitingLabel(i)
+export const isWorkKind = (i: Issue) => has(i, 'ready-for-agent') && !isDecision(i) && !isWaitingLabel(i)
+const isWork = (i: Issue) => i.state === 'open' && isWorkKind(i)
 const byCreated = (a: Issue, b: Issue) => a.created_at.localeCompare(b.created_at) || a.id.localeCompare(b.id)
 const SPEC_HEADING = /^#{1,6}[ \t]+Shared specification/m
 
@@ -67,7 +68,9 @@ export function derive(raw: Raw, now: number): View {
     hasSpec: SPEC_HEADING.test(project?.description ?? ''),
     recommend: { flow: null, reason: '', arg: null, command: null },
     milestones: raw.milestones,
+    issues,
     projects: raw.projects,
+    origin: raw.origin,
     prefixes: raw.prefixes,
     errors: raw.errors,
   }

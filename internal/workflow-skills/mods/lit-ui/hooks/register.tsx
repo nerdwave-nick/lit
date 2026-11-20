@@ -10,6 +10,7 @@ import type { BandAction } from './band'
 import { BandView } from './band-view'
 import { CONFIG_FILE, invokesLit, parseConfig, workflowStateDir } from './config'
 import { errorText, gather, readAssoc, trackerArgv } from './data'
+import { debugText } from './debug'
 import type { Io } from './data'
 import { buildFeed, feedPath } from './feed'
 import { refreshGate } from './gate'
@@ -18,7 +19,7 @@ import { claimNotices } from './notices'
 import type { Watched } from './notices'
 import { EMPTY_UI, PANE_ID } from './pane'
 import { paneActs } from './pane-acts'
-import type { PaneActs } from './pane-acts'
+import type { PaneActs, TrackerStep } from './pane-acts'
 import { PaneView } from './pane-view'
 import { stageReading, suggestionShown, watchStage } from './suggest'
 import type { StageWatch } from './suggest'
@@ -49,6 +50,7 @@ let watchedSid = ''
 let feedProblem: string | null = null
 let lastFailure: string | null = null
 let stageWatch: StageWatch = { seen: null, pending: null }
+let origin: { cwd: string; url: string | null } | null = null
 
 async function settings($: EngineInterface): Promise<{ config: Config; stateDir: string | null; cwd: string }> {
   if (!config) {
@@ -74,6 +76,17 @@ async function settings($: EngineInterface): Promise<{ config: Config; stateDir:
   return { config, stateDir, cwd }
 }
 
+// The git origin of the session's directory, read once per directory (again after a git that
+// did not finish): projects of this repository lead the Project view; a new project records it.
+async function originOf($: EngineInterface): Promise<string | null> {
+  const cwd = await $.session.cwd()
+  if (origin?.cwd === cwd) return origin.url
+  const r = await $.process.run(['git', 'remote', 'get-url', 'origin'], { cwd, timeoutMs: CALL_TIMEOUT_MS }).catch(() => null)
+  if (!r) return null
+  origin = { cwd, url: r.exitCode === 0 ? r.stdout.trim() || null : null }
+  return origin.url
+}
+
 const io = ($: EngineInterface, cwd: string, timeoutMs = CALL_TIMEOUT_MS): Io => ({
   run: argv => $.process.run(argv, { cwd, timeoutMs }),
   meta: url => new Promise((resolve, reject) => {
@@ -91,6 +104,7 @@ async function refreshNow($: EngineInterface): Promise<void> {
   const sid = await $.session.id()
   const defaultEndpoint = (await $.env.get('LIT_ENDPOINT')) || DEFAULT_ENDPOINT
   const raw = await gather(io($, s.cwd), { sid, lit: s.config.lit, defaultEndpoint })
+  raw.origin = await originOf($)
   if (s.config.problem) raw.errors.unshift(s.config.problem)
   if (!s.stateDir) raw.errors.push('lit\'s workflow state directory is unknown: no status feed')
   const now = await $.clock.now()
@@ -138,34 +152,43 @@ async function refresh($: EngineInterface): Promise<void> {
   } while (gate.again())
 }
 
-// A human's press: run one lit command, say how it went, then refresh. A failure also shows in
-// the pane until the next successful refresh.
-async function act($: EngineInterface, what: string, argv: (lit: string, sid: string) => Promise<string[]>, ok: string) {
+// A human's press: run lit commands in order until one fails, say how it went, then refresh. A
+// failure also shows in the pane until the next successful refresh. True when all succeeded.
+type Step = { what: string; argv: string[] }
+async function act($: EngineInterface, what: string, steps: (lit: string, sid: string) => Promise<Step[]>, ok: string) {
   let failure: string | null = null
+  let doing = what
   try {
     const s = await settings($)
-    const r = await io($, s.cwd, ADAPTER_TIMEOUT_MS).run(await argv(s.config.lit, await $.session.id()))
-    if (r.exitCode !== 0) throw new Error(errorText(r))
+    for (const step of await steps(s.config.lit, await $.session.id())) {
+      doing = step.what
+      const r = await io($, s.cwd, ADAPTER_TIMEOUT_MS).run(step.argv)
+      if (r.exitCode !== 0) throw new Error(errorText(r))
+    }
     $.ui.toast(`lit: ${ok}`)
   } catch (err) {
-    failure = `${what} failed: ${(err as Error).message}`
+    failure = `${doing} failed: ${(err as Error).message}`
     $.ui.toast(`lit: ${failure}`)
   }
   await refresh($)
   if (failure) await patchUi($, ui => ({ ...ui, failure }))
+  return failure === null
 }
 
-// Renews or releases only this session's own claim, only on the person's press.
-const ownClaim = ($: EngineInterface, what: 'renew' | 'release', args: string[], ok: string) => act($, what, async (lit, sid) => {
+// Tracker commands with this conversation's session and endpoint, only on the person's press.
+const tracker = ($: EngineInterface, steps: TrackerStep[], ok: string) => act($, steps[0]?.what ?? 'lit', async (lit, sid) => {
   const assoc = await readAssoc(io($, (await settings($)).cwd), lit, sid)
   if (!assoc) throw new Error('not connected in this conversation')
-  return trackerArgv(lit, assoc, ['claims', what, ...args])
+  return steps.map(s => ({ what: s.what, argv: trackerArgv(lit, assoc, s.args) }))
 }, ok)
-const renew = ($: EngineInterface, issueId: string) => ownClaim($, 'renew', [issueId, '--for', RENEW_FOR], `claim renewed for ${RENEW_FOR}`)
-const release = ($: EngineInterface, issueId: string) => ownClaim($, 'release', [issueId], 'claim released')
+// Renew and release act only on this session's own claims.
+const renew = ($: EngineInterface, issueId: string) =>
+  tracker($, [{ what: 'renew', args: ['claims', 'renew', issueId, '--for', RENEW_FOR] }], `claim renewed for ${RENEW_FOR}`).then(() => {})
+const release = ($: EngineInterface, issueId: string) =>
+  tracker($, [{ what: 'release', args: ['claims', 'release', issueId] }], 'claim released').then(() => {})
 
-const adapter = ($: EngineInterface, action: 'fresh' | 'reconcile', ok: string) =>
-  act($, action === 'fresh' ? 'connect' : action, async (lit, sid) => [lit, 'workflow-session', '--host', 'claude', '--runtime-id', sid, action], ok)
+const adapter = ($: EngineInterface, action: 'fresh' | 'reconcile', ok: string, what = action === 'fresh' ? 'connect' : action) =>
+  act($, what, async (lit, sid) => [{ what, argv: [lit, 'workflow-session', '--host', 'claude', '--runtime-id', sid, action] }], ok)
 
 function press($: EngineInterface, does: BandAction): void {
   switch (does.kind) {
@@ -200,6 +223,7 @@ const acts = ($: EngineInterface): PaneActs => paneActs({
   renew: issueId => renew($, issueId),
   release: issueId => release($, issueId),
   press: does => press($, does),
+  tracker: (steps, ok) => tracker($, steps, ok),
 })
 
 export const register: Register = on => {
@@ -223,16 +247,7 @@ export const register: Register = on => {
       return { text: 'lit pane opened' }
     }
     const [v, r, s] = [await read($, viewAtom), await read($, refreshAtom), await settings($)]
-    const lines = [
-      `endpoint: ${v?.endpoint ?? 'unknown'}`,
-      `status mode: ${s.config.mode} (${s.config.source === 'file' ? CONFIG_FILE : 'development default'}; lit: ${s.config.lit})`,
-      `lit session: ${r?.session ?? 'none'}`,
-      `state: ${v?.state ?? 'unknown'}`,
-      `stage: ${v?.stage ?? 'none'}`,
-      `last refresh: ${r ? `${r.at}, ${r.ms} ms` : 'never'}`,
-      ...[...(v?.errors ?? []), ...(feedProblem ? [feedProblem] : [])].map(err => `error: ${err}`),
-    ]
-    return { text: lines.join('\n') }
+    return { text: debugText(v, r, s.config, [feedProblem]) }
   })
 
   // Refresh right after the agent runs lit, instead of waiting for the next poll.

@@ -36,7 +36,7 @@ describe('opening the pane', () => {
     await (await bandText($)).ui.press({ key: 'band-1' })
     expect(seen.opens).toEqual([OPENED])
     const { texts, buttons } = await paneText(await pane($))
-    expect(buttons).toEqual(['tab-project'])
+    expect(buttons.filter(b => b.startsWith('tab-'))).toEqual(['tab-project'])
     expect(texts).toContain('lit · |no project|Home|Launch|Board|Project')
   })
 
@@ -56,7 +56,7 @@ describe('opening the pane', () => {
     expect(t.split('|').at(-1)).toBe('1–5 choose · Esc close')
     await ui.press({ key: 'tab-board' })
     t = (await paneText(ui)).texts
-    expect(t.split('|').at(-1)).toBe('Esc close')
+    expect(t.split('|').at(-1)).toBe('h l b p views · Esc close')
     await ui.press({ key: 'tab-home' })
     expect((await paneText(ui)).texts).toContain('NEXT STEP')
   })
