@@ -668,7 +668,16 @@ the focus goes after each choice, Esc back from a target step, release only on t
 second `x`, fill and run now leaving the pane) and `tests/pane-session.test.tsx`
 (the pane drawn through the mod with the fake world of `tests/world.ts`: opening it
 from the band and `/lit-ui`, the tabs, Home and Launch, renew and release, the
-failure row, orchestrate without run now, the narrow layout). The kit's engine
+failure row, orchestrate without run now, the narrow layout). The Board and
+Project views add `tests/board.test.ts` (counts, one row per ticket, the last three
+done, the longest chain through closed, unknown and cyclic blockers, the bars),
+`tests/project.test.ts` (the canonical https form of git remotes, each title rule
+with its message, the order of CHOOSE A PROJECT and `more…`) and
+`tests/pane-board-project.test.tsx` (both views through the mod: the git origin
+read in the session's directory, selection only on a press, the title checked only
+after typing, `projects create` with the repository then `session set`, `/planner`
+in the prompt, and a refused create); `tests/pane-acts.test.ts` covers their focus
+moves and Esc folding `more…`. The kit's engine
 cannot raise the person's Esc (`ui.close`) or answer a plugin's `$.ui.focus`, so
 those are covered at the `pane-acts.ts` seam and in the live check. The live check
 of the band and the pane in a real Claude Code session is a manual step, recorded

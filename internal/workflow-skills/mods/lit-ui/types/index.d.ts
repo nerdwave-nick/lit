@@ -27,6 +27,8 @@ export type Issue = {
   blocked_by: string[]
   claim: Claim | null
   created_at: string
+  // The last change; for a closed ticket, when it was closed as near as lit tells.
+  updated_at: string
 }
 export type Project = { id: string; title: string; description: string; repository_refs: string[] }
 export type Milestone = { id: string; title: string; issue_ids: string[]; closed: number; total: number }
@@ -59,6 +61,8 @@ export type Raw = {
   // Titles of claimed issues outside the selected project, by ID.
   otherTitles: Record<string, string>
   milestones: Milestone[]
+  // The git origin of the session's working directory, as git reports it; null outside one.
+  origin: string | null
   errors: string[]
 }
 
@@ -96,7 +100,10 @@ export type View = {
   hasSpec: boolean
   recommend: Recommendation
   milestones: Milestone[]
+  // The selected project's issues, open and closed.
+  issues: Issue[]
   projects: Project[]
+  origin: string | null
   prefixes: string[]
   errors: string[]
 }
@@ -114,6 +121,10 @@ export type PaneUi = {
   confirm: string | null
   // A failed action, shown until the next successful refresh.
   failure: string | null
+  // Project: every project listed (more…), the new title as typed, and whether it was typed.
+  allProjects: boolean
+  draft: string
+  typed: boolean
 }
 
 // What /lit-ui debug reports about the last refresh.

@@ -1,8 +1,13 @@
 // What the pane's presses do. The engine calls come in as a PaneIo built in register.tsx (the
 // engine follows `$` within one file only); this file decides what follows a press.
 import type { BandAction } from './band'
-import { slash } from './pane'
+import { slash, tabOf } from './pane'
+import { projectActs } from './project-acts'
+import type { ProjectActs } from './project-acts'
 import type { Flow, PaneUi, Tab, View } from '../types'
+
+// One tracker command with the association's session and endpoint, and what it is called when it fails.
+export type TrackerStep = { what: string; args: string[] }
 
 export type PaneIo = {
   view: () => Promise<View | null>
@@ -17,9 +22,11 @@ export type PaneIo = {
   renew: (issueId: string) => Promise<void>
   release: (issueId: string) => Promise<void>
   press: (does: BandAction) => void
+  // Runs the steps in order until one fails, says how it went, refreshes; true when all succeeded.
+  tracker: (steps: TrackerStep[], ok: string) => Promise<boolean>
 }
 
-export type PaneActs = {
+export type PaneActs = ProjectActs & {
   tab: (tab: Tab) => void
   fill: (text: string) => void
   run: (text: string) => void
@@ -58,6 +65,7 @@ export function paneActs(io: PaneIo): PaneActs {
     await io.release(issueId)
   }
   return {
+    ...projectActs(io),
     tab: to => void tab(to),
     fill: text => void leave(text, 'fill'),
     run: text => void leave(text, 'run'),
@@ -68,9 +76,11 @@ export function paneActs(io: PaneIo): PaneActs {
     pickFlow: flow => void io.patch(ui => ({ ...ui, step: flow, sel: 0 })).then(() => io.focus('put')),
     choose: sel => void io.patch(ui => ({ ...ui, sel })).then(() => io.focus('put')),
     back: () => void io.patch(ui => ({ ...ui, step: null })),
+    // Back from a Launch target step, or from the full project list.
     escape: async () => {
-      if (!(await io.ui()).step) return false
-      await io.patch(ui => ({ ...ui, step: null }))
+      const [ui, v] = [await io.ui(), await io.view()]
+      if (!ui.step && !(ui.allProjects && v && tabOf(v, ui) === 'project')) return false
+      await io.patch(u => ({ ...u, step: null, allProjects: false }))
       return true
     },
     fix: does => io.press(does),

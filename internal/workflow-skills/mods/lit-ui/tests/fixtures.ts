@@ -3,10 +3,10 @@ import type { Claim, Issue, Raw } from '../types'
 
 export const NOW = Date.parse('2026-11-20T00:00:00Z')
 let created = 0
-export const issue = (id: string, title: string, extra: Partial<Issue> = {}): Issue => ({
-  id, title, state: 'open', labels: [], blocked_by: [], claim: null,
-  created_at: new Date(NOW - 86400000 + ++created * 1000).toISOString(), ...extra,
-})
+export const issue = (id: string, title: string, extra: Partial<Issue> = {}): Issue => {
+  const at = new Date(NOW - 86400000 + ++created * 1000).toISOString()
+  return { id, title, state: 'open', labels: [], blocked_by: [], claim: null, created_at: at, updated_at: at, ...extra }
+}
 export const claim = (issue_id: string, owner: string, minutes: number): Claim =>
   ({ issue_id, owner_client_id: owner, owner_name: owner, expires_at: new Date(NOW + minutes * 60000).toISOString() })
 
@@ -30,6 +30,6 @@ export function seed(overrides: Partial<Raw> = {}): Raw {
     assoc: { local_session: 'agent-1', endpoint: 'http://127.0.0.1:7411', client_id: 'me', project_id: 'p1', status: 'ready' },
     projectId: 'p1', stage: null, stageKnown: true,
     projects: [{ id: 'p1', title: 'feat/demo', description: '# Demo\n\n## Shared specification\n\nText.', repository_refs: [] }],
-    issues, claims: [], otherTitles: {}, milestones: [], errors: [], ...overrides,
+    issues, claims: [], otherTitles: {}, milestones: [], origin: null, errors: [], ...overrides,
   }
 }

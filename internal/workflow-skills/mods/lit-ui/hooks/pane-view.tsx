@@ -1,11 +1,13 @@
 // The lit pane's drawing: the shell (header, tabs, failure row, key hints) and the Home view.
 // Elements and the acts come in; no `$` here (register.tsx owns every engine call).
 import { band, left } from './band'
+import { Board } from './board-view'
 import { Launch } from './launch-view'
 import { digit, home, NARROW, TABS, tabOf } from './pane'
 import type { PaneActs } from './pane-acts'
 import { row, section, tone } from './pane-kit'
 import type { Drawn } from './pane-kit'
+import { ProjectView } from './project-view'
 import type { PaneUi, StatusMode, View } from '../types'
 
 export function PaneView(E: any, v: View | null, ui: PaneUi, mode: StatusMode, acts: PaneActs, cols: number) {
@@ -35,8 +37,8 @@ export function PaneView(E: any, v: View | null, ui: PaneUi, mode: StatusMode, a
   )
   const body: Drawn = tab === 'home' ? Home(E, v, ui, acts, cols)
     : tab === 'launch' ? Launch(E, v, ui, acts, cols)
-    : placeholder(E, tab === 'board' ? 'The board comes with a later version of lit-ui.'
-      : 'Choosing and creating projects comes with a later version of lit-ui; lit session set --project selects one.')
+    : tab === 'board' ? Board(E, v, cols)
+    : ProjectView(E, v, ui, acts, cols)
   return (
     <Box flexDirection="column" gap={1}>
       <Box key="head" flexDirection={cols < NARROW ? 'column' : 'row'} justifyContent="space-between">
@@ -49,8 +51,6 @@ export function PaneView(E: any, v: View | null, ui: PaneUi, mode: StatusMode, a
     </Box>
   )
 }
-
-const placeholder = (E: any, text: string): Drawn => ({ content: [<E.Text key="later" dimColor>{text}</E.Text>], hints: 'Esc close' })
 
 function Home(E: any, v: View, ui: PaneUi, acts: PaneActs, cols: number): Drawn {
   const { Box, Text, Button } = E

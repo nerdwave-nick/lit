@@ -24,6 +24,8 @@ export type World = {
   renewFails?: string
   // Whether the prompt box can show a suggestion now (no turn running, no text in it).
   canSuggest: boolean
+  // What `git remote get-url origin` prints in the session's directory; null outside a repository.
+  origin?: string | null
 }
 export const ready = (): World => ({
   show: { exitCode: 0, stdout: JSON.stringify(ASSOC) },
@@ -51,11 +53,13 @@ export function world(on: On, w: World) {
   }
   on('session.start', async ($, e) => ({ cwd: e.cwd }))
   on('session.id', async () => ({ value: SID }))
+  on('session.cwd', async () => ({ value: '/checkout' }))
   on('command.register', async ($, e) => ({ value: { command: e.name } }))
   on('process.run', async ($, e) => {
     const argv = e.argv.join(' ')
     seen.runs.push({ argv, cwd: e.init?.cwd })
     if (argv === 'uname -s') return out(0, 'Linux\n')
+    if (argv === 'git remote get-url origin') return w.origin ? out(0, `${w.origin}\n`) : out(2, '', 'error: No such remote \'origin\'')
     if (argv.endsWith(`--runtime-id ${SID} show`)) return out(w.show.exitCode, w.show.stdout)
     if (argv === `${T} claims list --all`) {
       const claims = w.claimMinutes === null ? [] : [myClaim(w.claimMinutes)]

@@ -13,7 +13,9 @@ export const TABS: readonly { tab: Tab; key: string; label: string }[] = [
   { tab: 'board', key: 'b', label: 'Board' },
   { tab: 'project', key: 'p', label: 'Project' },
 ]
-export const EMPTY_UI: PaneUi = { tab: 'home', step: null, sel: 0, claim: null, confirm: null, failure: null }
+export const EMPTY_UI: PaneUi = {
+  tab: 'home', step: null, sel: 0, claim: null, confirm: null, failure: null, allProjects: false, draft: '', typed: false,
+}
 
 export type PaneTone = 'text' | 'dim' | 'faint' | 'accent' | 'success' | 'warning' | 'error'
 

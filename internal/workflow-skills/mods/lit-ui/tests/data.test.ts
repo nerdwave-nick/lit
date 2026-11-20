@@ -57,10 +57,11 @@ describe('gather', () => {
       projectId: 'p1', stage: 'impl', stageKnown: true,
       projects: [{ id: 'p1', title: 'feat/demo', description: '# D', repository_refs: [] }],
       issues: [{ id: 't1', title: 'T t1', state: 'open', labels: ['ready-for-agent'], blocked_by: [], created_at: '2026-11-19T00:00:00Z',
-        claim: { issue_id: 't1', owner_client_id: 'other', owner_name: 'claude', expires_at: '2026-11-20T00:30:00Z' } }],
+        updated_at: '2026-11-19T00:00:00Z', claim: { issue_id: 't1', owner_client_id: 'other', owner_name: 'claude', expires_at: '2026-11-20T00:30:00Z' } }],
       claims: [{ issue_id: 't9', owner_client_id: 'me', owner_name: 'claude', expires_at: '2026-11-20T00:30:00Z' }],
       otherTitles: { t9: 'Elsewhere' },
       milestones: [{ id: 'm1', title: 'M1', issue_ids: ['t1'], closed: 1, total: 3 }],
+      origin: null,
       errors: [],
     })
     expect(JSON.stringify(raw)).not.toContain('SECRET-TOKEN')
@@ -116,7 +117,10 @@ describe('parsing tracker output', () => {
     expect(() => parseIssues('{"items":[{"id":"a","title":"A","state":"weird","created_at":"x"}]}')).toThrow('unexpected output')
     expect(() => parseIssues('{}')).toThrow('unexpected output')
     expect(parseIssues('{"items":[{"id":"a","title":"A","state":"open","labels":null,"blocked_by":null,"claim":null,"created_at":"x"}]}'))
-      .toEqual([{ id: 'a', title: 'A', state: 'open', labels: [], blocked_by: [], claim: null, created_at: 'x' }])
+      .toEqual([{ id: 'a', title: 'A', state: 'open', labels: [], blocked_by: [], claim: null, created_at: 'x', updated_at: 'x' }])
+    // The last change, which for a closed ticket is as near to its closing as lit tells.
+    expect(parseIssues('{"items":[{"id":"a","title":"A","state":"closed","created_at":"x","updated_at":"y"}]}')[0]?.updated_at).toBe('y')
+    expect(() => parseIssues('{"items":[{"id":"a","title":"A","state":"open","created_at":"x","updated_at":7}]}')).toThrow('unexpected output')
   })
 })
 
