@@ -13,11 +13,12 @@ import (
 // instruction file and the new record, plus the old record when it adopts an
 // install. Version 3 adds the host file the hook installation edits
 // (settings.json for Claude, hooks.json for Codex) and lets the touched
-// directories include the hooks plugin. Removal (setup-workflows --remove)
+// directories include the hooks plugin. Version 4 lets them include the lit-ui
+// mod as well; its file sets are those of version 3. Removal (setup-workflows --remove)
 // uses the same version: its journals name the record as a file that is deleted
 // and, for an install made by setup-skills, the old ownership file on its own.
-// Versions 1 and 2 still recover.
-const journalVersion = 3
+// Versions 1 to 3 still recover.
+const journalVersion = 4
 
 type journal struct {
 	Version     int                `json:"schema_version"`
@@ -63,7 +64,7 @@ func recoverInstallation(root string, dry bool) error {
 	}
 	seen := map[string]bool{}
 	for _, n := range j.Touched {
-		if (!allowed(n) && n != pluginName) || seen[n] {
+		if (!allowed(n) && n != pluginName && (n != modName || j.Version < 4)) || seen[n] {
 			return errors.New("invalid touched skills")
 		}
 		seen[n] = true
@@ -183,7 +184,7 @@ func journalFiles(j journal) ([]string, bool) {
 		sets = [][]string{{j.Instruction, legacyRecordName}}
 	case 2:
 		sets = [][]string{{j.Instruction, recordName}, {j.Instruction, recordName, legacyRecordName}}
-	case journalVersion:
+	case 3, journalVersion:
 		sets = [][]string{{j.Instruction, recordName}, {j.Instruction, recordName, legacyRecordName},
 			{j.Instruction, recordName, hostFile}, {j.Instruction, recordName, legacyRecordName, hostFile},
 			{j.Instruction, legacyRecordName}}
@@ -238,7 +239,7 @@ func copyRecoveryView(root, dst, host string) error {
 	if e := copyTree(filepath.Join(root, transactionName), filepath.Join(dst, transactionName)); e != nil {
 		return e
 	}
-	for _, n := range append(append(append([]string{}, suite...), retired...), pluginName) {
+	for _, n := range append(append(append([]string{}, suite...), retired...), pluginName, modName) {
 		p := filepath.Join(root, "skills", n)
 		if exists(p) {
 			if e := copyTree(p, filepath.Join(dst, "skills", n)); e != nil {

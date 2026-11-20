@@ -50,6 +50,8 @@ export type Raw = {
   assoc: Assoc | null
   projectId: string | null
   stage: string | null
+  // False when `session get` failed: the stage is then unknown, not cleared.
+  stageKnown: boolean
   projects: Project[]
   issues: Issue[]
   // This session's own claims; null when they could not be read.

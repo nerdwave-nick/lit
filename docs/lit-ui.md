@@ -82,6 +82,19 @@ Orchestrate is never run from the pane: it always goes through the prompt. Run
 now runs the slash command from a timer after the press, as the person typing it
 would.
 
+## Next-stage suggestion
+
+When the session's stage (`lit session set|unset --stage`) goes from `planner`,
+`to-spec` or `to-tickets` to none between two refreshes, the mod proposes the
+following stage's command as the prompt's ghost text (Tab takes it): `/to-spec P`,
+`/to-tickets P` or `/orchestrate P` for the selected project P. It does so once per
+cleared stage, never at every turn end, and only when the same lit session keeps the
+same project selected. Other changes (a stage replaced by another, `impl` or
+`orchestrate` cleared, no project) suggest nothing, and a refresh that could not read
+the stage counts as no reading. A stage cleared while a turn runs, or while the
+prompt holds text, is proposed at the turn's end or the next refresh after that,
+until the prompt has shown it or a new stage, project or session replaces it.
+
 ## Data and refreshes
 
 Every refresh reads `$.session.id()` (it changes on `/clear`) and the association
@@ -100,6 +113,11 @@ lit, and on `/lit-refresh`. A refresh requested while one runs is served by one 
 run after it.
 
 ## Configuration
+
+`lit setup-workflows --scope user --agent claude` (or `--config-dir`) installs the
+mod as `<config>/skills/lit-ui/` with `--status mod` or `both` (the default); see
+[Status surface](installation.md#status-surface-the-status-line-and-the-lit-ui-mod).
+Claude Code loads it once the workspace is trusted.
 
 Setup writes `config.json` in the mod's directory, beside `.claude-plugin/`:
 

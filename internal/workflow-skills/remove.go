@@ -17,6 +17,8 @@ type Removal struct {
 	// (the Claude plugin directory, the Codex hooks.json groups) were removed.
 	Skills int
 	Hooks  bool
+	// Mod reports that the lit-ui mod directory was removed.
+	Mod bool
 	// StatusLine is what became of the Claude status line: "restored" (the
 	// wrapped original is back), "removed" (lit's was deleted) or "left" (it was
 	// changed after setup wrote it, so it stays).
@@ -139,6 +141,6 @@ func removeHost(t Target) (res Removal, err error) {
 	if err != nil {
 		return res, err
 	}
-	res.Found, res.Skills, res.Hooks, res.StatusLine = true, r.skills, r.hooks, r.statusLine
+	res.Found, res.Skills, res.Hooks, res.Mod, res.StatusLine = true, r.skills, r.hooks, r.mod, r.statusLine
 	return res, x.finish()
 }

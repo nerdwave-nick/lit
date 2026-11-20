@@ -22,12 +22,15 @@ export type World = {
   lit: Record<string, { exitCode?: number; stdout: string }>
   // Why `claims renew` fails, when it does.
   renewFails?: string
+  // Whether the prompt box can show a suggestion now (no turn running, no text in it).
+  canSuggest: boolean
 }
 export const ready = (): World => ({
   show: { exitCode: 0, stdout: JSON.stringify(ASSOC) },
   meta: 200,
   claimMinutes: null,
   config: null,
+  canSuggest: true,
   lit: {
     [`${T} session get`]: { stdout: items({ project_id: 'p1', stage: 'impl' }) },
     [`${T} projects list --all`]: { stdout: items({ id: 'p1', title: 'feat/demo', description: '# D', repository_refs: [] }) },
@@ -37,14 +40,14 @@ export const ready = (): World => ({
 })
 
 // Answers everything the mod asks the engine for; records what it ran, wrote, filled, toasted,
-// opened, closed and ran as a command. A plugin's $.ui.focus never reaches the test's hooks in the
+// suggested, opened, closed and ran as a command. A plugin's $.ui.focus never reaches the test's hooks in the
 // kit, so pane-acts.test.ts covers where the focus goes.
 export function world(on: On, w: World) {
   const clock = mock.clock(on, { now: NOW })
   mock.env(on, { HOME: '/home/u', LIT_WORKFLOW_STATE_DIR: '/wf' })
   const seen = {
     runs: [] as { argv: string; cwd: string | undefined }[], files: {} as Record<string, string>, fills: [] as string[], toasts: [] as string[],
-    opens: [] as object[], closes: [] as string[], commands: [] as string[],
+    opens: [] as object[], closes: [] as string[], commands: [] as string[], suggestions: [] as { text: string; isShown: boolean }[],
   }
   on('session.start', async ($, e) => ({ cwd: e.cwd }))
   on('session.id', async () => ({ value: SID }))
@@ -88,6 +91,11 @@ export function world(on: On, w: World) {
     seen.toasts.push(e.text)
     return { value: undefined }
   })
+  on('prompt.suggest', async ($, e) => {
+    seen.suggestions.push({ text: e.text, isShown: w.canSuggest })
+    return { isShown: w.canSuggest }
+  })
+  on('turn.complete', async () => ({ text: '' }))
   on('ui.open', async ($, e) => {
     seen.opens.push(e)
     return { value: { isPlaced: true } }

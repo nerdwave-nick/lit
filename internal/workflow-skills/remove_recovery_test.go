@@ -251,6 +251,9 @@ func TestJournalVersionsStillAllowTheirOwnFilesAfterRemoval(t *testing.T) {
 		{3, []string{"CLAUDE.md", legacyRecordName, "settings.json"}, false},
 		{3, []string{"CLAUDE.md", legacyRecordName, recordName}, true},
 		{3, []string{"CLAUDE.md"}, false},
+		{4, []string{"CLAUDE.md", legacyRecordName}, true},
+		{4, []string{"CLAUDE.md", recordName, "settings.json"}, true},
+		{4, []string{"CLAUDE.md"}, false},
 	} {
 		j := journal{Version: tc.version, Instruction: "CLAUDE.md", Files: map[string]*string{}, AfterFiles: map[string]*string{}}
 		for _, f := range tc.files {

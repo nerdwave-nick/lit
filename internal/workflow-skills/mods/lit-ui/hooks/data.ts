@@ -58,9 +58,9 @@ const parseMilestones = (text: string): Milestone[] => itemsOf(text).map(o => {
   const n = (k: string) => (typeof p[k] === 'number' ? (p[k] as number) : fail())
   return { id: str(o, 'id'), title: str(o, 'title'), issue_ids: strs(o, 'issue_ids'), closed: n('closed'), total: n('total') }
 })
-function parseSession(text: string): { projectId: string | null; stage: string | null } {
+function parseSession(text: string): { projectId: string | null; stage: string | null; stageKnown: boolean } {
   const s = itemsOf(text)[0] ?? fail()
-  return { projectId: strOrNull(s, 'project_id'), stage: strOrNull(s, 'stage') }
+  return { projectId: strOrNull(s, 'project_id'), stage: strOrNull(s, 'stage'), stageKnown: true }
 }
 function parseAssoc(text: string): Assoc {
   let o: unknown
@@ -101,7 +101,7 @@ export async function gather(io: Io, input: GatherInput): Promise<Raw> {
   const { sid, lit } = input
   const raw: Raw = {
     sid, endpoint: input.defaultEndpoint, reachable: false, degraded: false, prefixes: [], assoc: null, projectId: null,
-    stage: null, projects: [], issues: [], claims: null, otherTitles: {}, milestones: [], errors: [],
+    stage: null, stageKnown: false, projects: [], issues: [], claims: null, otherTitles: {}, milestones: [], errors: [],
   }
   const note = (what: string, err: unknown) => raw.errors.push(`${what}: ${err instanceof Error ? err.message : String(err)}`)
   try {
@@ -132,11 +132,11 @@ export async function gather(io: Io, input: GatherInput): Promise<Raw> {
     }
   }
   const [session, projects, claims] = await Promise.all([
-    read('session get', ['session', 'get'], parseSession, { projectId: assoc.project_id, stage: null }),
+    read('session get', ['session', 'get'], parseSession, { projectId: assoc.project_id, stage: null, stageKnown: false }),
     read('projects list', ['projects', 'list', '--all'], parseProjects, []),
     read('claims list', ['claims', 'list', '--all'], parseClaims, null),
   ])
-  Object.assign(raw, { projectId: session.projectId, stage: session.stage, projects, claims })
+  Object.assign(raw, { ...session, projects, claims })
   if (raw.projectId) {
     const project = ['--project', raw.projectId]
     ;[raw.issues, raw.milestones] = await Promise.all([

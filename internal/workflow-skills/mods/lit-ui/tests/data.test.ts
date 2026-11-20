@@ -54,7 +54,7 @@ describe('gather', () => {
     expect(raw).toEqual({
       sid: 'sid-1', endpoint: 'http://127.0.0.1:7472', reachable: true, degraded: false, prefixes: ['feat', 'fix'],
       assoc: { local_session: 'agent-1', endpoint: 'http://127.0.0.1:7472', client_id: 'me', project_id: 'p1', status: 'ready' },
-      projectId: 'p1', stage: 'impl',
+      projectId: 'p1', stage: 'impl', stageKnown: true,
       projects: [{ id: 'p1', title: 'feat/demo', description: '# D', repository_refs: [] }],
       issues: [{ id: 't1', title: 'T t1', state: 'open', labels: ['ready-for-agent'], blocked_by: [], created_at: '2026-11-19T00:00:00Z',
         claim: { issue_id: 't1', owner_client_id: 'other', owner_name: 'claude', expires_at: '2026-11-20T00:30:00Z' } }],
@@ -94,11 +94,11 @@ describe('gather', () => {
     expect([raw.reachable, raw.degraded, degraded.calls.length]).toEqual([true, true, 2])
   })
 
-  test('a failed read is reported and the association keeps the project', async () => {
+  test('a failed read is reported, the association keeps the project and the stage is unknown', async () => {
     const { io } = fakeIo({ ...ready, [`${T} session get`]: { exitCode: 4, stdout: '{"error":{"code":"x","message":"session is busy"}}' } }, META_OK)
     const raw = await gather(io, input)
     expect(raw.projectId).toBe('p1')
-    expect(raw.stage).toBe(null)
+    expect([raw.stage, raw.stageKnown]).toEqual([null, false])
     expect(raw.errors).toEqual(['session get: session is busy'])
   })
 

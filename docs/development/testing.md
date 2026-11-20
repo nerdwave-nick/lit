@@ -186,6 +186,22 @@ installation exactly, `Remove` and `Install` recover it themselves, foreign edit
 never overwritten). The cli tests run `setup-workflows --remove` with `HOME` and the
 vendor overrides pointed at temporary directories.
 
+The Claude status surface (`internal/workflow-skills/mod_install_test.go`,
+`internal/cli/setup_workflows_status_test.go`) covers `--status line`, `mod`, `both`
+and the default: the installed mod files (the embedded source without tests,
+`tsconfig.json` or the engine's generated types, plus `config.json` with mode and
+absolute lit path) and their record; every switch between the modes (a wrapped
+status line restored verbatim, lit's own removed with the `settings.json` setup
+created, a changed one left with a warning, a foreign one untouched, the mod removed
+and reinstalled, `config.json` rewritten); stable reruns; an unowned or modified
+`skills/lit-ui`; Codex and the local scope installing no mod, with the receipt note
+for an explicit `--status`; `--remove` taking the mod away; malformed `mod` record
+entries; and each mode switch cut at every step of its transaction (recovery
+restores the earlier mode exactly, and a version-3 journal may not touch the mod).
+The existing recovery tests install the default mode, so the mod directory is in
+every interrupted installation and removal they cut. Loading the installed mod
+from `<config>/skills/lit-ui/` is a manual live check, recorded on the ticket.
+
 `internal/checkoutcontext` tests run against temporary directories and real Git
 repositories created with the `git` executable and no inherited configuration
 (skipped where `git` is missing): every subdirectory of a repository resolving
@@ -634,13 +650,16 @@ command strings, the band in both status modes (zero counts and an empty stage
 left out, `3:renew` under five minutes), the claim toasts (under five minutes,
 expired, renewed, released, unreadable claims), the config file and its fallbacks,
 the workflow state directory, which Bash commands run lit, the feed, the refresh
-gate, and the parsing of lit's JSON (malformed output is refused; claim tokens are
-dropped). `tests/register.test.tsx` runs the whole mod against a fake lit and
+gate, the next-stage suggestion (each of the three stages, no repeat, nothing for
+other changes, without a project or for an unreadable stage), and the parsing of
+lit's JSON (malformed output is refused; claim tokens are dropped).
+`tests/register.test.tsx` runs the whole mod against a fake lit and
 tracker: the reads go through `workflow-session show` and the association's session
 and endpoint in the mod's own working directory, never `workflow-session run`; the
 band in each state and mode; `1` filling the prompt; `3` renewing for 30 minutes
-only when pressed (polls never acquire, renew or release); both toasts; buttons
-hidden during a turn; a refresh after a Bash call that runs lit and none after
+only when pressed (polls never acquire, renew or release); both toasts; the
+next-stage ghost text once, held through a turn until the prompt can show it;
+buttons hidden during a turn; a refresh after a Bash call that runs lit and none after
 other commands; the feed file and `/lit-ui debug`. Mutation checks (no refresh
 after Bash, another renewal lease, no toasts) fail these tests. The pane has three
 more files: `tests/pane.test.ts` (the Home model, the workflow list, each target
