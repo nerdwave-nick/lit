@@ -105,10 +105,18 @@ describe('recommendation', () => {
     expect(rec(withIssues([issue('d', 'D', { labels: ['decision'], state: 'closed' })])).command).toBe('/to-spec feat/demo')
   })
 
-  test('a specification and no work tickets: to-tickets, also when every ticket is done', async () => {
+  test('a specification and no work tickets: to-tickets', async () => {
     const spec = '## Shared specification'
-    expect(rec(withIssues([issue('d', 'D', { labels: ['decision'], state: 'closed' })], spec)).command).toBe('/to-tickets feat/demo')
-    expect(rec(withIssues([ticket('a', { state: 'closed' })], spec)).flow).toBe('to-tickets')
+    expect(rec(withIssues([issue('d', 'D', { labels: ['decision'], state: 'closed' })], spec)))
+      .toEqual({ flow: 'to-tickets', reason: 'The specification has no implementation tickets yet.', arg: null, command: '/to-tickets feat/demo' })
+  })
+
+  test('a specification and every ticket closed: nothing, the tickets are done', async () => {
+    const spec = '## Shared specification'
+    expect(rec(withIssues([ticket('a', { state: 'closed' })], spec)))
+      .toEqual({ flow: null, reason: 'The implementation ticket is closed.', arg: null, command: null })
+    expect(rec(withIssues([ticket('a', { state: 'closed' }), ticket('b', { state: 'closed' }), issue('i', 'Idea')], spec)).reason)
+      .toBe('All 2 implementation tickets are closed.')
   })
 
   test('two or more ready: orchestrate the milestone holding most, else the whole project', async () => {

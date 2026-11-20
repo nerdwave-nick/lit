@@ -88,7 +88,12 @@ export function recommend(v: View, issueCount: number): Recommendation {
   const decisions = v.openDecisions.length
   if (decisions > 0) return to('planner', `${decisions} open ${decisions === 1 ? 'decision' : 'decisions'} to settle.`, v.openDecisions[0]!.title)
   if (!v.hasSpec && v.settledDecisions > 0) return to('to-spec', 'Decisions are settled and there is no shared specification yet.')
-  if (v.hasSpec && v.work.length === 0) return to('to-tickets', 'The specification has no open implementation tickets.')
+  if (v.hasSpec && v.work.length === 0) {
+    // Closed tickets are finished work, not missing tickets.
+    const closed = v.issues.filter(isWorkKind).length
+    if (closed === 0) return to('to-tickets', 'The specification has no implementation tickets yet.')
+    return { flow: null, reason: closed === 1 ? 'The implementation ticket is closed.' : `All ${closed} implementation tickets are closed.`, arg: null, command: null }
+  }
   if (v.ready.length >= 2) return to('orchestrate', `${v.ready.length} tickets are ready.`, busiestMilestone(v.milestones, v.ready))
   if (v.ready.length === 1) return to('impl', 'One ticket is ready.', v.ready[0]!.title)
   const parts = [v.blocked.length && `${v.blocked.length} blocked`, v.othersClaims.length && `${v.othersClaims.length} claimed by others`].filter(Boolean)

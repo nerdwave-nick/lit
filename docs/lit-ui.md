@@ -38,11 +38,12 @@ In an empty prompt a digit presses the button:
 The recommendation is the first that matches: no issues, planner; a claim of this
 conversation, impl on that ticket; open decisions, planner on the first; settled
 decisions and no specification (a heading starting with "Shared specification" in
-the project description), to-spec; a specification and no open `ready-for-agent`
-issues, to-tickets; two or more ready tickets, orchestrate (the milestone holding
-most of them); one ready ticket, impl on it. Ready tickets are open
-`ready-for-agent` issues without an open blocker or a claim. "Waiting" counts open
-`decision` issues and open issues labelled `needs-info` or `ready-for-human`.
+the project description), to-spec; a specification and no `ready-for-agent`
+issues at all, to-tickets (when every one is closed, nothing is recommended); two
+or more ready tickets, orchestrate (the milestone holding most of them); one ready
+ticket, impl on it. Ready tickets are open `ready-for-agent` issues without an open
+blocker or a claim. "Waiting" counts open `decision` issues and open issues labelled
+`needs-info` or `ready-for-human`.
 
 Toasts: one when a claim of this conversation falls under 5 minutes
 (`lit: claim on "T" expires in 3m`, the `lit:` added by Claude Code) and one when it has expired. Timers, refreshes
