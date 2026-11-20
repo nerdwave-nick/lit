@@ -173,7 +173,7 @@ func TestGoDistributionWalkthrough(t *testing.T) {
 		entries, err := os.ReadDir(skills)
 		wantEntries := len(expected)
 		if tg.hooks && host == "claude" {
-			wantEntries++ // the lit-owned hooks plugin directory
+			wantEntries += 2 // the lit-owned hooks plugin and lit-ui mod directories
 		}
 		if err != nil || len(entries) != wantEntries {
 			t.Fatalf("suite %s: %d %v", skills, len(entries), err)
@@ -362,8 +362,24 @@ func checkHooks(t *testing.T, host, root string, hooks bool, bin string, env []s
 	if present("settings.json") != (hooks && host == "claude") || present(plugin) != (hooks && host == "claude") || present("hooks.json") != (hooks && host == "codex") {
 		t.Fatalf("%s: hook files: settings.json=%v plugin=%v hooks.json=%v, want hooks=%v", root, present("settings.json"), present(plugin), present("hooks.json"), hooks)
 	}
+	mod := filepath.Join("skills", "lit-ui")
+	if present(mod) != (hooks && host == "claude") {
+		t.Fatalf("%s: lit-ui mod present=%v, want %v", root, present(mod), hooks && host == "claude")
+	}
 	if !hooks {
 		return
+	}
+	if host == "claude" {
+		// The default --status both: the mod runs the installed lit by its absolute path.
+		var config struct {
+			Version int    `json:"schema_version"`
+			Status  string `json:"status"`
+			Lit     string `json:"lit"`
+		}
+		b, err := os.ReadFile(filepath.Join(root, mod, "config.json"))
+		if err != nil || json.Unmarshal(b, &config) != nil || config.Version != 1 || config.Status != "both" || filepath.Dir(config.Lit) != bin {
+			t.Fatalf("%s: mod config.json %v %s, want lit in %s", root, err, b, bin)
+		}
 	}
 	hooksFile := "hooks.json"
 	if host == "claude" {

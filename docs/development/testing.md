@@ -186,6 +186,22 @@ installation exactly, `Remove` and `Install` recover it themselves, foreign edit
 never overwritten). The cli tests run `setup-workflows --remove` with `HOME` and the
 vendor overrides pointed at temporary directories.
 
+The Claude status surface (`internal/workflow-skills/mod_install_test.go`,
+`internal/cli/setup_workflows_status_test.go`) covers `--status line`, `mod`, `both`
+and the default: the installed mod files (the embedded source without tests,
+`tsconfig.json` or the engine's generated types, plus `config.json` with mode and
+absolute lit path) and their record; every switch between the modes (a wrapped
+status line restored verbatim, lit's own removed with the `settings.json` setup
+created, a changed one left with a warning, a foreign one untouched, the mod removed
+and reinstalled, `config.json` rewritten); stable reruns; an unowned or modified
+`skills/lit-ui`; Codex and the local scope installing no mod, with the receipt note
+for an explicit `--status`; `--remove` taking the mod away; malformed `mod` record
+entries; and each mode switch cut at every step of its transaction (recovery
+restores the earlier mode exactly, and a version-3 journal may not touch the mod).
+The existing recovery tests install the default mode, so the mod directory is in
+every interrupted installation and removal they cut. Loading the installed mod
+from `<config>/skills/lit-ui/` is a manual live check, recorded on the ticket.
+
 `internal/checkoutcontext` tests run against temporary directories and real Git
 repositories created with the `git` executable and no inherited configuration
 (skipped where `git` is missing): every subdirectory of a repository resolving

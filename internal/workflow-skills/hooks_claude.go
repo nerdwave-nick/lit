@@ -64,6 +64,12 @@ func planClaude(root string, o Options, prev owned) (hookPlan, error) {
 	case exists(dir):
 		return hp, fmt.Errorf("unowned skill collision: %s", pluginName)
 	}
+	if err := planMod(root, o, prev, &hp); err != nil {
+		return hp, err
+	}
+	if hp.status == statusMod {
+		return hp, planModSettings(root, prev, &hp)
+	}
 	old, before, err := readHostFile(filepath.Join(root, "settings.json"))
 	if err != nil {
 		return hp, err

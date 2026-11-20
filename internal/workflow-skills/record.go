@@ -26,8 +26,10 @@ type record struct {
 	Skills  map[string]string `json:"skills"` // skill name -> tree fingerprint
 	// The hook installation, present only in agent configurations that got one
 	// (never in a local scope): the Claude plugin directory below skills/, the
-	// hook groups lit appended to a Codex hooks.json, and the Claude status line.
+	// Claude lit-ui mod directory beside it, the hook groups lit appended to a
+	// Codex hooks.json, and the Claude status line.
 	Plugin     *pluginRecord     `json:"plugin,omitempty"`
+	Mod        *pluginRecord     `json:"mod,omitempty"`
 	Hooks      []hookEntry       `json:"hooks,omitempty"`
 	StatusLine *statusLineRecord `json:"status_line,omitempty"`
 	// CreatedFiles lists the host files (settings.json, hooks.json) that did not
@@ -72,6 +74,10 @@ type Result struct {
 	// status line: "set", "wrapped", "unchanged" or "kept" (left alone).
 	Hooks      bool
 	StatusLine string
+	// Status is the Claude status surface of a configuration with hooks ("line",
+	// "mod" or "both"); Mod is "installed" when the lit-ui mod is installed after
+	// the run, "removed" when the run took it away, empty otherwise.
+	Status, Mod string
 	// Warnings are problems the user should look at, Notes what to do next.
 	Warnings []string
 	Notes    []string
@@ -81,6 +87,7 @@ type Result struct {
 type owned struct {
 	skills     map[string]string
 	plugin     *pluginRecord
+	mod        *pluginRecord
 	hooks      []hookEntry
 	statusLine *statusLineRecord
 	created    []string
@@ -109,7 +116,7 @@ func readOwned(root, host string) (owned, error) {
 			return o, fmt.Errorf("invalid ownership record: %w", e)
 		}
 		o.skills, o.exists = r.Skills, true
-		o.plugin, o.hooks, o.statusLine, o.created = r.Plugin, r.Hooks, r.StatusLine, r.CreatedFiles
+		o.plugin, o.mod, o.hooks, o.statusLine, o.created = r.Plugin, r.Mod, r.Hooks, r.StatusLine, r.CreatedFiles
 	case exists(old):
 		var r legacyRecord
 		if e := readJSON(old, &r); e != nil {
@@ -143,6 +150,11 @@ func validHookSections(r record) error {
 	if r.Plugin != nil {
 		if r.Host != "claude" || r.Plugin.Name != pluginName || !validHash(&r.Plugin.Fingerprint) {
 			return errors.New("invalid plugin entry")
+		}
+	}
+	if r.Mod != nil {
+		if r.Host != "claude" || r.Mod.Name != modName || !validHash(&r.Mod.Fingerprint) {
+			return errors.New("invalid mod entry")
 		}
 	}
 	if len(r.Hooks) > 0 && r.Host != "codex" {
