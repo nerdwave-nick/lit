@@ -4,6 +4,7 @@ import "strings"
 
 // These notes document the domain parsers, including conditional inputs that a
 // flag's own description cannot express: saved selections and batches.
+const stageRules = "Stage: the workflow stage this session is running, stored per session on lit-server. Setting or clearing it creates no\nissue history, and it survives workflow-session resume. Any label of lowercase letters, digits and single hyphens\n(starting with a letter, at most 32 characters) is accepted; it is not checked against the standard stages (planner,\nclarify, research, prototype, to-spec, to-tickets, triage, impl, orchestrate), which completion suggests."
 const sessionRequirement = "Required session: --session NAME or LIT_SESSION; connect that session first."
 const issueScope = "Issue titles need project selection: --project REF or the session's selected project.\nIssue UUIDs and project-qualified issue references can identify existing issues without that selection."
 const contentRules = "--content and --content-file are mutually exclusive per item; stdin (-) may be read only once."
@@ -19,8 +20,10 @@ func requirementsFor(path string) (string, string) {
 		return "Required flag when LIT_SESSION is unset: --session NAME.\n" + sessionRequirement, prefix + " [--session NAME]"
 	case "version":
 		return "Required flags: none. No session or service is needed.", prefix
-	case "setup-skills":
-		return "Required flags: --scope and --agent.\n--path is required with custom scope and forbidden with local or user scope.\nNo tracker session or service is needed.", prefix + " --scope local|user --agent codex|claude|both\n" + prefix + " --scope custom --path DIRECTORY --agent codex|claude|both"
+	case "hook statusline":
+		return "Required flag: --host claude (Codex has no custom status line; it prints nothing).\nThe host's status line JSON is read from stdin and the line is written to stdout; the host sets COLUMNS to the terminal width.\nNo tracker session is needed: the runtime ID is the input's session_id.\nlit's state is answered from a cache under the workflow state directory (hooks/statusline) and refreshed every few seconds.\nExits 0 whatever happens once the event is served; errors go to the hook log.", "lit hook --host claude statusline [--original COMMAND] < status-line-input.json"
+	case "setup-workflows":
+		return "Required flags: --agent, and --scope or --config-dir.\n--scope and --config-dir are mutually exclusive; --config-dir takes exactly one --agent (codex or claude).\nHooks and the Claude status line are installed for --scope user and --config-dir only, never for --scope local.\n--remove takes the same target flags and removes what the target's ownership record lists instead of installing; a target without an installation is reported, not an error.\nNo tracker session or service is needed.", prefix + " [--remove] --scope local|user --agent codex|claude|both\n" + prefix + " [--remove] --agent codex|claude --config-dir DIRECTORY"
 	case "tui":
 		return "Required flags: none. No session is needed; lit-tui must be installed next to lit or on PATH.\nlit tui needs an interactive terminal; lit-tui refuses to start without one.", prefix + " [--endpoint URL]\nlit [--endpoint URL]  # on a terminal"
 	case "transactions status":
@@ -33,16 +36,25 @@ func requirementsFor(path string) (string, string) {
 	if strings.HasPrefix(path, "workflow-session ") {
 		return workflowRequirements(strings.TrimPrefix(path, "workflow-session "))
 	}
+	if path == "hook subagent-start" {
+		return "Required flag: --host.\nThe host's hook JSON is read from stdin and its output written to stdout.\nNo tracker session is needed: the subagent's runtime ID is the hook input's agent_id and its parent is the input's session_id.\nEndpoint and project: those of the parent's lit session (workflow-session subagent --endpoint --project); LIT_ENDPOINT is not read.\nExits 0 whatever happens once the event is served; errors go to the hook log.", "lit hook --host codex|claude subagent-start < hook-input.json"
+	}
+	if strings.HasPrefix(path, "hook ") {
+		return "Required flag: --host.\nThe host's hook JSON is read from stdin and its output written to stdout.\nNo tracker session is needed: the runtime ID is the hook input's session_id.\nEndpoint of a new runtime: LIT_ENDPOINT, then the endpoint saved with the remembered project it adopts, then http://127.0.0.1:7411; a known runtime keeps its saved endpoint.\nExits 0 whatever happens once the event is served; errors go to the hook log.", "lit hook --host codex|claude " + strings.TrimPrefix(path, "hook ") + " < hook-input.json"
+	}
+	if strings.HasPrefix(path, "context ") {
+		return contextRequirements(path)
+	}
 	parts := strings.Fields(path)
 	family, verb := parts[0], parts[1]
 	if family == "session" {
 		switch verb {
 		case "get":
-			return "No required property flags. Without property flags, show every session property, including the logical session name\nand its distinct client UUID. --session-id selects only the client UUID.\nProperty selectors take no values.\n" + sessionRequirement, prefix + " [--session NAME] [--project] [--actor-name] [--status]"
+			return "No required property flags. Without property flags, show every session property, including the logical session name\nand its distinct client UUID. --session-id selects only the client UUID; --stage selects only the workflow stage\n(null when none is set). Property selectors take no values.\n" + sessionRequirement, prefix + " [--session NAME] [--project] [--actor-name] [--status] [--stage]"
 		case "set":
-			return "Required: at least one property flag with a value.\nProperties: --project, --output-format, --actor-name, --actor-kind,\n--runtime-vendor, --runtime-session-id. Multiple properties may be set together.\n" + sessionRequirement, prefix + " --project REF [--output-format cli|markdown|json]\n" + prefix + " --actor-name NAME --actor-kind human|agent"
+			return "Required: at least one property flag with a value.\nProperties: --project, --output-format, --actor-name, --actor-kind,\n--runtime-vendor, --runtime-session-id, --stage. Multiple properties may be set together.\n" + stageRules + "\n" + sessionRequirement, prefix + " --project REF [--output-format cli|markdown|json]\n" + prefix + " --actor-name NAME --actor-kind human|agent\n" + prefix + " --stage STAGE"
 		case "unset":
-			return "Required: at least one optional property selector (no value).\nChoose --project, --output-format, --runtime-vendor or --runtime-session-id.\nActor name and kind cannot be unset.\n" + sessionRequirement, prefix + " --project [--output-format]\n" + prefix + " --runtime-vendor --runtime-session-id"
+			return "Required: at least one optional property selector (no value).\nChoose --project, --output-format, --runtime-vendor, --runtime-session-id or --stage.\nActor name and kind cannot be unset. Unsetting --stage removes the workflow stage;\nthe session then has none, as after connecting.\n" + sessionRequirement, prefix + " --project [--output-format]\n" + prefix + " --runtime-vendor --runtime-session-id\n" + prefix + " --stage"
 		}
 	}
 	if family == "claims" {
@@ -192,9 +204,12 @@ func workflowRequirements(action string) (string, string) {
 		req += "\nRequired operand: a tracker COMMAND after --. connect is forbidden.\nThe command cannot override --session, --endpoint, --client-id, --runtime-vendor,\n--runtime-session-id or --format; use the adapter lifecycle."
 		form += " -- COMMAND [ARGS...]"
 	}
-	if action == "fresh" || action == "subagent" {
+	switch {
+	case action == "fresh":
+		req += "\n" + freshEndpointRule
+	case action == "subagent":
 		req += "\nEndpoint: --endpoint > LIT_ENDPOINT > http://127.0.0.1:7411."
-	} else {
+	default:
 		req += "\nUses the saved runtime binding and endpoint; --endpoint and --project do not apply."
 	}
 	return req, form
@@ -203,14 +218,16 @@ func workflowRequirements(action string) (string, string) {
 func flagRequirements(path string) map[string]string {
 	m := map[string]string{}
 	switch path {
-	case "setup-skills":
-		m["scope"] = "Required"
+	case "setup-workflows":
+		m["scope"] = "Required unless --config-dir is given; conflicts with --config-dir"
 		m["agent"] = "Required"
-		m["path"] = "Required with --scope custom; forbidden otherwise"
+		m["config-dir"] = "Required unless --scope is given; conflicts with --scope"
 	case "session set", "session unset":
-		for _, name := range []string{"project", "output-format", "runtime-vendor", "runtime-session-id"} {
+		for _, name := range []string{"project", "output-format", "runtime-vendor", "runtime-session-id", "stage"} {
 			m[name] = "Optional individually; select at least one property"
 		}
+	case "context set":
+		m["project"] = "Required"
 	case "transactions status":
 		m["file"] = "Optional retained request envelope `PATH` (not stdin or a mutation array)"
 	}

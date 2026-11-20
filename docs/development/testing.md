@@ -41,6 +41,197 @@ Installer and workflow-session regression tests live in
 `internal/workflow-skills` and `internal/workflowsession`. Protocol fixtures in
 `internal/protocol/testdata` pin canonical request bytes and hashes.
 
+`internal/hook` tests feed recorded host hook JSON to `hook.Run` and to the built
+`lit hook` binary against a real service in a temporary directory.
+`testdata/fixtures.json` lists every input with its provenance: the Claude
+`startup` input was captured from Claude Code 2.1.296, the other Claude sources
+are derived from the captured shape and the documented fields, and the Codex
+inputs are built from the SessionStart schema embedded in codex-cli 0.162.1 (no
+Codex capture was made; `testdata/codex/*.schema.json` hold that schema, and
+`fixtures_test.go` checks every Codex input and the hook's own output against
+it). The tests cover each source for both hosts, a server that does not answer, a
+connect that outlives the budget (a stalled `/v1/connect` leaves the pending
+association), duplicate and eight concurrent runs (exactly one `POST
+/v1/connect`), a lock that is released during the wait and one that never is,
+malformed input, an unreadable association, the log, its rotation and
+`RecentFailures`, and that the agent's working directory stays untouched.
+`sessionstart_remembered_test.go` covers the remembered project for both hosts: an
+adopted project (also from a subdirectory of the checkout, after a rename and
+repeated from the association), no preference (another checkout's does not apply),
+and every preference that cannot be adopted (another service, a project that is gone,
+a damaged and an unsupported record), which must create no association, lock or client,
+leave the preference byte-identical, be logged as a warning and not as a failure, and
+leave the runtime free for `fresh --project`; the probe goes to the endpoint adoption
+will choose (saved endpoint, `LIT_ENDPOINT` first, a down saved endpoint reported as
+unavailable). The recorded inputs keep their provenance: the tests only replace the
+example `cwd` with a temporary checkout (a Codex input is checked against the embedded
+schema again), because session start resolves the checkout of that directory.
+`internal/workflowsession/adapter_test.go` covers the adapter library API that
+`lit hook` shares with `workflow-session`.
+
+`internal/workflowsession/adopt_test.go` and `adopt_command_test.go` cover the
+adoption of a remembered project by `fresh` against an in-process service and the
+built `lit`, with isolated workflow and client state: two runtime IDs adopting
+with distinct clients, an explicit project winning over a valid, stale or damaged
+preference (which is not even read), no preference, every refusal (another
+service, a project that is gone, a service that is not running, a damaged or
+unsupported record, an environment endpoint naming another service) leaving no
+association, no client request and no changed file, the endpoint precedence with
+one service at two addresses, subagents that never adopt, a resume that ignores a
+later or damaged preference, a pending association from an interrupted connect
+keeping its provenance and not being judged by a stale preference, a renamed
+project, and the command's flag, environment and working-directory wiring and its
+JSON. Command tests never leave the endpoint to default: a regression would
+otherwise reach a developer's own lit-server. `integration/workflow_adoption_test.go`
+repeats the flow with the built binaries, real Git worktrees (one linked) and two
+real services.
+
+`internal/hook/compact_test.go` covers the `compact` source for both hosts against
+a real service: claims present (each with the excerpt of its latest comment), none,
+a lease that really ran out (a one-second lease, polled until the tracker drops it),
+a claim the tracker still lists with an ended lease (a wrapper rewrites the listing),
+long checkpoints and many claims (the context stays under 10000 UTF-16 units), an
+unreachable server (no remembered claim may appear), claims or comments that cannot
+be read, no association and a pending one. A request wrapper counts every request
+that could change the tracker and the tests require none after the compaction.
+
+The Stop guard tests (`stop_test.go`, `stopfixtures_test.go`, `skew_test.go`) use
+the same service rig. The Stop inputs are not captured: the Claude ones are built
+from the Stop section of the Claude Code hooks reference and the captured
+startup input, the Codex ones from the `stop.command.input` schema embedded in
+codex-cli 0.162.1 (`testdata/codex/stop.*.schema.json`, which also checks the
+guard's block decision), with the provenance of each in `fixtures.json`. They
+cover both hosts for a block while claims are held (every claim named, no token,
+claims and issues unchanged afterwards), an allowed stop for `stop_hook_active`
+(no tracker call), no claims, a released or expired claim, no session, a pending
+or unreadable association, a server that is down, one that fails or stalls the
+claims read past the budget, and input the guard cannot trust, with the failures
+each one logs; and an event this lit does not know, through `hook.Run`, the CLI
+and the built binary.
+
+The `subagent-start` tests set up the root conversation's session and feed the
+recorded SubagentStart input of each host. The Claude input is only partly
+recorded: `session_id`, `agent_id` and `agent_type` were observed in the planning
+prototype (Claude Code 2.1.296; its log kept those three fields), the rest follows
+the documented example. codex-cli 0.162.1 does have a SubagentStart event; its
+input is built from the embedded schema (`testdata/codex/subagent-start.*.schema.json`,
+extracted verbatim) and, like the hook's output, validated against it. The tests
+cover the child's own client without the parent's claims, explicit project
+propagation (a later parent change does not move the child, a parent without a
+project gives none), byte-identical repeats that need no server, eight concurrent
+runs (one child client), a held lock, a parent without a ready session, a server that
+is down, a stalled `/v1/connect` under the real one-second budget (the pending child
+association is kept), a service that is not the parent's, and malformed input.
+
+The `statusline` event (`internal/hook/statusline*_test.go`) is tested the same
+way. Its two recorded inputs are in `fixtures.json` as well: `statusline-early`
+was captured from Claude Code 2.1.296 (the interactive TUI in a pty with a
+temporary `CLAUDE_CONFIG_DIR` whose `statusLine` command dumped stdin, a dummy
+API key and no model call, so it is the input of a session that has not had a
+response yet), `statusline-session` is the mid-session shape written from the
+documented schema. Pure tests cover fish-style directory shortening, display
+width (emoji, wide characters, escape sequences), `git status` parsing, the
+built-in line at each of its eleven collapse levels and the choice of the
+fullest level that fits. Service tests start a real `lit-server` and count the
+requests that reach it, so they pin the cache: a fresh entry makes none, a stale
+one reads the server again, the project title is read once per five minutes, a
+stalled server costs one bounded attempt and its failure is cached. Further
+cases cover a down server, a reachable server without a session, a pending
+association, recent and old hook errors of both hosts, missing input fields,
+real Git repositories (outside Git, dirty, ahead and behind, detached; skipped
+without `git`) and `--original` as shell scripts: stdin passed through exactly,
+`COLUMNS` handed down, a non-zero exit, no output, a missing command and a
+timeout (the process group is killed too) leaving lit's part alone. A test runs
+the built binary and logs how long a cold and a cached status line took.
+
+The hook installation (`internal/workflow-skills/hooks_*_test.go`, `hostscan_test.go`,
+`internal/cli/setup_hooks_test.go`) runs against temporary agent configurations
+for both hosts, with `HOME` pointed at a temporary directory for `--scope user`
+and never touching a real `~/.claude` or `~/.codex`. It covers the plugin
+directory and its record, every status line case (unset, null, lit's own, a
+wrapped foreign command, quoting round trips, a status line that cannot be
+wrapped), key order and member texts of `settings.json` and `hooks.json`, Codex
+groups appended after foreign entries and replaced by exact match, edited or
+pre-existing identical entries, `config.toml` `[hooks]` and disabled hooks, the
+local scope installing nothing, refusals that leave the configuration
+byte-identical, malformed record sections, and the warnings about lit hooks in
+other layers against fixtures shaped like the hand-written interim hooks. The
+transaction is cut at each step with the `crashAt` hook that tests replace (a
+panic stands in for a kill): recovery restores the configuration exactly,
+`Install` recovers it by itself, a foreign edit of `settings.json`,
+`hooks.json` or the instruction file after the crash, between reading and
+journaling, or during the writes is never overwritten, and an adoption with
+hooks is one transaction. Mutation checks (disabling a guard, a journal file set
+or the recovery view's copies) fail these tests.
+
+Removal (`internal/workflow-skills/remove*_test.go`, `internal/cli/setup_workflows_remove_test.go`)
+uses the same temporary configurations. A full install/remove round trip for both
+hosts and for the user and `--config-dir` targets must leave every file the user
+owned byte-identical (the fixtures are written in the form the hosts write, so the
+re-indented JSON compares exactly) and nothing of lit's behind. Further cases: the
+status line restored verbatim after a rewritten wrapper, deleted when there was
+none, left with a warning when changed after setup; `settings.json` and `hooks.json`
+deleted only when setup created them and only lit's content is left; foreign Codex
+entries kept in order, the first of equal groups taken, edited and pre-existing
+identical groups left; a modified skill or plugin, a symlink, malformed records and
+host files, a held lock and a second target's refusal changing nothing; no
+installation (also a missing directory) creating nothing; a legacy `.lit-skills.json`
+install; and the transaction cut at each step of a removal (recovery restores the
+installation exactly, `Remove` and `Install` recover it themselves, foreign edits are
+never overwritten). The cli tests run `setup-workflows --remove` with `HOME` and the
+vendor overrides pointed at temporary directories.
+
+`internal/checkoutcontext` tests run against temporary directories and real Git
+repositories created with the `git` executable and no inherited configuration
+(skipped where `git` is missing): every subdirectory of a repository resolving
+to its worktree root, linked worktrees, symlink aliases, a nested repository, a
+submodule-style `.git` file, `.git` lookalikes that must not count (an empty
+directory, one without `refs`, junk or dangling `gitdir:` files), the exact
+directory outside Git, and a moved checkout inheriting nothing. The store tests
+cover the round trip, the exact set of stored fields (no client IDs or tokens),
+rejected preferences writing nothing, every damaged and unsupported record shape
+(each is reported by `Load`, refused by `Save`, byte-for-byte preserved, and
+removed only by `Clear`), reads and clears of nothing creating no directory,
+neighbouring workflow state left untouched, a failed write in a read-only
+directory leaving the old record complete, and the state location following
+`LIT_WORKFLOW_STATE_DIR` and the platform default. The concurrency tests run
+writers and lock-free readers as goroutines and as re-executed test-binary
+processes (no reader ever sees a partial record), hold the lock in another
+process to see `ErrLocked` after the timeout and a waiting `Save` win after the
+release, and kill the holder to see that the lock dies with its process.
+`internal/checkoutcontext/online_test.go` covers the session-free caller that
+`lit context` and fresh-session adoption share (`Validate`, `ResolveProject`,
+`Endpoint`): against recording HTTP fakes, the exact request (one GET, no client
+header), a renamed project, the endpoint precedence flag, `LIT_ENDPOINT`, saved
+endpoint, with an unusable explicit endpoint never falling through and the default
+pinned by an internal test, every failure code with its explained message and
+details (`remembered`, `answered_by`, `recovery`), a cancelled context, and a
+resolved preference the store accepts.
+`internal/cli` `TestContext*` tests drive `lit context show`, `clear`, `set` and
+`show --validate` through `Run` in all three formats from subdirectories, linked
+worktrees and symlink aliases. Offline commands run with an ambient `LIT_SESSION`
+and `LIT_ENDPOINT` pointing at a service that fails the test on any request;
+`context_service_test.go` starts real in-process services (`service.New` over a
+temporary database) behind a recording front, with an administrator session of
+their own, so tests see exactly which requests reached which address and that
+none carried a client identity. They cover `set` by title, case, UUID, prefix and
+the `title:` and `id:` forms, replacement and explicit rebinding to another
+service, every failure leaving the stored bytes untouched (missing, ambiguous,
+unreachable, too slow, unusable endpoint, an old service, a malformed answer), a
+damaged record stopping `set` before any request, `show --validate` with nothing
+remembered making no request, a rename followed without rewriting the preference,
+the endpoint precedence with one service at two addresses, a replacement service
+at the remembered address, a project missing on the service, local record
+problems, hashed copies of the private client state, pending requests and
+neighbouring workflow state proving they are untouched, the error mapping,
+argument rejection, help and completion in real bash, zsh and fish.
+`integration/context_online_test.go` repeats the flow with the built binaries
+against two real `lit-server` processes: set, validate by saved endpoint and
+`LIT_ENDPOINT`, a rename, the other service refusing the binding, ordinary
+project and session commands (including `workflow-session fresh --project`) never
+rewriting the preference, table counts proving no client or row was added, and a
+stopped service leaving `show` and `clear` working.
+
 `internal/storage` tests run against real SQLite databases in temporary
 directories, without mocks: the owner lock, connection settings, `BEGIN
 IMMEDIATE` and typed busy errors (a second connection holds the write lock),
@@ -181,6 +372,22 @@ the default loopback listener, the restart policy, the named volume and bind
 mounts, an export directory below its mount, the exec-form healthcheck, a static
 non-root distroless image). Building and running the image is a manual check
 with Docker, recorded on the compose ticket; the suite needs no Docker.
+
+The session-free project context read has three layers.
+`internal/service/project_context_test.go` sends requests with no client, an
+unknown client and a connected client, and covers reference resolution against the
+resolver the project commands use, missing and ambiguous targets, stored-binding
+validation across a rename and a foreign service, malformed requests, an exact
+key set (no project content leaks), unchanged durable state, and that every other
+route still answers `client_required`. `internal/litclient/project_context_test.go`
+counts the requests a fresh caller sends (one `GET /v1/project-context` each, no
+connect, claim or transaction, no pending record) and covers a replacement
+service, local argument rejection, service refusals, malformed and incompatible
+answers, timeouts, an unreachable service and a cancelled context.
+`integration/project_context_test.go` repeats the resolve, rename and
+replacement-service cases against the real binaries and compares table row counts
+and the client state directory before and after. There is no archived-project
+case: the tracker has no archive state yet.
 
 `internal/service/routes_test.go` checks the route table's classification of
 every route. `internal/service/concurrency_test.go` and `readcap_test.go` run
@@ -355,8 +562,50 @@ malformed diffs; the property `Apply(Diff(a, b), a) == b` (`testing/quick` and a
 fuzz target whose seeds `go test` runs); and the LCS cell bound against 64 KB
 bodies. `go test -run '^$' -bench Diff64KB ./internal/textdiff` measures it.
 
+The guidance for a new conversation (`internal/workflow-skills/skills/lit/references/context.md`
+and the lines in the lit skill, `connect.md`, `hosts.md`, `impl`, `to-spec` and the
+orchestration protocol that point at it) is pinned by
+`internal/workflow-skills/context_guidance_test.go`: the old categorical "cwd never
+selects a project" rules are gone, and the new text distinguishes a remembered choice
+from forbidden inference and covers remember, inspect, validate and clear, the
+precedence of an explicit project, announcing a validated adoption, candidate
+selection when nothing is remembered, a preference that cannot be used, resume,
+subagents, no remembered issue, and no automatic claim, renewal or takeover.
+
+`integration/workflow_walkthrough_test.go` (harness in `workflow_install_test.go`)
+is the installed new-conversation walkthrough. It installs the public binaries with
+`go install`, starts two temporary services, and for each of four setups (Claude and
+Codex, with hooks through `--config-dir` and with skills only through `--scope
+local`) installs the embedded skills into a temporary agent configuration seeded
+with the user's own skill, instruction line, Claude settings or Codex hook. It checks
+the delivered files equal the embedded ones beside the untouched user content, and
+runs the commands exactly as the delivered guidance spells them (a command the
+guidance no longer teaches fails the test) with the installed hook commands run the
+way the host does, in a PATH that holds only the installed binaries and with
+`HOME`, `XDG_*`, both state directories and `LIT_ENDPOINT` pointing at temporary
+locations. The scenario: nothing remembered gives an unselected session; remember A;
+a fresh runtime adopts A (the hook's `remembered project:` line, or
+`project_selection` from `fresh`, checked against the server's own session); a
+conversation that names B leaves A remembered and the next fresh runtime adopts A
+again; a subagent takes only its coordinator's explicit project; a linked worktree
+has its own preference; a rename is followed and reported; another service at the
+remembered address is refused before any client, association, pending request or
+preference changes (counted in both services and the client state) and the
+guidance's way out works; `clear` makes the next runtime unselected without touching
+existing sessions or the other worktree. The installs are then removed and the
+user's content must be intact. The walkthrough scripts commands; it does not show
+how a native model follows the guidance, and Codex's `/hooks` approval and live host
+hook firing are not exercised.
+
 `cmd/lit/deps_test.go` uses `go list -deps` to prove that only `lit-tui` links the
 Charm, Glamour and chroma packages.
+
+The accepted cross-compilation matrix is the `cross-build` job of
+`.github/workflows/lit.yml`: with `CGO_ENABLED=0`, `go build -trimpath` of `./cmd/lit`
+and `./cmd/lit-tui` for linux/amd64, linux/arm64, darwin/amd64, darwin/arm64 and
+windows/amd64, plus `./cmd/lit-server` on the two Linux targets. Foreign targets are
+only compiled on a Linux host: that shows the code builds there, not that it runs.
+Only the host's own tests execute.
 
 Keep generated logs, agent transcripts, and session snapshots out of version
 control. These checks do not establish native agent behavior or macOS/Windows

@@ -3,6 +3,7 @@ package cli
 import (
 	"strings"
 
+	"github.com/nerdwave-nick/lit/internal/hook"
 	"github.com/nerdwave-nick/lit/internal/nwcli"
 )
 
@@ -20,18 +21,18 @@ func dynamic(completer string) nwcli.Value {
 // flagDefaults holds how a flag behaves wherever it appears; commands override
 // the exceptions explicitly. A missing entry is a single free-form value.
 var flagDefaults = map[string]nwcli.Flag{
-	"session": {Value: dynamic("sessions")}, "endpoint": {Value: dynamic("endpoints")}, "for": {Value: dynamic("durations")},
+	"session": {Value: dynamic("sessions")}, "endpoint": {Value: dynamic("endpoints")}, "for": {Value: dynamic("durations")}, "stage": {Value: dynamic("stages")},
 	"format": {Value: choice("cli", "markdown", "json")}, "output-format": {Value: choice("cli", "markdown", "json")},
 	"actor-kind": {Value: choice("human", "agent")}, "state": {Value: choice("open", "closed")},
 	"direction": {Value: choice("asc", "desc")}, "relation": {Value: choice("blocks", "blocked-by", "related")},
 	"blocked": {Value: choice("true", "false")}, "claimed": {Value: choice("true", "false")},
-	"scope": {Value: choice("local", "user", "custom")}, "agent": {Value: choice("codex", "claude", "both")}, "host": {Value: choice("codex", "claude")},
+	"scope": {Value: choice("local", "user")}, "agent": {Value: choice("codex", "claude", "both")}, "host": {Value: choice("codex", "claude")},
 	"project": {Value: dynamic("projects")}, "project-id": {Value: dynamic("projects")},
 	"issue": {Value: dynamic("issues")}, "parent": {Value: dynamic("issues")}, "from": {Value: dynamic("issues")},
 	"to": {Value: dynamic("issues"), Repeat: nwcli.Many}, "add-issue": {Value: dynamic("issues"), Repeat: nwcli.Many}, "remove-issue": {Value: dynamic("issues"), Repeat: nwcli.Many},
 	"comment": {Value: dynamic("comments")}, "milestone": {Value: dynamic("milestones")},
 	"file": {Value: nwcli.Value{Kind: nwcli.Path}}, "content-file": {Value: nwcli.Value{Kind: nwcli.Path}}, "cli": {Value: nwcli.Value{Kind: nwcli.Path}},
-	"path":  {Value: nwcli.Value{Kind: nwcli.Dir}},
+	"path": {Value: nwcli.Value{Kind: nwcli.Dir}}, "config-dir": {Value: nwcli.Value{Kind: nwcli.Dir}},
 	"query": {Short: "q"}, "context": {Short: "C"}, "n": {Short: "n", Switch: true}, "regex": {Short: "E", Switch: true},
 	"label": {Repeat: nwcli.Many}, "add-label": {Repeat: nwcli.Many}, "remove-label": {Repeat: nwcli.Many},
 	"repository": {Repeat: nwcli.Many}, "add-repository": {Repeat: nwcli.Many}, "remove-repository": {Repeat: nwcli.Many},
@@ -141,11 +142,13 @@ func newGrammar() *nwcli.Command {
 		group("transactions", &nwcli.Command{Name: "status", Flags: flags("file")}),
 		&nwcli.Command{Name: "grep", Operands: nwcli.Operands{Usage: "PATTERN", Max: 1},
 			Flags: join(flags("project limit cursor context n"), switches("case-sensitive all-projects"), flags("regex"))},
-		&nwcli.Command{Name: "setup-skills", Flags: flags("scope agent path"), Without: strings.Fields(globals)},
+		&nwcli.Command{Name: "setup-workflows", Flags: join(flags("scope agent config-dir"), switches("remove")), Without: strings.Fields(globals)},
 		&nwcli.Command{Name: "tui", Flags: flags("endpoint"), Without: []string{"session", "format", "timeout"}},
 		&nwcli.Command{Name: "search", Operands: nwcli.Operands{Usage: "QUERY", Max: 1},
 			Flags: join(flags("project state limit cursor"), switches("all-projects"))},
 		workflowSession(),
+		hookCommand(),
+		contextCommand(),
 		completionCommand(),
 	)
 	documentGrammar(root)
@@ -171,7 +174,7 @@ func itemFlag(path ...string) string {
 	return name
 }
 
-const sessionFields = "project output-format actor-name actor-kind runtime-vendor runtime-session-id"
+const sessionFields = "project output-format actor-name actor-kind runtime-vendor runtime-session-id stage"
 
 func group(name string, cmds ...*nwcli.Command) *nwcli.Command {
 	return &nwcli.Command{Name: name, Commands: cmds}
@@ -266,5 +269,21 @@ func workflowSession() *nwcli.Command {
 		&nwcli.Command{Name: "checkout", Without: bound, Flags: with(flags("repository path"), "repository", free, nwcli.Once)},
 	)
 	g.Flags, g.Without = flags("host runtime-id cli"), []string{"session", "format", "timeout"}
+	return g
+}
+
+// hookCommand declares the events host hooks call. Its commands come from the
+// hook package's registry, so a new event is declared there and appears here,
+// in help and in completion. Hooks have no tracker session of their own.
+func hookCommand() *nwcli.Command {
+	g := group("hook")
+	for _, e := range hook.Events() {
+		cmd := &nwcli.Command{Name: e.Name}
+		if e.Name == "statusline" {
+			cmd.Flags = flags("original")
+		}
+		g.Commands = append(g.Commands, cmd)
+	}
+	g.Flags, g.Without = flags("host"), strings.Fields(globals)
 	return g
 }

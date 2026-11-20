@@ -73,8 +73,8 @@ Tab on a command that takes no operands, such as `lit projects list`, offers
 that command's flags with descriptions; flags already given are omitted unless
 they are repeatable. `--session` offers saved logical session names (described
 by their endpoint), `--endpoint` offers the default and saved sessions' endpoints,
-and `--for` offers common lease lengths, all from local state without contacting
-the service. Only path-valued flags (`--file`, `--content-file`, `--cli`, and
+`--for` offers common lease lengths, and `--stage` offers the standard workflow
+stages, all from local state without contacting the service. Only path-valued flags (`--file`, `--content-file`, `--cli`, and
 directory-valued `--path`) complete file names. Free-form values such as titles,
 labels, limits, timestamps and search patterns offer no suggestions.
 
@@ -204,6 +204,182 @@ lit grep -E 'econn(refused|reset)' --all-projects -n -C 1
   through the search index; a pattern without one, such as `^\d+$`, reads every
   record in scope and is slower on a large tracker.
 
+## Remembered project per checkout
+
+`lit context` manages the project remembered for a checkout, so that a later
+agent conversation can start from the same project. The preference is a
+machine-local record of the project's ID and display title, the ID of the
+lit-server it belongs to, and the endpoint used to reach it. It never holds a
+client ID, claim token or session name, and it does not decide the work: it
+carries project context only.
+
+```sh
+lit context set --project feat/tracker
+lit context show
+lit context show --validate
+lit context show --format json
+lit context clear
+```
+
+- **`set --project REF`** asks lit-server to resolve the project, in one
+  read-only request, then saves its stable ID, its current title, the answering
+  service's ID and the endpoint used, replacing an earlier valid preference for
+  this checkout (the replaced one is reported as `previous`). `REF` is a title
+  (case-insensitive), a UUID, a unique UUID prefix, or the `title:` and `id:`
+  forms; the stored identity is always the ID, and the title is display text.
+  Only `set` remembers a project: reading a project, `session set --project`,
+  `connect --project` or `workflow-session fresh --project` never write the
+  preference. `set` is not a rebind workflow: it saves nothing unless the
+  service resolves the project, and a failure of any kind leaves the earlier
+  preference exactly as it was. Choosing another service is an explicit
+  `set --endpoint URL` (or `clear` first); nothing ever repoints a saved binding.
+- **`show`** reports the saved preference with `validated: false`: it reads only
+  the local record, never asks lit-server, and so works while the server is down.
+  The title is the one saved with the preference; the project may since have
+  been renamed, archived or removed. With nothing remembered, `show` succeeds and
+  says so explicitly (`remembered: false`, `preference: null`, message "No project
+  remembered for this checkout").
+- **`show --validate`** also asks lit-server, in one read-only request, whether the
+  remembered service ID and project ID still match, and reports the project's
+  current identity in `current` (`service_id`, `project_id`, `project_title` and
+  the `endpoint` that answered) with `validated: true`. A project renamed since
+  it was saved is valid: `renamed: true`, `current.project_title` is the new
+  title, and the saved preference is not rewritten. With nothing remembered it
+  succeeds with the same empty result as `show` and makes no network request.
+  Any other outcome is a nonzero exit, described below. Neither form of `show`
+  changes the preference.
+- **`clear`** removes only this checkout's preference. It is idempotent (clearing
+  nothing succeeds with outcome `already_satisfied` and creates nothing) and does
+  not delete projects, disconnect sessions, release claims or touch pending
+  requests, session associations or any other workflow state. It also removes a
+  damaged or unsupported record, reporting `removed: damaged_record`.
+- No command needs a logical session, and all ignore `LIT_SESSION`. `show` and
+  `clear` are offline. `set` and `show --validate` make one `GET
+  /v1/project-context` ([project context API](project-context-api.md)) without a
+  client identity, so they create no client, claim, mapping, pending request or
+  session file on the machine, and write nothing on the service.
+- Flags: every command takes `--format` (default `cli`; no session preference
+  applies). `set` requires `--project` and takes `--endpoint` and `--timeout`;
+  `show` takes `--validate`, and `--endpoint` and `--timeout` only with it.
+  `clear` offers no `--session`, `--endpoint` or `--timeout`.
+
+**Endpoint selection.** Validation (`show --validate`) uses `--endpoint`, then
+`LIT_ENDPOINT`, then the endpoint saved with the preference, then
+`http://127.0.0.1:7411`. A different address that reaches the same service is
+accepted, and the saved endpoint is not rewritten; a different service ID is
+rejected. `set` has no saved binding to consume: it uses `--endpoint`, then
+`LIT_ENDPOINT`, then the default, and saves the endpoint it used with the ID of
+the service that answered. A supplied `--endpoint` that is empty or not an HTTP(S)
+origin is an error (`invalid_endpoint`, exit 2), never a fall back to a lower
+choice. `--timeout` (default 30s) bounds the request. These rules concern the
+context commands and adoption of a remembered project, not a global change to
+session resume.
+
+**Validation outcomes.** Each failure leaves the preference untouched, exits
+nonzero and carries `details`: the `endpoint` contacted, the `remembered` project
+(`service_id`, `project_id`, `project_title`, `endpoint`) and a `recovery`
+sentence that names only explicit commands.
+
+| Code | Exit | Meaning |
+| --- | --- | --- |
+| `wrong_service` | 1 | The service that answered (`details.answered_by`) is not the remembered one, for example a replacement at the same address. |
+| `not_found` | 1 | The remembered project no longer exists on the service (`set`: no project has that title or ID). |
+| `ambiguous_reference` | 1 | `set`: a UUID prefix names several projects. |
+| `service_unavailable` | 1 | lit-server could not be reached within `--timeout`; `clear` still works. |
+| `incompatible_service`, `invalid_response` | 1 | The service predates project context or answered unusably. |
+| `invalid_endpoint` | 2 | `--endpoint` or `LIT_ENDPOINT` is not an HTTP(S) origin. |
+| `invalid_local_state` | 1 | The local record is damaged or unsupported; no request was made. |
+| `context_locked` | 3 | Another invocation holds this checkout's preference past the wait (`set`). |
+
+*Archived projects are not reported yet.* lit has no archive state, so no
+project is archived and every existing project validates; the check (a distinct
+error code that the commands must explain, never substitute or restore) is
+deferred to the archive work tracked in issue `0c14ae79`, by decision.
+
+**The checkout** is the Git worktree root containing the current directory. All
+subdirectories share it; each linked worktree and each nested repository
+(including a submodule) is its own checkout and never inherits an outer one;
+symlinked paths resolve to the same physical checkout. Outside Git the checkout
+is the exact current directory, and parents are never searched. Moving a
+checkout gives it a new path, so it remembers nothing until a project is
+remembered again. Git is detected from the files on disk (a `.git` directory
+holding `HEAD`, `objects` and `refs`, or a `.git` file whose `gitdir:` target
+exists), without the `git` executable; `GIT_DIR` and `GIT_WORK_TREE` are
+ignored. Paths are compared as the file system spells them: case-only
+differences on case-insensitive file systems and Windows 8.3 short names are not
+folded together.
+
+**Storage.** Each preference is the file `checkout-context/<hash>.json` below the
+workflow state directory (`LIT_WORKFLOW_STATE_DIR`, otherwise the platform
+default, see [installation](installation.md)), where `<hash>` is the SHA-256 of
+the checkout's physical path. It is mode 0600 in a 0700 directory and separate
+from `vendor-sessions/`, `checkouts/` (repository location maps), the client
+state directory's `sessions/`, `pending/` and caches. Records are versioned
+(`schema_version: 1`), decoded strictly and validated on every read: IDs are
+lower-case UUIDs, the endpoint is an HTTP(S) origin, the stored checkout path
+must equal the resolved one, and a record is at most 64 KiB.
+
+**Concurrency.** Changes are written to a temporary file, synced and renamed over
+the record, and serialized per checkout by an advisory lock on
+`checkout-context/<hash>.lock` (an empty file that stays; the lock dies with its
+process). The last successful change wins, readers take no lock and see the
+complete old or new record, and a failed write leaves the old record intact. A
+change waits up to five seconds for another invocation's; a lock held longer
+fails with `context_locked` (exit 3).
+
+**Damaged or unsupported records.** A record that cannot be decoded, fails
+validation, belongs to another checkout, is not a regular file, or has another
+`schema_version` is reported as `invalid_local_state` (exit 1) with the file,
+the problem (`damaged` or `unsupported`), the reason and the recovery command.
+It is never replaced or deleted silently: `show` (with or without `--validate`)
+leaves it alone, `set` stops before it asks the service, and only an explicit
+`lit context clear` removes it.
+
+**Adoption by a new session.** `workflow-session fresh` is where a remembered
+project is used. Without `--project` it looks up the preference of the current
+directory's checkout, validates it with the same one-request check as `show
+--validate` (no client, no session, nothing written), and registers the new
+session with that project selected, so the agent starts in the project the user
+chose. With `--project REF` it selects that project and does not read the
+preference at all: a stale or damaged preference neither blocks nor changes
+under an explicit choice, and an explicit choice never adopts the preference's
+binding. With nothing remembered the session is created with no project selected,
+as before. Each runtime ID is its own client; the preference never holds one.
+
+- **Endpoint.** An adopted project registers at `--endpoint`, then `LIT_ENDPOINT`,
+  then the endpoint saved with the preference, then `http://127.0.0.1:7411`; a
+  different address reaching the same service is accepted and the saved endpoint
+  is not rewritten. With `--project`, or with nothing remembered, the endpoint is
+  `--endpoint`, then `LIT_ENDPOINT`, then the default, as for any fresh session.
+- **A preference that cannot be adopted** (damaged or unsupported record,
+  unreachable service, another service at the address, project gone) makes `fresh`
+  exit 1 with a message that names the cause and the fix (`lit context clear`, or
+  `--project REF` to start with an explicit project), before it saves a pending
+  association or registers a client. It never falls back to another project,
+  endpoint or service, and never rewrites the preference.
+- **Existing sessions do not change.** `resume`, `reconcile` and `run` never read
+  the preference, so a later `context set` or `clear`, or a damaged record, neither
+  redirects an active session nor makes resume fail. A runtime that already has an
+  association, pending or ready, gets the "already associated" error from `fresh`
+  before the preference is looked at, so recovery evidence is preserved.
+- **Subagents never adopt.** `workflow-session subagent` takes its project only from
+  its own `--project` (the scope the coordinator gives it) and does not read the
+  preference.
+- **Provenance.** The association record `fresh` prints (and saves) carries
+  `project_selection`, so a skill or hook can tell whether remembered context was
+  adopted:
+
+  | `source` | Meaning | Other fields |
+  | --- | --- | --- |
+  | `explicit` | `--project` named the project (or a subagent's scope); the preference was not read. | none |
+  | `remembered` | The checkout's preference was validated and adopted. | `checkout`, `project_id`, `project_title` (as validated now), `saved_at`, and `saved_title` only if the project was renamed since it was remembered |
+  | `none` | No project is selected and nothing was adopted. | `checkout` when the checkout was consulted and had nothing remembered |
+
+  The field describes how the session was created: `resume`, `reconcile` and
+  `run` keep it as it was, even after the session selects another project (the
+  association's `project_id` is the current selection). Records written by older
+  versions lack it.
+
 ## Existing record references
 
 A reference selects an existing record; it is not the syntax for naming a new
@@ -242,3 +418,19 @@ selector disambiguation does not resolve mutation uncertainty.
 `lit session get` shows both the selected logical session name (`logical_session`)
 and its client UUID (`client_id`). The `--session-id` property selector retains its
 client UUID meaning; property-filtered results contain only the selected fields.
+
+A session can carry a workflow stage, the workflow skill it is currently running,
+so the status line and other agents can see it. `lit session set --stage impl`
+sets it, `lit session unset --stage` removes it, and `lit session get` shows it as
+`Stage` in CLI and Markdown output and as `stage` in JSON (`null` when none is
+set); `lit session get --stage` selects only the stage. lit-server stores it with
+the client, so it survives `workflow-session resume`, and changing it is a session
+update, not issue history. A stage is a lowercase label of letters, digits and
+single hyphens, starting with a letter, at most 32 characters. It is checked for
+that shape only, not against the standard stages (planner, clarify, research,
+prototype, to-spec, to-tickets, triage, impl, orchestrate), which completion
+suggests: the skills own that list and a label mismatch must not stop a workflow.
+The nine stage skills set the stage when the human invokes them directly, leave it
+unchanged when another workflow skill invokes them, and clear it on completion or
+handoff; with an older `lit` that rejects `--stage` they skip it (see the Workflow
+stage section of the [lit skill](../internal/workflow-skills/skills/lit/SKILL.md)).

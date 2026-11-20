@@ -11,8 +11,8 @@ import (
 // Client reads the client record id; ok is false when none exists. Records
 // carry schema version 1, which is not stored.
 func (q queries) Client(ctx context.Context, id string) (c protocol.Client, ok bool, err error) {
-	err = q.queryRow(ctx, []any{&c.ClientID, &c.StateRevision, &c.Status, &c.Actor.Name, &c.Actor.Kind, &c.ProjectID, &c.Runtime.Vendor, &c.Runtime.SessionID, &c.OutputFormat},
-		"SELECT client_id, state_revision, status, actor_name, actor_kind, project_id, runtime_vendor, runtime_session_id, output_format FROM clients WHERE client_id = ?", id)
+	err = q.queryRow(ctx, []any{&c.ClientID, &c.StateRevision, &c.Status, &c.Actor.Name, &c.Actor.Kind, &c.ProjectID, &c.Runtime.Vendor, &c.Runtime.SessionID, &c.OutputFormat, &c.Stage},
+		"SELECT client_id, state_revision, status, actor_name, actor_kind, project_id, runtime_vendor, runtime_session_id, output_format, stage FROM clients WHERE client_id = ?", id)
 	if errors.Is(err, sql.ErrNoRows) {
 		return protocol.Client{}, false, nil
 	}
@@ -29,12 +29,13 @@ func (t *WriteTx) PutClient(ctx context.Context, c protocol.Client) error {
 	if c.SchemaVersion != 1 {
 		return fmt.Errorf("client %s: unsupported schema_version %d", c.ClientID, c.SchemaVersion)
 	}
-	_, e := t.exec(ctx, `INSERT INTO clients (client_id, state_revision, status, actor_name, actor_kind, project_id, runtime_vendor, runtime_session_id, output_format)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+	_, e := t.exec(ctx, `INSERT INTO clients (client_id, state_revision, status, actor_name, actor_kind, project_id, runtime_vendor, runtime_session_id, output_format, stage)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 ON CONFLICT (client_id) DO UPDATE SET state_revision = excluded.state_revision, status = excluded.status,
 	actor_name = excluded.actor_name, actor_kind = excluded.actor_kind, project_id = excluded.project_id,
-	runtime_vendor = excluded.runtime_vendor, runtime_session_id = excluded.runtime_session_id, output_format = excluded.output_format`,
-		c.ClientID, c.StateRevision, c.Status, c.Actor.Name, c.Actor.Kind, c.ProjectID, c.Runtime.Vendor, c.Runtime.SessionID, c.OutputFormat)
+	runtime_vendor = excluded.runtime_vendor, runtime_session_id = excluded.runtime_session_id, output_format = excluded.output_format,
+	stage = excluded.stage`,
+		c.ClientID, c.StateRevision, c.Status, c.Actor.Name, c.Actor.Kind, c.ProjectID, c.Runtime.Vendor, c.Runtime.SessionID, c.OutputFormat, c.Stage)
 	return e
 }
 

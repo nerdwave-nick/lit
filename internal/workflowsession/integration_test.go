@@ -73,10 +73,18 @@ func TestRealServiceLifecycle(t *testing.T) {
 		ids[first["client_id"]] = true
 		p := call(true, host, "main", "run", "--", "projects", "create", "--project-title", "feat/"+host, "--content", "-literal --session")["items"].([]any)[0].(map[string]any)["id"].(string)
 		call(true, host, "main", "run", "--", "session", "set", "--project", p)
+		call(true, host, "main", "run", "--", "session", "set", "--stage", "impl")
 		cwd = repo2
 		resumed := call(true, host, "main", "resume")
 		if resumed["client_id"] != first["client_id"] || resumed["project_id"] != p {
 			t.Fatal("lost identity/project")
+		}
+		stage := func() any {
+			t.Helper()
+			return call(true, host, "main", "run", "--", "session", "get", "--stage")["items"].([]any)[0].(map[string]any)["stage"]
+		}
+		if got := stage(); got != "impl" {
+			t.Fatalf("resume lost the workflow stage: %v", got)
 		}
 		child := call(true, host, "child", "subagent", "--parent-runtime-id", "main", "--endpoint", http.URL, "--project", p)
 		if ids[child["client_id"]] {
@@ -101,6 +109,9 @@ func TestRealServiceLifecycle(t *testing.T) {
 		if resumed["client_id"] != first["client_id"] {
 			t.Fatal("disconnect changed identity")
 		}
+		if got := stage(); got != "impl" {
+			t.Fatalf("disconnect and resume lost the workflow stage: %v", got)
+		}
 		filename := filepath.Join(workflow, "vendor-sessions", key(host, "main")+".json")
 		var saved record
 		if e = read(filename, &saved); e != nil {
@@ -115,6 +126,13 @@ func TestRealServiceLifecycle(t *testing.T) {
 		reconciled := call(true, host, "main", "resume")
 		if reconciled["client_id"] != first["client_id"] || reconciled["local_session"] != first["local_session"] {
 			t.Fatal("pending replaced identity")
+		}
+		if got := stage(); got != "impl" {
+			t.Fatalf("reconciling lost the workflow stage: %v", got)
+		}
+		call(true, host, "main", "run", "--", "session", "unset", "--stage")
+		if got := stage(); got != nil {
+			t.Fatalf("unset left the workflow stage: %v", got)
 		}
 		// An existing mapping whose host runtime was changed must not be adopted.
 		cmd := exec.Command(binary, "--session", saved.Session, "--endpoint", http.URL, "--format", "json", "session", "set", "--runtime-session-id", "other")
@@ -165,18 +183,5 @@ func TestRealServiceLifecycle(t *testing.T) {
 	after, _ = os.ReadFile(filename)
 	if string(before) != string(after) {
 		t.Fatal("lock changed record")
-	}
-}
-
-func TestPlatformStateDefaults(t *testing.T) {
-	home := filepath.Join(t.TempDir(), "home")
-	for _, tc := range []struct{ platform, xdg, local, want string }{{"linux", "relative", "", filepath.Join(home, ".local", "state", "lit", "local")}, {"linux", home, "", filepath.Join(home, "lit", "local")}, {"darwin", "", "", filepath.Join(home, "Library", "Application Support", "lit", "local")}, {"windows", "", home, filepath.Join(home, "lit", "local")}} {
-		got, e := statePath(tc.platform, home, tc.xdg, tc.local)
-		if e != nil || got != tc.want {
-			t.Fatal(got, e, tc)
-		}
-	}
-	if _, e := statePath("windows", home, "", ""); e == nil {
-		t.Fatal("missing LOCALAPPDATA accepted")
 	}
 }

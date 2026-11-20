@@ -82,17 +82,30 @@ The installed CLI contains the sixteen workflow skills and their instruction
 template. Setup is offline and needs no source checkout or tracker connection:
 
 ```sh
-lit setup-skills --scope local --agent both
-lit setup-skills --scope user --agent codex
-lit setup-skills --scope custom --path /path/to/project --agent claude
+lit setup-workflows --scope local --agent both
+lit setup-workflows --scope user --agent codex
+lit setup-workflows --agent claude --config-dir ~/.claude-work
 ```
 
-Both `--scope` and `--agent` are required. Agent values are `codex`, `claude`, or
-`both`. Local scope uses the current working directory, including a worktree;
-user scope uses the user's home directory. Custom scope requires `--path` pointing
-to the **parent containing `.codex` and/or `.claude`**, not either host directory
-itself. `--path` is rejected for local/user scope. Setup does not walk to a Git
-root or redirect using vendor configuration environment variables.
+`--agent` is required, with either `--scope` or `--config-dir`. Agent values are
+`codex`, `claude`, or `both` (only `codex` or `claude` with `--config-dir`). Local
+scope uses the current working directory, including a worktree; user scope uses
+the user's home directory. `--config-dir` names one agent configuration directory
+itself, for example `~/.claude-work` or an alternative Codex home: it takes exactly
+one `--agent`, installs into that single directory and cannot be combined with
+`--scope`. The directory must already exist; a missing path is refused instead of
+created, and so is a directory that contains `.claude` or `.codex` (the
+configuration is the directory itself, not its parent). Two configurations are two
+runs and two independent installs, each with its own ownership record. Setup does
+not walk to a Git root, and `CLAUDE_CONFIG_DIR` and `CODEX_HOME` are never read.
+`lit setup-skills` and `--scope custom --path` no longer exist.
+
+Setup records what it owns in `.lit-workflows.json` in each configuration
+directory. A configuration installed by the removed `lit setup-skills` command
+(ownership file `.lit-skills.json`) is adopted in the same transaction: the next
+`setup-workflows` run takes over its skills and managed block, writes the new
+record and removes the old file, or changes nothing if any step fails. The
+receipt marks adopted targets.
 
 Setup manages files under the selected host directories, preserving unrelated
 content. Rerun it after a CLI upgrade to update owned skills. Unmanaged collisions
@@ -101,10 +114,195 @@ both destinations before writing; an unexpected filesystem failure can leave one
 host updated, since the two hosts are separate transactions. Correct the reported
 problem and rerun for safe recovery. Setup does not start the service, establish
 tracker identity, or enable paid consultations. Setup writes a JSON installation
-receipt; it does not accept `--format`. If writing that receipt fails, it exits
-nonzero and reports that skills were installed. The completed installation stays
-in place; the output error does not roll it back. See the installed lit skill's host
-reference for explicit session setup.
+receipt listing each target's `agent`, `scope` (`local`, `user` or `config-dir`),
+`directory`, whether it was `adopted`, whether it installed `hooks`, the Claude
+`status_line` outcome and its `warnings` and `notes`; it does not accept
+`--format`. The warnings and notes are also printed on stderr, so stdout stays
+the receipt. If writing that receipt fails, it exits nonzero and reports that
+workflows were installed. The completed installation stays
+in place; the output error does not roll it back. `--remove` undoes an
+installation, see [Removing the installation](#removing-the-installation). See the
+installed lit skill's host reference for explicit session setup.
+
+### Starting a new conversation
+
+The installed `lit` skill (`references/context.md`) teaches the same new-conversation
+workflow in both setups, so a user with hooks and a user with skills only get the
+same behavior from their agents. It explains the four `lit context` commands
+(`set` only when the user asks, `show` offline, `show --validate`, `clear`) and
+separates the project a user explicitly remembered for a checkout from the
+inference that stays forbidden: a directory name, checkout name, branch,
+timestamp, the most recent agent or a single search result never selects a
+project.
+
+- An explicit project the user names for the conversation wins and leaves the
+  remembered one alone (`fresh --project REF`, or `session set --project REF` on a
+  session a hook already created).
+- Otherwise the new session adopts the remembered project after validating it. With
+  hooks installed, the session-start hook has already run `fresh`, and the agent reads
+  the hook's `remembered project:` line; with skills only (`--scope local`), or when
+  no hook context is present (for example Codex has not been told to trust the
+  hooks), the agent runs `workflow-session fresh` itself and reads
+  `project_selection`. Either way it announces briefly which project was
+  selected because it was remembered for the checkout.
+- With nothing remembered the agent lists candidates from the repository's
+  conventions and current tracker queries and asks, rather than choosing.
+- A stale, damaged, other-service or unreachable preference creates no session. The
+  agent explains why and offers `lit context clear` or `--project REF` for this
+  conversation; it never substitutes a project, rewrites the binding or creates one.
+- The remembered project is not a remembered issue, takes no claim, renews nothing
+  and takes nothing over. Subagents never adopt: their coordinator gives them an
+  explicit project, and a worker checkout's own preference never overrides it.
+
+Archived projects are not reported yet because lit has no archive state; the
+guidance already treats them like any other preference that cannot be used.
+
+### Hooks and the status line
+
+`--scope user` and `--config-dir` also install the lit hooks (`SessionStart`,
+`SubagentStart` and `Stop`, see [Session hooks](#session-hooks)) and, for Claude,
+the [status line](#claude-status-line) into the agent configuration. `--scope local`
+installs the skills and the managed block only: a hook in a repository would run
+next to the user-level one, so setup never writes hooks into a repository's
+`.claude` or `.codex`.
+
+| Host | Hooks | Status line |
+| --- | --- | --- |
+| Claude | The lit-owned plugin directory `skills/lit-hooks/` (`.claude-plugin/plugin.json`, `hooks/hooks.json`), which Claude loads as a skills-directory plugin; `settings.json` is not touched for hooks. | The `statusLine` member of `settings.json`: set when it is unset or already lit's; a foreign command is wrapped as `lit hook --host claude statusline --original 'COMMAND'` and recorded; a `refreshInterval` of 2 seconds is configured. A status line that is not a command (or has none) is left alone, with a note. |
+| Codex | lit's groups appended at the end of the `SessionStart`, `SubagentStart` and `Stop` lists of `hooks.json`; no other entry is touched. | none (Codex has only built-in status items) |
+
+The hook commands are `lit hook --host claude|codex session-start|subagent-start|stop`
+with a backstop timeout of 10, 5 and 5 seconds (lit enforces its own, shorter
+budgets). They name `lit` when the lit on PATH is the executable that ran setup,
+so the commands survive upgrades, and otherwise the running executable's quoted
+path. The definitions change only when the hooks themselves do, because Codex asks
+for approval again whenever one changes.
+
+**Endpoint.** The hook commands carry no endpoint: `lit hook` has no `--endpoint`
+flag. A new runtime's `session-start` uses `LIT_ENDPOINT` from the environment of
+the agent that runs the hook, else `http://127.0.0.1:7411`; a known runtime (and
+the stop and subagent-start hooks, which only serve known runtimes) keep the
+endpoint saved in their association. To use another server, export `LIT_ENDPOINT`
+where you start the agent (for Claude Code also the `env` member of `settings.json`).
+Setup prints a note when it runs with `LIT_ENDPOINT` set; it does not copy the value,
+because the endpoint belongs to the environment (the `lit` CLI reads it everywhere)
+and changing a hook command would make Codex ask for approval again.
+
+**Codex trust.** Codex skips a new or changed hook until the user approves it, and
+it keys the approval by position and a hash of the handler. Setup never writes
+trust state and never pre-trusts: it prints the three hooks to approve in `/hooks`.
+Setup warns when `config.toml` of the same configuration defines `[hooks]` (Codex
+warns about a layer that has both) or disables hooks (`[features] hooks = false`);
+it never edits `config.toml`. Entries the user adds after lit's shift when lit's are
+replaced, so those need approving once more.
+
+**Warnings.** Hooks in several layers all run, so setup reports lit hooks it finds
+elsewhere and never edits them: in the target's own `settings.json` and
+`settings.local.json`, in the other Claude configurations in the home directory
+(`~/.claude`, `~/.claude-work` and any `~/.claude*` directory), in the current
+directory's `.claude/settings*.json`, and for Codex in the other Codex home and the
+current directory's `.codex`. A command counts as lit's when it calls `lit hook` or
+`lit workflow-session`, is a script named `lit-*`, or is a script whose text calls
+lit; that finds the hand-written stage hook and status line of the interim setup. A
+wrapped status line that already shows lit's state is reported too.
+
+**Safety.** `settings.json` and `hooks.json` are written by their hosts as well. Setup
+keeps their key order and member values (only the indentation is normalized when a
+member changes), keeps their permissions, and writes a file only when its content is
+still what the plan was read from; recovery refuses rather than overwrites an edit
+made after an interruption. A file that is not a valid JSON object, a `hooks.json`
+whose `hooks` or event entries have another shape, a symlinked file, a modified
+`skills/lit-hooks` and an unowned `skills/lit-hooks` are refused with nothing changed.
+Hooks and status line sit in the same transaction as the skills: the journal is
+version 3 and covers `settings.json` or `hooks.json` and the plugin directory
+(version-1 and version-2 journals still recover). [Removal](#removing-the-installation)
+writes the same journal.
+
+**Ownership record.** `.lit-workflows.json` lists everything setup owns, so a later
+run (and removal) acts on exactly that. Schema version 1, strict (an unknown member
+means a newer lit wrote it, and the file is refused):
+
+```json
+{
+  "schema_version": 1,
+  "host": "claude",
+  "skills": {"lit": "<sha256 of the skill tree>"},
+  "plugin": {"name": "lit-hooks", "fingerprint": "<sha256 of skills/lit-hooks>"},
+  "status_line": {
+    "installed": {"type": "command", "command": "lit hook --host claude statusline", "padding": 0, "refreshInterval": 2},
+    "original": {"type": "command", "command": "~/.claude/statusline.sh"}
+  },
+  "created_files": ["settings.json"]
+}
+```
+
+A Codex record has `"hooks": [{"event": "Stop", "group": {...}}, ...]` instead of
+`plugin` and `status_line`: each group exactly as appended, to be found again by
+value. `original` is present only when lit wrapped a foreign status line, and is
+that status line as it was. `created_files` names the host file (`settings.json` or
+`hooks.json`) when setup created it, so removal can delete it again once only lit's
+content is left; it is absent when the file was the user's. A skills-only run (the
+local scope in a directory that also holds an agent configuration) leaves these
+sections as they are.
+
+### Removing the installation
+
+```sh
+lit setup-workflows --remove --scope user --agent both
+lit setup-workflows --remove --agent claude --config-dir ~/.claude-work
+```
+
+`--remove` takes the same target flags as installing (`--agent`, and `--scope` or
+`--config-dir`) and removes exactly what the target's ownership record lists:
+
+- the skills the record names, each checked against its recorded fingerprint first,
+  and the lit-owned `skills/lit-hooks` plugin directory (checked the same way);
+- the managed block of `CLAUDE.md` or `AGENTS.md`, with the line break that ends
+  it; text around the block stays, and an instruction file that held nothing else
+  is deleted;
+- Claude's `statusLine`: when the current value is still what setup wrote (equal
+  by meaning to the record's `installed`), the wrapped original is put back exactly
+  as recorded, or the member is deleted when there was none. A status line that
+  changed since is yours now: it is left as it is and the warning names the
+  original that setup had wrapped;
+- Codex's hook groups: for each recorded `{event, group}` the first group equal to
+  it by meaning is taken out of `hooks.json`, so entries you added or edited stay
+  (an edited group no longer matches and is reported). Event lists that become
+  empty stay as empty lists, since the file does not say whether you wrote them;
+- `settings.json` or `hooks.json` itself, only when `created_files` says setup
+  created it and nothing but an empty `{}` or empty event lists is left;
+- the ownership record, last.
+
+Nothing else is touched: skills and files the record does not list, the rest of
+`settings.json` and `hooks.json` (key order and member texts are kept, only the
+indentation of an edited member is normalized) and `config.toml`, which setup
+never edits, so Codex's remembered approval of the removed hooks stays there. The
+`skills/` directory and the configuration directory remain even when empty.
+`--scope local` in a directory that also holds an agent configuration (the home
+directory) removes what that directory's record lists, hooks included: the record
+decides, not the scope.
+
+Removal uses the same lock, backups, journal and recovery as installing (journal
+version 3; an interrupted removal is rolled back by the next `setup-workflows` run
+with or without `--remove`, which refuses rather than overwrites an edit made
+meanwhile) and the same guards for the files hosts also write. Both agents are
+preflighted first: a skill or plugin directory you modified, a record that cannot
+be read, a `settings.json` or `hooks.json` that is not a JSON object or is a
+symlink all refuse the run with nothing changed (exit 1). A skill that is already
+gone is skipped with a note. A target without an installation is not an error: it
+reports `found: false` and a note, creates nothing, and a second `--remove` is a
+no-op. A managed block without a record is not setup's and stays, with a warning.
+
+An install made by the removed `setup-skills` command (only `.lit-skills.json`) is
+removed through that file, which lists the same skills and owns the block the same
+way, and is deleted in the same transaction; it is not adopted first. A directory
+holding both record files is refused as for installing.
+
+The receipt lists each target as `{"removed": [{"agent", "scope", "directory",
+"found", "skills", "hooks", "status_line", "warnings", "notes"}]}`. `skills` counts
+the skill directories removed, `hooks` says the lit hooks were removed and
+`status_line` is `restored`, `removed` or `left`. Warnings and notes are also
+printed on stderr.
 
 ## Release archives
 
@@ -211,7 +409,9 @@ The client uses separate private state. `LIT_STATE_DIR` overrides these defaults
 
 Workflow records default to the `local` subdirectory of each platform's client
 state directory above. `LIT_WORKFLOW_STATE_DIR` overrides that location independently
-of `LIT_STATE_DIR`. Neither location is the service data directory.
+of `LIT_STATE_DIR`. Neither location is the service data directory. The project
+remembered for a checkout (`lit context`) is kept there too, in `checkout-context/`;
+see [command help](cli-help.md#remembered-project-per-checkout).
 
 ## Connect a client
 
@@ -269,9 +469,232 @@ falling back, and a changed service identity is still rejected as `wrong_service
 The client never starts the service or falls back after a connection failure.
 
 `workflow-session fresh` and `workflow-session subagent` use `--endpoint`, then
-`LIT_ENDPOINT`, then the same loopback default. `resume`, `reconcile`, and `run`
-keep the endpoint and identity saved in their runtime association, even when the
-shell's `LIT_ENDPOINT` changes.
+`LIT_ENDPOINT`, then the same loopback default; a `fresh` that adopts the project
+remembered for the checkout (see [CLI help](cli-help.md#remembered-project-per-checkout))
+inserts the endpoint saved with that project between `LIT_ENDPOINT` and the default.
+`resume`, `reconcile`, and `run` keep the endpoint and identity saved in their
+runtime association, even when the shell's `LIT_ENDPOINT` changes.
+
+A session can also carry a workflow stage (`lit session set --stage impl`, cleared
+with `lit session unset --stage`). lit-server stores it with the client, so it is
+shared with other sessions and the status line, survives `workflow-session resume`
+and creates no issue history. A fresh session starts without one. A server that
+migrates an older database to storage schema 4 adds the column after the usual
+pre-migration snapshot; an older `lit-server` refuses the migrated database, and
+an older `lit` ignores the new `stage` field.
+
+## Session hooks
+
+`lit hook --host claude|codex session-start` is the command an agent host calls
+when a conversation starts, resumes or is cleared. The host writes its hook JSON
+to stdin; lit uses the `session_id` as the workflow-session runtime ID, sets up
+the lit session for it and prints host output whose `additionalContext` tells the
+agent its session name, endpoint, runtime ID, selected project and current claims
+(with lease expiry), so the agent runs no setup commands. Nothing is passed through
+environment variables. `lit setup-workflows` installs the hooks into an agent
+configuration (see [Hooks and the status line](#hooks-and-the-status-line));
+this section describes what they do once installed.
+
+| Source | Behavior |
+| --- | --- |
+| `startup`, `clear`, `fork` | A new runtime: `workflow-session fresh` with the `session_id`. |
+| `resume` | A known runtime reconnects (`resume`); one that was never set up gets `fresh`. |
+| `compact` | Restores tracker context after compaction (see below). |
+
+Before connecting, the hook probes the endpoint (`GET /v1/meta`, one second); the
+whole event has a budget of about three seconds. When the endpoint does not answer
+nothing is created, and the context says lit is unavailable and gives the exact
+`lit workflow-session ... fresh --endpoint URL` command to set the session up
+later; a known runtime keeps its association and is told to `resume`. When the
+service answers but connecting does not finish in time, the pending association
+is kept and the agent is told to run `workflow-session reconcile` before any
+tracker work, as the recovery rules require; it never runs `fresh` again.
+
+A hook never breaks the host session. Once an event is being served, `lit hook`
+exits 0 whatever happens; argument errors still exit 2. Errors become a one-line
+note in the context and a line in the hook log,
+`<workflow state>/hooks/hook.log` (JSON lines, rotated at 256 KiB to `hook.log.1`;
+`LIT_WORKFLOW_STATE_DIR` relocates it). Error lines are the failures the status
+line reports; warnings, such as a server that is down or a preference that cannot be
+adopted, are not. The new runtime's endpoint is `LIT_ENDPOINT`, the endpoint saved
+with the remembered project it adopts, or `http://127.0.0.1:7411`.
+
+Hooks are idempotent per runtime. When another hook run already created the
+association, or holds the adapter lock while doing so, the hook waits briefly (up
+to 1.5 seconds), reads the existing association and prints the usual context
+without logging an error; it never registers a second client. A lock that
+outlasts the wait is a failure: the hook leaves it alone, names its directory in
+the note and logs the error. The hook runs lit in a directory of its own
+(`<workflow state>/hooks/work`), so the CLI's output cache stays out of your
+project.
+
+### Remembered project
+
+A new runtime's session adopts the project remembered for the checkout of the
+hook input's `cwd` (`lit context set --project REF`; see [CLI
+help](cli-help.md#remembered-project-per-checkout)): the hook asks
+`workflow-session fresh` to adopt it, as the command does, and announces the result
+in the context with a `remembered project:` line.
+
+- **Adopted.** The project is selected in the new session, and the line says that it
+  was remembered for this checkout and adopted when the session started (and, when
+  the project was renamed since, the title it was saved under). A resumed session
+  and a repeated start print the same line from the association, as long as the
+  session still has that project; they never read the preference again.
+- **Nothing remembered.** The session is created with no project selected and the
+  line says that no project is remembered for this checkout. A project remembered
+  for another checkout does not apply.
+- **A preference that cannot be adopted** (damaged or unsupported record, another
+  service at the address, project gone, service refusing the check) creates no
+  session, no pending association and no client. The context says so, names the
+  checkout, the problem and its code, and gives the two ways out with their exact
+  commands: `lit context clear` from inside the checkout and then
+  `workflow-session fresh`, or `workflow-session fresh --project REF` to start this
+  conversation with another project while the preference stays as it is. The agent
+  is told to ask the user and not to run tracker commands until a session exists.
+  This is a warning in the hook log, not a failure: the status line shows no
+  `[hooks degraded]` for it, and the hook still exits 0. The runtime ID stays free,
+  so either command (or the same hook run again) sets the session up later.
+
+The reachability probe asks the endpoint the adoption will use: `LIT_ENDPOINT`, then
+the endpoint saved with the preference, then `http://127.0.0.1:7411`. A damaged record
+is reported without probing, since it is refused before any server is contacted.
+Only a new runtime adopts; `resume` of a known runtime and subagent sessions never
+read the preference.
+
+### After compaction
+
+When a conversation compacts, the host fires `session-start` with source
+`compact` (Codex only in root sessions). The hook reminds the agent what it was
+doing: the session name, endpoint, runtime ID and project, the issues this
+session has claimed with their lease expiry, and a bounded excerpt of each
+claimed issue's latest comment with its issue ID and the commands to reread the
+full records. lit comments carry no type, so the latest comment of a claimed issue
+stands for its latest checkpoint; its author and time are shown. Excerpts keep the
+start and the end of a long comment (350 and 150 characters) and say how many
+characters they omit; only the five most recently acquired claims carry an excerpt,
+at most twenty are named, and the whole context stays under the 10000 characters
+hosts accept. The excerpts are quoted and flagged as data, not instructions.
+
+The hook only reads. It creates no session or client, and it never acquires,
+renews, releases or reacquires a claim; nothing is written to the tracker. The
+tracker lists only live claims, so a lease that ran out disappears from the list
+without notice: the context tells the agent that an issue it was working on and
+that is not listed as held has expired or been released, and that it must recheck
+the issue and reacquire only deliberately. A claim that the tracker still lists
+with a lease that had already ended at its reading time is reported as expired.
+When the server does not answer, the context carries the session name, endpoint
+and the project ID from the local association and says that the claims could not
+be read and must be rechecked (`claims list`); it never names remembered claims. A
+conversation without an association gets a note with the `fresh` command, and a
+pending one the `reconcile` command.
+
+### Stop guard
+
+`lit hook --host claude|codex stop` is the command a host calls when the agent
+finishes responding. If the agent's lit session still holds claims, it blocks the
+stop once: both hosts get `{"decision":"block","reason":"..."}`, and the reason
+names each claim by issue ID and lease expiry and asks the agent to record a
+checkpoint or handoff comment and release the claim, or to continue, with the
+commands to do so (it never prints a claim token). It also says that the reminder
+is shown once, so an agent that keeps its claims on purpose, for example while it
+waits for your answer, says so and stops again. The host sets `stop_hook_active`
+on the stop that follows a block, and lit always allows that one; Claude
+additionally caps consecutive continuations at eight, Codex relies on
+`stop_hook_active` alone. Only live claims count: lit-server does not list expired
+leases.
+
+The guard only reads. It never releases, renews or closes anything, and it never
+sets a session up. Whatever it cannot be sure about allows the stop and prints
+nothing: no lit session for the runtime, a session that is still pending, a
+server that does not answer (probed for 400 ms, logged as a warning), a failed or
+slow claims read (the event has a budget of one second), and input without a
+boolean `stop_hook_active`, which could otherwise block every stop. Errors go to
+the hook log as failures; a server that is down is not one.
+
+A hook entry installed by a newer lit can name an event this lit does not know. An
+exit status of 2 would block a Stop hook, so `lit hook --host claude|codex EVENT`
+with an unknown event exits 0 and prints nothing, and the hook log records a
+failure that says to update lit or reinstall the hooks. An invalid host, no
+event, or an unknown flag of a known event still exit 2.
+
+### Subagent sessions
+
+`lit hook --host claude|codex subagent-start` gives each subagent a lit session of
+its own, so that a subagent never works on its parent's session or claims. The
+hook input's `agent_id` is the subagent's runtime ID and its `session_id` (on both
+hosts the root conversation's) is the parent. The hook runs
+`workflow-session subagent --parent-runtime-id <session_id> --runtime-id <agent_id>`
+against the parent's endpoint and, when the parent has selected one, with the
+parent's project passed as an explicit `--project`; a remembered project of the
+checkout is never adopted for a subagent. The child gets its own client and starts
+without claims, and the hook prints host output whose `additionalContext` names the
+subagent's session, endpoint, runtime ID and project and tells it not to use another
+agent's session. The hook does not change anything the parent owns.
+
+The hook is idempotent per `agent_id`. Claude runs it again when a subagent is
+resumed, and an in-process teammate runs it with every message; a repeat registers
+no client and prints exactly the same text, from the local association alone (no
+server needed), because Claude injects hook output into a subagent only when it does
+not already hold that text.
+
+The whole event has a budget of about one second (the reachability probe gets 0.4 s
+of it). A conversation without a ready lit session of its own gets no subagent
+session and the hook prints nothing; that is a log warning, not a failure. If the
+server does not answer, nothing is created and the subagent is told that lit is
+unavailable and which `workflow-session subagent` command sets its session up
+later. If connecting does not finish in time the pending association is kept and the
+subagent is told to run `workflow-session reconcile`. Anything else (a lock that
+persists, a service that is not the parent's, malformed input) is logged as a hook
+failure and prints nothing. As for every hook, the command exits 0. Codex does not
+run its start hooks again when a subagent compacts, so nothing restores the session
+text in a compacted Codex subagent.
+
+## Claude status line
+
+`lit hook --host claude statusline [--original COMMAND]` is the command Claude
+Code runs for its status line (Claude passes the status line JSON on stdin and
+sets `COLUMNS`). It prints one line, an original status line followed by lit's
+part, joined with ` | `. Installing it into a Claude configuration is a separate
+step.
+
+Without `--original` the original is a built-in line,
+`<model> <effort> | <directory> | <git> | context: N%`: the directory is shortened
+the way fish's `prompt_pwd` does it, git shows the branch with `+` staged, `*`
+modified and `?` untracked changes and `↑n`/`↓n` commits ahead and behind, and
+fields the host did not send are left out. With `--original COMMAND` it is that
+command's output: it runs through `sh -c` with the same stdin, at most one
+second and, in `COLUMNS`, the width left once lit's smallest part, the separator
+and two spare columns are taken from the terminal's. A command that fails, times
+out (it is killed with everything it started) or prints nothing leaves lit's part
+alone; a multi-line original gets lit's part after its last line.
+
+lit's part is `🔥 lit | <project or "no project selected"> | claims:N | <stage>`
+(no stage, no last part), `⚫ not lit` when the server does not answer, `lit:
+pending` while the session's association is pending and `🔥 lit | no session`
+when the server answers but this runtime has none. `[hooks degraded]` follows
+it when a hook of the same host logged an error in the last ten minutes
+(warnings, such as a server that is down, do not count; this is unrelated to
+lit-server's Degraded mode).
+
+In a narrow terminal lit's part shortens first. With `--original` the line uses
+the fullest form of lit's part that fits next to the original, which is never
+cut. The built-in line collapses one step at a time: the ahead/behind counts,
+`no project selected` to `no project`, the effort, the `context:` label, lit's
+wording to `🔥 <project> | c:N` (and `⚫ not lit` to `⚫`), the directory to its
+last component, git, the model, the directory and finally the project; the stage
+and the failure indicator (`[hooks!]` when short) stay. Two columns stay spare
+at the right, where Claude shows notifications.
+
+The status line runs every couple of seconds and answers within about 300 ms
+because it reads what it shows from a cache. There is one entry per host
+session, `<workflow state>/hooks/statusline/<hash>.json` (never in the project;
+`LIT_WORKFLOW_STATE_DIR` relocates it). Reachability, the claim count and the
+stage are trusted for five seconds, the project's title for five minutes; an old
+entry is refreshed with at most 250 ms of requests as the session (three small
+reads, no writes), and a refresh that fails or times out is cached as `⚫ not
+lit` for the same five seconds. Entries nothing has refreshed for a day are
+removed. `git status` has 250 ms. Only unexpected errors reach the hook log.
 
 ## Optional systemd user service
 
@@ -457,8 +880,8 @@ Stop the foreground service or user service before replacing its executable.
 With socket activation, stop `lit.socket` as well as `lit.service`, so that a
 client connection cannot start the old executable during replacement.
 Run `go install` again for the chosen source/version, or verify and extract the
-chosen archive and copy its binaries. Rerun `lit setup-skills` with the same
-scope/agent/path selection to update the installed skill bundle. Review any
+chosen archive and copy its binaries. Rerun `lit setup-workflows` with the same
+scope/agent or agent/config-dir selection to update the installed skill bundle. Review any
 reported local edits before proceeding. Explicitly restart the service afterward
 (with socket activation, start `lit.socket` again).
 Service identity and records remain in the existing data directory. Unsupported
@@ -631,7 +1054,7 @@ The skill guides exact model/effort selection, explicit session reuse, read-only
 permissions and agent-managed discussion notes. Coordination is followed by the
 agent rather than enforced by a helper. Existing consultation JSON records,
 locks and vendor transcripts are preserved as evidence; no migration or deletion
-is performed. Rerun `setup-skills` after updating the CLI to install this revision.
+is performed. Rerun `setup-workflows` after updating the CLI to install this revision.
 
 ## Output formats
 

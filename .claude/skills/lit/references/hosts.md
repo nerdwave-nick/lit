@@ -1,21 +1,42 @@
 # Host discovery and explicit sessions
 
 The CLI embeds the complete suite from `internal/workflow-skills/skills/`.
-Install offline with `lit setup-skills --scope local --agent codex` (or
+Install offline with `lit setup-workflows --scope local --agent codex` (or
 `--agent claude` / `--agent both`). Local scope uses the current directory;
 `--scope user` uses the home directory. Neither searches repository parents or
-reads vendor configuration-root overrides. For a custom parent directory, use
-`lit setup-skills --scope custom --path /parent --agent both`: this targets
-`/parent/.codex` and `/parent/.claude`, not `/parent` itself. `--path` is required
-only with custom scope. Both `--scope` and `--agent` are required.
+reads vendor configuration-root overrides (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`). For
+another agent configuration, such as `~/.claude-work`, name its directory:
+`lit setup-workflows --agent claude --config-dir ~/.claude-work`. That takes
+exactly one `--agent` (`codex` or `claude`), installs into that one directory,
+which must already exist and is the configuration itself, not a parent of
+`.claude`, and cannot be combined with `--scope`. Two configurations are two
+runs and two independent installs. `--agent` and either `--scope` or
+`--config-dir` are required.
+
+`--scope user` and `--config-dir` also install the lit hooks (session start,
+subagent start, stop) into the agent configuration; `--scope local` never does,
+because a hook in a repository would run next to the user-level one. Claude gets
+the lit-owned plugin directory `skills/lit-hooks` and the `statusLine` of
+`settings.json` (set when unset or already lit's; a foreign status line is
+wrapped as `lit hook --host claude statusline --original COMMAND` and recorded).
+Codex gets lit's entries appended to `hooks.json`, recorded exactly; Codex skips
+them until they are approved in `/hooks`, and setup never trusts hooks for you.
+The hook commands run `lit` and read `LIT_ENDPOINT` from the environment of the
+agent that runs them. Setup warns about lit hooks it finds elsewhere (other
+configurations, the project's `.claude` and `.codex`, hand-written hooks and
+status lines) and never edits them.
 
 The installer copies all sixteen skills into each host's `skills` directory,
 adds a bounded managed block to `AGENTS.md` or `CLAUDE.md`, and records version 1
-ownership in `.lit-skills.json`. Both destinations are preflighted before writes.
-Each host has its own transaction; an unexpected filesystem failure may leave the
-first host complete. The error identifies completed hosts; resolve the error and
-rerun. Updates stage backups and a version-1 recovery journal. Interrupted updates
-recover on the next run after any stale installer lock is resolved.
+ownership in `.lit-workflows.json`. An install made by the removed `lit
+setup-skills` command (ownership file `.lit-skills.json`) is adopted in the same
+transaction; the receipt marks it `adopted`. Both destinations are preflighted
+before writes. Each host has its own transaction; an unexpected filesystem
+failure may leave the first host complete. The error identifies completed hosts;
+resolve the error and rerun. Updates stage backups and a version-3 recovery
+journal that also covers `settings.json` or `hooks.json` and the hooks plugin
+(older journals still recover). Interrupted updates recover on the next run
+after any stale installer lock is resolved.
 
 In the following recovery guidance, PATH means the host root (.codex or .claude).
 
@@ -28,8 +49,10 @@ preserved, and recovery stops for explicit resolution rather than overwriting
 them. It preserves unrelated configuration
 and refuses local edits/collisions. Resolve those explicitly; never delete unrelated
 skills to make installation succeed. Retired names are not installed; only entries
-already owned by this install manifest may be retired. No shell profiles, binary
-installation, hooks, or service startup are changed.
+already owned by this installation record may be retired. No shell profiles, binary
+installation, or service startup are changed, and hooks change only the files named
+above; `settings.json` and `hooks.json` are written by their hosts too, so recovery
+refuses rather than overwrites an edit made after an interruption.
 
 Codex uses `SKILL.md` with `agents/openai.yaml` invocation policy and `$lit`;
 Claude uses `SKILL.md` frontmatter and `/lit`. The canonical source preserves both
@@ -42,6 +65,8 @@ they do not invoke either model CLI or assume vendor environment variables.
 Use the installed CLI directly; workflow-session runs the same executable for tracker calls by default:
 
 ```sh
+lit workflow-session --host codex --runtime-id THREAD_ID fresh
+lit workflow-session --host codex --runtime-id THREAD_ID fresh --project feat/tracker
 lit workflow-session --host codex --runtime-id THREAD_ID fresh --endpoint http://127.0.0.1:7411 --discussion-id TICKET_OR_DISCUSSION_ID
 lit workflow-session --host codex --runtime-id THREAD_ID run -- projects list
 lit workflow-session --host codex --runtime-id THREAD_ID run -- session set --project feat/tracker
@@ -69,14 +94,30 @@ Resume in another
 checkout retains the same logical client and server project. Hooks may call these
 commands but are optional; no child export into a parent shell is required.
 
+Without `--project`, `fresh` performs validated adoption of the project the user
+remembered for the current checkout and reports how the project was chosen in the
+record's `project_selection`; with `--project` it uses that project and leaves the
+remembered one untouched; with nothing remembered the session has no project. A
+remembered project that cannot be validated stops `fresh` before any client or
+association exists. `subagent` never adopts. Do not add `--endpoint` on your own: it
+outranks `LIT_ENDPOINT` and the endpoint saved with the remembered project. With
+hooks installed the session-start hook has already run `fresh` for the
+conversation's runtime; read its injected context rather than running `fresh`
+again. [Remembered project](context.md) covers the commands, both setups and the
+announcement.
+
 `LIT_WORKFLOW_STATE_DIR` overrides the workflow directory. Defaults are Linux
 `${XDG_STATE_HOME:-$HOME/.local/state}/lit/local` (ignore relative XDG values), macOS
 `~/Library/Application Support/lit/local`, Windows `%LOCALAPPDATA%\lit\local`.
 `vendor-sessions/` contains version-1 host/runtime associations with service,
 client, project and optional discussion IDs. `checkouts/` contains version-1
-service/project/repository/path mappings and optional discussion IDs. They are
-separate from consultation records, CLI private `LIT_STATE_DIR`, and per-cwd caches.
-Checkout mappings locate repositories; they never choose CLI project context.
+service/project/repository/path mappings and optional discussion IDs.
+`checkout-context/` contains the versioned projects users remembered per checkout
+(service ID, project ID and title, endpoint; never a client or claim). They are
+separate from each other, consultation records, CLI private `LIT_STATE_DIR`, and
+per-cwd caches. Checkout mappings locate repositories; they never choose CLI
+project context. Only a remembered project, through validated adoption in `fresh`,
+lets a checkout supply one.
 
 Fresh setup persists a pending association before calling the CLI. On failure,
 keep that association and all CLI diagnostics/private pending state. If the CLI

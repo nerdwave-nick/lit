@@ -14,6 +14,13 @@ authorize implementation. Before creating workers or mutating tracker or Git
 state, confirm that the user authorized the exact project or ticket set and the
 delegation and integration scope. If that boundary is unclear, ask once and wait.
 
+Workflow stage: when the user invokes this skill directly, record it with
+`lit session set --stage orchestrate` before starting; workers record `impl` in
+their own sessions, so do not set it for them. When another workflow skill
+invokes it, leave the stage unchanged. On completion or handoff, run
+`lit session unset --stage`. The Workflow stage section of the
+[lit skill](../lit/SKILL.md) covers the session and older lit versions.
+
 Load [lit](../lit/SKILL.md) for session, claim, and recovery rules and
 [impl](../impl/SKILL.md) for a worker's one-ticket implementation. Read
 [the coordination protocol](references/protocol.md) for the durable ledger,

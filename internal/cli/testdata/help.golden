@@ -14,15 +14,17 @@ Available Commands:
   comments         Discuss issues with durable comments
   completion       Generate the autocompletion script for the specified shell
   connect          Initialize or resume a client session
+  context          Manage the project remembered for this checkout
   disconnect       End a connected client session
   grep             Search current content using a literal substring
   help             Help about any command
+  hook             Serve agent host hooks
   issues           Track work, state and relationships
   milestones       Group project issues into named worksets
   projects         Create and discover project containers
   search           Search current content ranked by relevance
   session          Inspect or change session preferences
-  setup-skills     Install embedded skills for Codex or Claude
+  setup-workflows  Install the workflow skills, hooks and Claude status line for Codex or Claude
   transactions     Reconcile uncertain mutation outcomes
   tui              Open the terminal UI (lit-tui)
   version          Print the binary version
@@ -165,12 +167,12 @@ Read session and current properties.
 
 Requirements:
   No required property flags. Without property flags, show every session property, including the logical session name
-  and its distinct client UUID. --session-id selects only the client UUID.
-  Property selectors take no values.
+  and its distinct client UUID. --session-id selects only the client UUID; --stage selects only the workflow stage
+  (null when none is set). Property selectors take no values.
   Required session: --session NAME or LIT_SESSION; connect that session first.
 
 Valid forms:
-  lit session get [--session NAME] [--project] [--actor-name] [--status]
+  lit session get [--session NAME] [--project] [--actor-name] [--status] [--stage]
   [] means optional; | separates alternatives; ... means repeatable.
 
 Usage:
@@ -190,6 +192,7 @@ Flags:
       --runtime-vendor       Optional. Show session property runtime-vendor
       --service-id           Optional. Show session property service-id
       --session-id           Optional. Show session property session-id
+      --stage                Optional. Show session property stage
       --status               Optional. Show session property status
 
 Global Flags:
@@ -203,7 +206,11 @@ Set explicit session properties.
 Requirements:
   Required: at least one property flag with a value.
   Properties: --project, --output-format, --actor-name, --actor-kind,
-  --runtime-vendor, --runtime-session-id. Multiple properties may be set together.
+  --runtime-vendor, --runtime-session-id, --stage. Multiple properties may be set together.
+  Stage: the workflow stage this session is running, stored per session on lit-server. Setting or clearing it creates no
+  issue history, and it survives workflow-session resume. Any label of lowercase letters, digits and single hyphens
+  (starting with a letter, at most 32 characters) is accepted; it is not checked against the standard stages (planner,
+  clarify, research, prototype, to-spec, to-tickets, triage, impl, orchestrate), which completion suggests.
   Required session: --session NAME or LIT_SESSION; connect that session first.
 
 References:
@@ -213,6 +220,7 @@ References:
 Valid forms:
   lit session set --project REF [--output-format cli|markdown|json]
   lit session set --actor-name NAME --actor-kind human|agent
+  lit session set --stage STAGE
   [] means optional; | separates alternatives; ... means repeatable.
 
 Usage:
@@ -229,6 +237,7 @@ Flags:
       --project REF             Optional individually; select at least one property. Project REF: title or UUID; otherwise session selection
       --runtime-session-id ID   Optional individually; select at least one property. Vendor runtime session ID
       --runtime-vendor NAME     Optional individually; select at least one property. Runtime vendor NAME
+      --stage STAGE             Optional individually; select at least one property. Workflow STAGE of this session, for example impl or to-spec; see Stage in the requirements
 
 Global Flags:
       --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
@@ -240,13 +249,15 @@ Clear optional session properties.
 
 Requirements:
   Required: at least one optional property selector (no value).
-  Choose --project, --output-format, --runtime-vendor or --runtime-session-id.
-  Actor name and kind cannot be unset.
+  Choose --project, --output-format, --runtime-vendor, --runtime-session-id or --stage.
+  Actor name and kind cannot be unset. Unsetting --stage removes the workflow stage;
+  the session then has none, as after connecting.
   Required session: --session NAME or LIT_SESSION; connect that session first.
 
 Valid forms:
   lit session unset --project [--output-format]
   lit session unset --runtime-vendor --runtime-session-id
+  lit session unset --stage
   [] means optional; | separates alternatives; ... means repeatable.
 
 Usage:
@@ -263,6 +274,7 @@ Flags:
       --project              Optional individually; select at least one property. Clear session property project
       --runtime-session-id   Optional individually; select at least one property. Clear session property runtime-session-id
       --runtime-vendor       Optional individually; select at least one property. Clear session property runtime-vendor
+      --stage                Optional individually; select at least one property. Clear session property stage
 
 Global Flags:
       --endpoint URL       Optional. Service URL; flag > LIT_ENDPOINT > remembered session > http://127.0.0.1:7411
@@ -1836,36 +1848,50 @@ Global Flags:
       --format FORMAT      Optional. Output FORMAT: cli, markdown or json (otherwise session preference)
       --session NAME       Conditional. Logical session NAME; --session > LIT_SESSION; see requirements
       --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
-== lit setup-skills --help
-setup-skills --scope local|user|custom --agent codex|claude|both [--path PARENT]
-Installs all embedded skills offline; never starts lit-server.
-Output is a JSON installation receipt; --format does not apply.
-local: current directory. user: home directory. custom: --path is the parent of .codex/.claude.
---path is required only for custom scope. Existing owned files upgrade; local edits and collisions fail.
+== lit setup-workflows --help
+setup-workflows [--remove] --scope local|user --agent codex|claude|both
+setup-workflows [--remove] --agent codex|claude --config-dir DIRECTORY
+Installs the embedded workflow skills and the managed instruction block, and into an agent configuration (--scope user or --config-dir) the lit hooks and the Claude status line, offline; never starts lit-server.
+Output is a JSON installation receipt on stdout (agent, scope, directory, adopted, hooks, status_line, warnings, notes); --format does not apply. Warnings and notes are also printed on stderr.
+local: .codex/.claude in the current directory; skills and the managed block only, never hooks. user: .codex/.claude in the home directory.
+--config-dir: one agent configuration directory, for example ~/.claude-work. It takes exactly one --agent,
+installs into that one directory and must already exist. CLAUDE_CONFIG_DIR and CODEX_HOME are not read;
+install each configuration with its own run, each with its own ownership record (.lit-workflows.json).
+Claude hooks: the lit-owned plugin directory skills/lit-hooks (SessionStart, SubagentStart, Stop). Claude status line: settings.json statusLine is set when unset or already lit's; a foreign one is wrapped as 'lit hook --host claude statusline --original COMMAND' and recorded.
+Codex hooks: lit's groups are appended to hooks.json and recorded exactly. Codex skips them until you approve them in /hooks; setup never trusts hooks. It warns about [hooks] in config.toml and disabled hooks.
+Hook commands run lit (the path of this executable when lit is not on PATH) and read LIT_ENDPOINT from the environment of the agent that runs them.
+Setup warns about lit hooks found elsewhere (other configurations, the project's .claude and .codex, the hand-written ones) and never edits them.
+An install made by the removed setup-skills command (.lit-skills.json) is adopted in the same transaction.
+Existing owned files upgrade; local edits, collisions, symlinks and settings.json or hooks.json that are not valid JSON objects fail.
 Both agents are preflighted before writes; unexpected errors can leave one host completed. Rerun safely.
+--remove takes the same target flags and removes exactly what each target's ownership record lists: the skills, the managed instruction block, the lit-hooks plugin directory, lit's groups in hooks.json and lit's status line (a wrapped original is restored exactly), then the record. It uses the same lock, journal and recovery as installing, so an interrupted removal is rolled back by the next run. Owned files you changed are refused and nothing setup does not own is touched; settings.json, hooks.json and the instruction file setup created are deleted once only lit's content is left.
+A target with no installation is reported ("nothing to remove") and is not an error; an install made by the removed setup-skills command (.lit-skills.json) is removed through that file. Output with --remove is a JSON receipt on stdout: {"removed": [{agent, scope, directory, found, skills, hooks, status_line (restored, removed or left), warnings, notes}]}.
 
 Requirements:
-  Required flags: --scope and --agent.
-  --path is required with custom scope and forbidden with local or user scope.
+  Required flags: --agent, and --scope or --config-dir.
+  --scope and --config-dir are mutually exclusive; --config-dir takes exactly one --agent (codex or claude).
+  Hooks and the Claude status line are installed for --scope user and --config-dir only, never for --scope local.
+  --remove takes the same target flags and removes what the target's ownership record lists instead of installing; a target without an installation is reported, not an error.
   No tracker session or service is needed.
 
 Valid forms:
-  lit setup-skills --scope local|user --agent codex|claude|both
-  lit setup-skills --scope custom --path DIRECTORY --agent codex|claude|both
+  lit setup-workflows [--remove] --scope local|user --agent codex|claude|both
+  lit setup-workflows [--remove] --agent codex|claude --config-dir DIRECTORY
   [] means optional; | separates alternatives; ... means repeatable.
 
 Usage:
-  lit setup-skills [flags]
+  lit setup-workflows [flags]
 
 Examples:
-  lit setup-skills --scope local --agent both
-  lit setup-skills --scope custom --path /work/project --agent codex
+  lit setup-workflows --scope local --agent both
+  lit setup-workflows --agent claude --config-dir ~/.claude-work
 
 Flags:
-      --agent AGENT      Required Target AGENT: codex, claude or both
-  -h, --help             help for setup-skills
-      --path DIRECTORY   Required with --scope custom; forbidden otherwise. Parent DIRECTORY of .codex/.claude for custom scope
-      --scope SCOPE      Required Install SCOPE: local, user or custom
+      --agent AGENT            Required Target AGENT: codex, claude or both (codex or claude with --config-dir)
+      --config-dir DIRECTORY   Required unless --scope is given; conflicts with --scope. Agent configuration DIRECTORY, for example ~/.claude-work; installs one agent there
+  -h, --help                   help for setup-workflows
+      --remove                 Optional. Remove what setup installed in the selected targets instead of installing; see the requirements
+      --scope SCOPE            Required unless --config-dir is given; conflicts with --config-dir. Install SCOPE: local or user
 == lit tui --help
 Open the terminal UI for people: the separate lit-tui executable.
 lit looks for lit-tui next to its own executable first, then on PATH, and hands
@@ -1967,9 +1993,34 @@ Use "lit workflow-session [command] --help" for more information about a command
 Create an isolated logical client.
 Output is a JSON association record; --format does not apply.
 
+A new session adopts the project remembered for the current checkout, and announces it in project_selection, unless
+--project names one. Remember a project with lit context set; lit context show tells what a checkout has.
+With --project REF the command selects that project and leaves the remembered project untouched: it is not read, validated,
+adopted or rewritten, even when it is stale. Without --project the remembered project is validated against the service in
+one request that registers nothing (the same check as lit context show --validate) and then selected in the new session;
+with nothing remembered the session has no project selected, as before. A different runtime ID always gets a client of its own.
+
+The record's project_selection says how the project was chosen when the session was created:
+  source "explicit": --project named it. The remembered project was not read.
+  source "remembered": the project remembered for this checkout was validated and adopted. checkout, project_id,
+    project_title (as validated now), saved_at and, only if the project was renamed since it was remembered, saved_title describe it.
+  source "none": no project is selected. checkout names the checkout that was consulted when nothing is remembered for it.
+
+A remembered project that cannot be validated stops the command with exit 1 before any association or client is created,
+and it never falls back to another project, endpoint or service. The error names why (the record is damaged or unsupported,
+the service is unreachable or another service, the project no longer exists) and the way out: lit context clear to forget the
+project, or --project REF to start this conversation with an explicit project. The remembered project is left as it is.
+
+The endpoint of an adopted project is --endpoint, then LIT_ENDPOINT, then the endpoint saved with the remembered project,
+then http://127.0.0.1:7411. A different address that reaches the same service is accepted, a different service ID is not.
+The session is registered at the endpoint that answered and keeps it for resume. With --project, or with nothing remembered,
+the endpoint is --endpoint, then LIT_ENDPOINT, then the default. Later changes to the remembered project never redirect an
+existing session.
+
 Requirements:
   Required flags: --host and --runtime-id.
-  Endpoint: --endpoint > LIT_ENDPOINT > http://127.0.0.1:7411.
+  Endpoint: --endpoint > LIT_ENDPOINT > http://127.0.0.1:7411; an adopted remembered project uses
+  --endpoint > LIT_ENDPOINT > the endpoint saved with it > http://127.0.0.1:7411.
 
 References:
   Project REF: exact title, UUID or unique UUID prefix.
@@ -1988,7 +2039,7 @@ Examples:
 Flags:
       --discussion-id ID   Optional. Optional discussion ID for workflow metadata
   -h, --help               help for fresh
-      --project REF        Optional. Project REF: title or UUID; otherwise session selection
+      --project REF        Optional. Select this project REF: title or UUID; the remembered project is then not adopted and stays untouched
 
 Global Flags:
       --cli EXECUTABLE   Optional. Path to lit EXECUTABLE (default: this binary)
@@ -1998,6 +2049,9 @@ Global Flags:
 == lit workflow-session subagent --help
 Create an isolated child client.
 Output is a JSON association record; --format does not apply.
+
+A subagent never adopts a remembered project: its project scope is the explicit --project its coordinator gives it, otherwise
+none, and the remembered project of its checkout is not read. The record's project_selection is source "explicit" or "none".
 
 Requirements:
   Required flags: --host, --runtime-id and --parent-runtime-id.
@@ -2022,7 +2076,7 @@ Flags:
       --discussion-id ID       Optional. Optional discussion ID for workflow metadata
   -h, --help                   help for subagent
       --parent-runtime-id ID   Required parent runtime session ID
-      --project REF            Optional. Project REF: title or UUID; otherwise session selection
+      --project REF            Optional. Project REF for the child; the checkout's remembered project is never adopted
 
 Global Flags:
       --cli EXECUTABLE   Optional. Path to lit EXECUTABLE (default: this binary)
@@ -2032,6 +2086,9 @@ Global Flags:
 == lit workflow-session resume --help
 Resume the recorded client.
 Output is a JSON association record; --format does not apply.
+
+The association keeps the project_selection it was created with, kept as it was: resume does not read or validate the
+remembered project, and a later lit context set or clear neither redirects the session nor makes resume fail.
 
 Requirements:
   Required flags: --host and --runtime-id.
@@ -2137,6 +2194,318 @@ Global Flags:
       --cli EXECUTABLE   Optional. Path to lit EXECUTABLE (default: this binary)
       --host HOST        Required agent HOST: codex or claude
       --runtime-id ID    Required explicit vendor runtime session ID
+== lit hook --help
+Serve the hooks an agent host (Claude Code or Codex) calls at session events. The host writes its hook JSON to stdin and
+reads the output from stdout; hooks are installed into the host's configuration, not run by hand. Session details reach the
+agent only through the hook output, never through environment variables. Once an event is being served the command exits 0
+whatever happens, so a hook never breaks the host session; failures are written to the hook log in the workflow state
+directory (hooks/hook.log). Argument errors exit 2 like other commands.
+
+Usage:
+  lit hook [flags]
+  lit hook [command]
+
+Available Commands:
+  session-start  Hand the agent its lit session at session start
+  statusline     Print the Claude status line, ending with lit's state
+  stop           Remind the agent once about held claims before it stops
+  subagent-start Give a subagent its own lit session
+
+Flags:
+  -h, --help        help for hook
+      --host HOST   Required agent HOST: codex or claude
+
+Use "lit hook [command] --help" for more information about a command.
+== lit hook session-start --help
+Serve the host's SessionStart hook. Read the hook JSON on stdin; create the lit session for a new runtime (startup, clear,
+fork) or reconnect the known one (resume), keyed by the host session_id, and print host output whose additionalContext names
+the session, endpoint, runtime ID, selected project and current claims. A new runtime adopts the project remembered for the
+checkout of the input's cwd, and the context says so. A remembered project that cannot be adopted creates no session: the context
+explains it and gives the commands that fix it (lit context clear, or fresh --project REF), and it is logged as a warning, not a
+failure. A server that does not answer creates nothing and is reported in the context. After a compaction (source compact)
+print the session, project, the claims it holds with their lease expiry and an excerpt of each claimed issue's latest comment,
+without writing anything to the tracker. The command exits 0 whatever happens; errors go to the hook log.
+
+Requirements:
+  Required flag: --host.
+  The host's hook JSON is read from stdin and its output written to stdout.
+  No tracker session is needed: the runtime ID is the hook input's session_id.
+  Endpoint of a new runtime: LIT_ENDPOINT, then the endpoint saved with the remembered project it adopts, then http://127.0.0.1:7411; a known runtime keeps its saved endpoint.
+  Exits 0 whatever happens once the event is served; errors go to the hook log.
+
+Valid forms:
+  lit hook --host codex|claude session-start < hook-input.json
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit hook session-start [flags]
+
+Examples:
+  lit hook --host claude session-start < hook-input.json
+
+Flags:
+  -h, --help   help for session-start
+
+Global Flags:
+      --host HOST   Required agent HOST: codex or claude
+== lit hook statusline --help
+Serve Claude Code's status line command. Read the status line JSON on stdin and print one line: an original status line,
+then lit's part, joined with " | ". Without --original the original is a built-in line, "MODEL EFFORT | DIRECTORY | GIT |
+context: N%". With --original COMMAND it is that command's output: the command runs through sh -c with the same stdin, at most
+one second and the width left over in COLUMNS; lit's part is printed alone when it fails.
+lit's part is "🔥 lit | PROJECT | claims:N | STAGE" (the last part only while a stage is set), "⚫ not lit" when the server does
+not answer and "lit: pending" while the session's association is pending. "[hooks degraded]" follows it after hook errors of
+the last ten minutes. In a narrow terminal (Claude sets COLUMNS) lit's part shortens first, then the built-in line collapses
+step by step. The server is asked every few seconds at most; in between, the line is answered from a cache in the workflow
+state directory, within about 300 ms. Only the Claude host has a custom status line.
+
+Requirements:
+  Required flag: --host claude (Codex has no custom status line; it prints nothing).
+  The host's status line JSON is read from stdin and the line is written to stdout; the host sets COLUMNS to the terminal width.
+  No tracker session is needed: the runtime ID is the input's session_id.
+  lit's state is answered from a cache under the workflow state directory (hooks/statusline) and refreshed every few seconds.
+  Exits 0 whatever happens once the event is served; errors go to the hook log.
+
+Valid forms:
+  lit hook --host claude statusline [--original COMMAND] < status-line-input.json
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit hook statusline [flags]
+
+Examples:
+  lit hook --host claude statusline < hook-input.json
+
+Flags:
+  -h, --help               help for statusline
+      --original COMMAND   Optional. Status line COMMAND to print first, run through sh -c with the same stdin and the width left in COLUMNS
+
+Global Flags:
+      --host HOST   Required agent HOST: codex or claude
+== lit hook stop --help
+Serve the host's Stop hook. Read the hook JSON on stdin; when this session holds claims and the stop is not already the
+result of a stop hook (stop_hook_active is false), print a block decision whose reason names the claims and asks the agent to
+record a checkpoint or handoff and release them, or to continue. The stop that follows is allowed. Without claims, without a
+connected session, when the server does not answer, and on any internal error nothing is printed and the stop is allowed. The
+guard only reads: it never releases, renews or closes anything. The command exits 0 whatever happens; errors go to the hook log.
+
+Requirements:
+  Required flag: --host.
+  The host's hook JSON is read from stdin and its output written to stdout.
+  No tracker session is needed: the runtime ID is the hook input's session_id.
+  Endpoint of a new runtime: LIT_ENDPOINT, then the endpoint saved with the remembered project it adopts, then http://127.0.0.1:7411; a known runtime keeps its saved endpoint.
+  Exits 0 whatever happens once the event is served; errors go to the hook log.
+
+Valid forms:
+  lit hook --host codex|claude stop < hook-input.json
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit hook stop [flags]
+
+Examples:
+  lit hook --host claude stop < hook-input.json
+
+Flags:
+  -h, --help   help for stop
+
+Global Flags:
+      --host HOST   Required agent HOST: codex or claude
+== lit hook subagent-start --help
+Serve the host's SubagentStart hook. Read the hook JSON on stdin and register the subagent, keyed by the input's agent_id, as a child
+of the conversation's lit session (the input's session_id): its own client, endpoint and selected project taken explicitly from the
+parent, and no claims. Print host output whose additionalContext names the subagent's session, endpoint, runtime ID and project.
+Running again for the same agent_id (a resumed subagent) registers nothing and prints the same text. A conversation without a
+lit session gets no subagent session. The command exits 0 whatever happens; errors go to the hook log.
+
+Requirements:
+  Required flag: --host.
+  The host's hook JSON is read from stdin and its output written to stdout.
+  No tracker session is needed: the subagent's runtime ID is the hook input's agent_id and its parent is the input's session_id.
+  Endpoint and project: those of the parent's lit session (workflow-session subagent --endpoint --project); LIT_ENDPOINT is not read.
+  Exits 0 whatever happens once the event is served; errors go to the hook log.
+
+Valid forms:
+  lit hook --host codex|claude subagent-start < hook-input.json
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit hook subagent-start [flags]
+
+Examples:
+  lit hook --host claude subagent-start < hook-input.json
+
+Flags:
+  -h, --help   help for subagent-start
+
+Global Flags:
+      --host HOST   Required agent HOST: codex or claude
+== lit context --help
+Remember, show, validate or forget the project for the current checkout: a machine-local
+preference recording which lit project, on which lit-server, you chose for one checkout.
+It is project context only: no client identity, claim token or session name is stored,
+so a new agent conversation still gets its own client.
+
+A checkout is the Git worktree root containing the current directory: every
+subdirectory shares it, linked worktrees and each nested repository are separate
+checkouts, and symlinked paths resolve to the same physical checkout. Outside Git
+the checkout is the exact current directory; parents are never searched. A moved
+checkout has a new path and remembers nothing until the project is remembered again.
+
+Records are versioned files in checkout-context/ below the workflow state directory
+(LIT_WORKFLOW_STATE_DIR; otherwise ${XDG_STATE_HOME:-~/.local/state}/lit/local on Linux,
+~/Library/Application Support/lit/local on macOS, %LOCALAPPDATA%\lit\local on Windows),
+separate from session associations, checkout-location maps, pending requests and
+output caches. Changes are atomic and serialized per checkout; the last one wins.
+
+No command needs a logical session, and all ignore LIT_SESSION. show and clear are offline:
+they never contact lit-server. Only set and show --validate do, with one read-only request
+that carries no client identity, so no client, claim or session is created. The endpoint is
+--endpoint, then LIT_ENDPOINT, then (validating) the saved endpoint, then http://127.0.0.1:7411.
+A different address reaching the same service is accepted; a different service ID is not.
+
+Usage:
+  lit context [flags]
+  lit context [command]
+
+Examples:
+  lit context set --project feat/tracker
+  lit context show
+  lit context show --validate
+  lit context clear
+
+Available Commands:
+  clear       Forget the project remembered for this checkout
+  set         Remember a project for this checkout
+  show        Show the project remembered for this checkout
+
+Flags:
+      --format FORMAT   Optional. Output FORMAT: cli, markdown or json (default cli; no session preference applies)
+  -h, --help            help for context
+
+Use "lit context [command] --help" for more information about a command.
+== lit context set --help
+Remember a project for this checkout.
+set asks lit-server, in one read-only request without a session or client, to resolve the project, then
+saves its stable ID, its current title, the answering service's ID and the endpoint used, replacing an
+earlier valid preference for this checkout. The title is display text; the ID is the identity.
+REF is a title (case-insensitive), a UUID, a unique UUID prefix, or the title: and id: forms.
+Only set remembers a project: reading a project, selecting one for a session or passing --project to
+another command does not. Nothing is saved, and the earlier preference is preserved, when validation
+fails; set never falls back to another project, endpoint or service.
+
+Requirements:
+  Required flag: --project REF. set needs no session and creates no client; it makes one request to lit-server.
+  Endpoint: --endpoint > LIT_ENDPOINT > http://127.0.0.1:7411. The saved endpoint is not consulted: set chooses the service,
+  and the service ID it saves is the one that answered.
+  A damaged or unsupported record stops set before the service is asked (invalid_local_state); lit context clear removes it.
+  A request is one GET to lit-server with no client identity: no client, claim, session or pending request is created.
+  Failures exit nonzero and leave the preference untouched; --timeout bounds the wait (default 30s):
+    not_found: no project has that title or ID (exit 1)
+    ambiguous_reference: a UUID prefix names several projects (exit 1)
+    service_unavailable: lit-server could not be reached in time (exit 1); lit context clear works without it
+    incompatible_service, invalid_response: the service does not support project context or answered unusably (exit 1)
+    invalid_endpoint: --endpoint or LIT_ENDPOINT is not an HTTP(S) origin (exit 2); an unusable --endpoint never falls back to another
+    invalid_local_state: a damaged or unsupported record (exit 1); lit context clear removes it
+  Archived projects are not reported yet: lit has no archive state, so every existing project is available (tracked in lit issue 0c14ae79).
+  Output: --format cli (default), markdown or json; outcome applied, with the replaced preference as previous.
+
+Valid forms:
+  lit context set --project REF [--endpoint URL] [--timeout DURATION] [--format cli|markdown|json]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit context set [flags]
+
+Examples:
+  lit context set --project feat/tracker
+  lit context set --project feat/tracker --endpoint http://127.0.0.1:7411
+
+Flags:
+      --endpoint URL       Optional. Service URL to resolve the project on; flag > LIT_ENDPOINT > http://127.0.0.1:7411
+  -h, --help               help for set
+      --project REF        Required Project REF to remember: title, UUID or unique UUID prefix (also the title: and id: forms)
+      --timeout DURATION   Optional. Positive request DURATION, for example 30s (default 30s)
+
+Global Flags:
+      --format FORMAT   Optional. Output FORMAT: cli, markdown or json (default cli; no session preference applies)
+== lit context show --help
+Show the project remembered for this checkout.
+Without --validate, show is offline: it reads only the local record and reports the saved data as
+not validated, since the project may since have been renamed, archived or removed. It works while lit-server
+is down. Nothing remembered is a successful, explicit empty result.
+With --validate, show also asks lit-server whether the remembered service and project still match
+and reports the project's current identity and title. Neither form changes the preference: a
+renamed project is reported as renamed and the saved title is not rewritten.
+
+Requirements:
+  Required flags: none. Without --validate no session, endpoint or service is needed; the command works offline and
+  the saved preference is reported with validated: false.
+  With --validate: --endpoint > LIT_ENDPOINT > the saved endpoint > http://127.0.0.1:7411 picks the service; the remembered
+  service ID and project ID are checked in one request. --endpoint and --timeout apply only with --validate.
+  A validated project reports validated: true and current (service, project, title and the endpoint used); a project
+  renamed since it was saved reports renamed: true and the saved title is not rewritten.
+  With nothing remembered, show (and show --validate, which makes no network request) succeeds with remembered: false and the
+  message No project remembered for this checkout.
+  A request is one GET to lit-server with no client identity: no client, claim, session or pending request is created.
+  Failures exit nonzero and leave the preference untouched; --timeout bounds the wait (default 30s):
+    wrong_service: the service that answered is not the remembered one (exit 1); lit context set --project REF remembers a project on it
+    not_found: the remembered project no longer exists on the service (exit 1); lit context clear forgets it
+    service_unavailable: lit-server could not be reached in time (exit 1); lit context clear works without it
+    incompatible_service, invalid_response: the service does not support project context or answered unusably (exit 1)
+    invalid_endpoint: --endpoint or LIT_ENDPOINT is not an HTTP(S) origin (exit 2); an unusable --endpoint never falls back to another
+    invalid_local_state: a damaged or unsupported record (exit 1); lit context clear removes it
+  Archived projects are not reported yet: lit has no archive state, so every existing project is available (tracked in lit issue 0c14ae79).
+  Output: --format cli (default), markdown or json.
+
+Valid forms:
+  lit context show [--format cli|markdown|json]
+  lit context show --validate [--endpoint URL] [--timeout DURATION] [--format cli|markdown|json]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit context show [flags]
+
+Examples:
+  lit context show
+  lit context show --format json
+  lit context show --validate
+
+Flags:
+      --endpoint URL       Optional. Service URL to validate against, with --validate; flag > LIT_ENDPOINT > saved endpoint > http://127.0.0.1:7411
+  -h, --help               help for show
+      --timeout DURATION   Optional. Positive request DURATION with --validate, for example 30s (default 30s)
+      --validate           Optional. Also check the saved project against lit-server (one request, no session); changes nothing
+
+Global Flags:
+      --format FORMAT   Optional. Output FORMAT: cli, markdown or json (default cli; no session preference applies)
+== lit context clear --help
+Forget the project remembered for this checkout.
+clear removes only this checkout's preference. It does not delete projects, disconnect sessions,
+release claims or touch pending requests, session associations or other workflow state.
+
+Requirements:
+  Required flags: none. No session, endpoint or service is needed; the command works offline.
+  The command is idempotent: clearing when nothing is remembered succeeds with outcome already_satisfied and creates nothing.
+  A damaged or unsupported record is removed too (removed: damaged_record), which is how to recover from invalid_local_state.
+  A change to this checkout's preference by another invocation is awaited briefly; a lock held longer fails with context_locked (exit 3).
+  Output: --format cli (default), markdown or json.
+
+Valid forms:
+  lit context clear [--format cli|markdown|json]
+  [] means optional; | separates alternatives; ... means repeatable.
+
+Usage:
+  lit context clear [flags]
+
+Examples:
+  lit context clear
+
+Flags:
+  -h, --help   help for clear
+
+Global Flags:
+      --format FORMAT   Optional. Output FORMAT: cli, markdown or json (default cli; no session preference applies)
 == lit completion --help
 Generate the autocompletion script for lit for the specified shell: bash, fish or zsh.
 See each sub-command's help for details on how to use the generated script.

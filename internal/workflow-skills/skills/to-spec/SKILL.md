@@ -8,6 +8,12 @@ description: Synthesize settled discussion or requirements into a shared specifi
 Run this skill only when the user requested it. Otherwise propose it and run it
 only after the user confirms.
 
+Workflow stage: when the user invokes this skill directly, record it with
+`lit session set --stage to-spec` before starting. When another workflow skill
+invokes it, leave the stage unchanged. On completion or handoff, run
+`lit session unset --stage`. The Workflow stage section of the
+[lit skill](../lit/SKILL.md) covers the session and older lit versions.
+
 Turn existing discussion, requirements, or a referenced issue into a specification.
 No planner map or earlier skill invocation is required. Synthesize settled choices;
 do not restart an interview or require a test-seam confirmation already answered.
@@ -19,7 +25,9 @@ ownership, recovery, and installed CLI discovery. Read repository conventions,
 CONTEXT.md, and relevant ADRs in each affected repository. Use structured tracker
 queries and `grep` to discover relevant decisions; fetch current full records and
 comments, following pagination and relationships. Search excerpts are not authority.
-Do not assume tracker files are mounted locally or infer project selection from cwd.
+Do not assume tracker files are mounted locally or infer project selection from
+directory, branch or checkout names; a project the session adopted because the user
+remembered it for the checkout is announced by the lit guidance and may be used.
 
 The project owns requirements shared across tickets. Read its current description
 and linked specification before writing. Synthesize into the existing designated

@@ -35,6 +35,9 @@ type Client struct {
 	ProjectID     *string `json:"project_id"`
 	Runtime       Runtime `json:"runtime"`
 	OutputFormat  *string `json:"output_format"`
+	// Stage is the workflow stage this client is working in, a label for
+	// display (see ValidStage), or nil when none is set.
+	Stage *string `json:"stage"`
 }
 type Limits struct {
 	ExplicitItems   int   `json:"explicit_items"`

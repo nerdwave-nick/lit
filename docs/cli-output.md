@@ -13,6 +13,7 @@ new commands should use the three public names above.
 - `claims list` shows issue IDs, owning clients and expiry times.
 - Details, session commands, history and mutation results use labeled fields.
   Multiline bodies are indented; history differences show before/after values.
+  `session get` includes the session's `Stage`, or `none` when it has none.
 
 IDs are never shortened. List tables show line breaks as `\n` and shorten free
 text beyond 60 display columns, with an ellipsis and a `get` hint. Fetch the
@@ -79,5 +80,31 @@ field names, values and pagination envelope are unchanged; strings retain their
 original control characters through normal JSON escaping. CLI and structured Markdown tables omit internal schema versions and use
 readable labels; single-record Markdown documents retain the complete metadata.
 
-The separate `setup-skills` and `workflow-session` helpers retain their own
-machine-readable result formats.
+The separate `setup-workflows` and `workflow-session` helpers retain their own
+machine-readable result formats. The association record `workflow-session` prints
+gains an optional `project_selection` object (`source` `explicit`, `remembered` or
+`none`, see [CLI help](cli-help.md#remembered-project-per-checkout)); the other
+fields are unchanged.
+
+The `context` commands use these formats with no session preference: `--format`
+defaults to `cli`. Their single result item has `schema_version`, `checkout`
+(`path` and `kind`, `git` or `directory`) and a `message`. `show` adds
+`remembered`, `validated` and `preference` (`service_id`, `project_id`,
+`project_title`, `endpoint`, `saved_at`), which is `null` when nothing is
+remembered. `validated` is `false` for plain `show` (the saved data is not
+checked against lit-server) and for `show --validate` with nothing remembered;
+after a successful `show --validate` it is `true` and the item adds `current`
+(`service_id`, `project_id`, `project_title` and the `endpoint` that answered)
+and `renamed` (the project's current title differs from `preference`, which is
+never rewritten). `set` returns `remembered: true`, `validated: true`, the new
+`preference` and `previous` (the replaced preference, or `null`), with outcome
+`applied`. `clear` adds `removed` (`preference`, `damaged_record` or `none`),
+`previous` (the removed preference) and `damage` (`problem` and `reason` of a
+removed damaged or unsupported record); its outcome is `applied` or
+`already_satisfied`. Errors use the usual envelope. Local record problems are
+`invalid_local_state`, `context_locked` or `local_state_error`. A failed `set` or
+`show --validate` keeps the service's code (`not_found`, `ambiguous_reference`,
+`wrong_service`, `service_unavailable`, `incompatible_service`, `invalid_response`)
+or `invalid_endpoint`, and its `details` hold the `endpoint` contacted, the
+`remembered` project, `answered_by` for `wrong_service`, and a `recovery` sentence
+(`reference` replaces `remembered` for `set`); see [command help](cli-help.md).

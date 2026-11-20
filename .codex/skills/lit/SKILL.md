@@ -17,14 +17,20 @@ not establish tracker state or ownership.
 Establish an explicit logical session using [host setup](references/hosts.md).
 Independent agents and subagents need distinct sessions. Resume only the same
 logical working session. Pass session selection on every call; a child process
-cannot export settings into its parent. Changing cwd never selects a project.
-Select a project explicitly or retain the confirmed server session selection.
-Ask when project context is ambiguous. Repository evidence can support a proposal,
-not silently select a project.
+cannot export settings into its parent. A directory name, checkout name, branch or
+`.lit` cache never selects a project. The one project a checkout can supply is
+the project the user explicitly remembered for the checkout: a new conversation
+validates it, announces it and may use it, and an explicit instruction for the
+conversation overrides it. Otherwise select a project explicitly or retain the
+confirmed server session selection. Ask when project context is ambiguous.
+Repository evidence can support a proposal, not silently select a project.
 
 Use the relevant short recipe:
 
 - [Connect and select a project](references/connect.md).
+- [Remembered project for this checkout](references/context.md): remember,
+  inspect, validate and clear it, and start a new conversation with or without
+  hooks.
 - [Find, claim, and read work](references/work.md).
 - [Checkpoint, recover, and finish](references/recovery.md).
 
@@ -47,6 +53,25 @@ explicit, may overlap across milestones, and does not follow parentage or create
 blockers. Read [milestone guidance](references/milestones.md) when planning,
 specifying, publishing, or selecting a milestone scope; installed command help
 remains authoritative for syntax.
+
+## Workflow stage
+
+A session can show which outer workflow skill it is running (planner, clarify,
+research, prototype, to-spec, to-tickets, triage, impl or orchestrate) to the
+status line and other agents. A stage skill records it with
+`lit session set --stage STAGE` when the human invokes or confirms it directly,
+leaves it unchanged when another workflow skill invokes it (planner using
+clarify, research, prototype or challenge), and clears it with
+`lit session unset --stage` on completion or handoff. A stage left by an
+interrupted run stays until the next stage skill overwrites it. Orchestrate keeps
+`orchestrate` in the coordinator's session; each coordinated worker records
+`impl` in its own session.
+
+Use the session already selected for the work, passed like every other call; do
+not connect only to record a stage. The stage is a label: it needs no claim,
+creates no issue history, and never blocks the work. If the installed lit rejects
+`--stage` as an unknown flag (an older lit) or lit is unavailable, skip the stage
+and continue without retrying.
 
 ## Recommended workflow
 

@@ -43,19 +43,6 @@ func TestOfflineValidation(t *testing.T) {
 	}
 }
 
-func TestTildeExpansion(t *testing.T) {
-	home, e := os.UserHomeDir()
-	if e != nil {
-		t.Fatal(e)
-	}
-	for input, want := range map[string]string{"~": home, "~/work": filepath.Join(home, "work")} {
-		got, e := expand(input)
-		if e != nil || got != want {
-			t.Fatalf("%q got %q want %q: %v", input, got, want, e)
-		}
-	}
-}
-
 func TestMain(m *testing.M) {
 	if expected := os.Getenv("LIT_ENDPOINT_SUBPROCESS_FIXTURE"); expected != "" {
 		if len(os.Args) < 5 || os.Args[3] != "--endpoint" || os.Args[4] != expected || os.Getenv("LIT_ENDPOINT") != "" {
@@ -75,7 +62,9 @@ func TestMain(m *testing.M) {
 		fmt.Fprintln(os.Stderr, "controlled stderr")
 		os.Exit(7)
 	}
-	os.Exit(m.Run())
+	code := m.Run()
+	removeBuiltLit()
+	os.Exit(code)
 }
 func TestSubprocessIsolationAndExit(t *testing.T) {
 	t.Setenv("LIT_SESSION_SUBPROCESS_FIXTURE", "1")

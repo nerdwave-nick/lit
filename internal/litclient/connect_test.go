@@ -2,6 +2,7 @@ package litclient_test
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"testing"
 	"time"
@@ -71,5 +72,42 @@ func TestConnectRegistersAFreshClientAndDisconnectReleasesItsClaims(t *testing.T
 	defer again.Close()
 	if err := again.Open(litclient.OpenOptions{Endpoint: h.url, EndpointSet: true}); litclient.Code(err) != "client_disconnected" {
 		t.Fatalf("reopening a disconnected session: %v", err)
+	}
+}
+
+// The workflow stage is part of the client record a reopened session reads, so
+// a status line built on litclient sees what the session's skills recorded.
+func TestOpenedSessionExposesTheClientsWorkflowStage(t *testing.T) {
+	h := newHarness(t)
+	setter := h.connect("staged", "Agent")
+	if setter.Client.Stage != nil {
+		t.Fatalf("a new client has stage %q", *setter.Client.Stage)
+	}
+	// A second view of the same logical session, as a status line has.
+	reader := func() *litclient.Session {
+		t.Helper()
+		s := &litclient.Session{StateDir: h.stateDir, HTTP: http.DefaultClient, Context: context.Background(), Mapping: setter.Mapping}
+		if err := s.Open(litclient.OpenOptions{Endpoint: h.url, EndpointSet: true}); err != nil {
+			t.Fatal(err)
+		}
+		return s
+	}
+	setStage := func(stage any) {
+		t.Helper()
+		revision := fmt.Sprintf("\"client:%d\"", setter.Client.StateRevision)
+		if err := setter.Call("PATCH", "/v1/clients/"+setter.Client.ClientID, map[string]any{"stage": stage}, map[string]string{"If-Match": revision}, &setter.Client, true); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if s := reader(); s.Client.Stage != nil {
+		t.Fatalf("stage before any is set: %q", *s.Client.Stage)
+	}
+	setStage("to-tickets")
+	if s := reader(); s.Client.Stage == nil || *s.Client.Stage != "to-tickets" {
+		t.Fatalf("stage after set: %v", s.Client.Stage)
+	}
+	setStage(nil)
+	if s := reader(); s.Client.Stage != nil {
+		t.Fatalf("stage after clear: %q", *s.Client.Stage)
 	}
 }

@@ -8,6 +8,12 @@ description: Evaluate incoming lit issues, reproduce reported behavior, and reco
 Run this skill only when the user requested it. Otherwise propose it and run it
 only after the user confirms.
 
+Workflow stage: when the user invokes this skill directly, record it with
+`lit session set --stage triage` before starting. When another workflow skill
+invokes it, leave the stage unchanged. On completion or handoff, run
+`lit session unset --stage`. The Workflow stage section of the
+[lit skill](../lit/SKILL.md) covers the session and older lit versions.
+
 Use [lit guidance](../lit/SKILL.md) for tracker/session context, ownership, recovery,
 and installed CLI syntax. Load repository tracker and triage-label conventions,
 CONTEXT.md, and relevant ADRs for every affected repository. Triage is independently

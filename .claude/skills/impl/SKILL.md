@@ -11,6 +11,14 @@ help owns command syntax. Use the current installed operations; do not substitut
 local Markdown claims for tracker ownership. Implementation authorization does
 not imply push, PR creation, publication, deployment, or paid consultation.
 
+Workflow stage: when the user invokes this skill directly, or a coordinator
+started you as a worker, record it with `lit session set --stage impl` before
+starting; a worker does this in its own session, never the coordinator's. When
+another workflow skill invokes it in your session, leave the stage unchanged. On
+completion or handoff, run `lit session unset --stage`. The Workflow stage
+section of the [lit skill](../lit/SKILL.md) covers the session and older lit
+versions.
+
 ## Select and claim
 
 For a named ticket, fetch its full body, project, comments, blockers, relationships,
@@ -18,10 +26,13 @@ shared specification, relevant decisions, and previous handoffs. Confirm the
 requirements are sufficient and the work is available. A named ticket already
 owned by another client is a conflict, not permission to replace it or force.
 
-Without a named ticket, use clear, confirmed project context. Repository evidence
-may support a project proposal; it never silently selects it. Ask for missing
-context. Discover open, unblocked, unclaimed `ready-for-agent` implementation
-work, respecting repository label overrides and following all relevant pages.
+Without a named ticket, use clear, confirmed project context: the user's explicit
+project, or the project the user remembered for the checkout, which the session
+adopted and announced (see [lit](../lit/references/context.md)). A remembered
+project never names a ticket. Repository evidence may support a project proposal;
+it never silently selects it. Ask for missing context. Discover open, unblocked,
+unclaimed `ready-for-agent` implementation work, respecting repository label
+overrides and following all relevant pages.
 Propose the oldest eligible ticket with its scope and obtain selection confirmation
 before acquiring it. If none matches, report that result; do not relax filters,
 create work, or begin another ticket. Existing confirmation of a specific ticket

@@ -11,13 +11,13 @@ import (
 	"github.com/nerdwave-nick/lit/internal/protocol"
 )
 
-// parsed lists the commands whose arguments Parse handles; setup-skills and
+// parsed lists the commands whose arguments Parse handles; setup-workflows and
 // workflow-session have their own parsers.
 func parsedCommands(t *testing.T, fn func(path []string, cmd *nwcli.Command)) {
 	t.Helper()
 	n := 0
 	grammar.Walk(func(path []string, cmd *nwcli.Command) {
-		if len(path) == 0 || len(cmd.Commands) > 0 || path[0] == "setup-skills" || path[0] == "workflow-session" || path[0] == "completion" {
+		if len(path) == 0 || len(cmd.Commands) > 0 || path[0] == "setup-workflows" || path[0] == "workflow-session" || path[0] == "completion" {
 			return
 		}
 		n++
@@ -136,7 +136,11 @@ func TestGrammarValueKindsMatchCompletion(t *testing.T) {
 		case nwcli.Choice:
 			return strings.Join(v.Choices, ","), ""
 		case nwcli.Dynamic:
-			return map[string]string{"sessions": "", "endpoints": "http://127.0.0.1:7411", "durations": "15m,30m,45m,1h"}[v.Completer] + map[bool]string{true: "record:" + v.Completer}[strings.HasSuffix(v.Completer, "s") && v.Completer != "sessions" && v.Completer != "endpoints" && v.Completer != "durations"], ""
+			local := map[string]string{"sessions": "", "endpoints": "http://127.0.0.1:7411", "durations": "15m,30m,45m,1h", "stages": strings.Join(protocol.StandardStages, ",")}
+			if values, isLocal := local[v.Completer]; isLocal {
+				return values, ""
+			}
+			return "record:" + v.Completer, ""
 		}
 		return "", ":4"
 	}

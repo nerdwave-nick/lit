@@ -1,0 +1,9 @@
+{
+  "cwd": "/home/example/project",
+  "hook_event_name": "SessionStart",
+  "model": "gpt-5.5",
+  "permission_mode": "default",
+  "session_id": "019a1c31-90aa-7c3d-b1e2-47a6d5c8f013",
+  "source": "fork",
+  "transcript_path": "/home/example/.codex/sessions/2026/10/14/rollout-2026-10-14T09-00-00-019a1c31-90aa-7c3d-b1e2-47a6d5c8f013.jsonl"
+}

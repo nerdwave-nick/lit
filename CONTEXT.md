@@ -157,6 +157,34 @@ restoration before editing.
 A local companion to coding agents that observes registered sessions and renews
 their eligible work claims through lit-server.
 
+**lit hook**:
+The shared command, `lit hook --host claude|codex EVENT`, that agent hosts call
+at session events. It reads the host's hook JSON, acts on the runtime's tracker
+session, and hands the agent its details only through the hook output. Once an
+event is being served it exits successfully whatever happens and writes failures
+to the hook log. Distinct from the lease helper, which renews claims.
+
+**Stop guard**:
+The `stop` event of lit hook. When an agent tries to end its turn while its
+session holds live claims, it blocks the stop once with a reminder to record a
+checkpoint or handoff and release, or to continue; the host's `stop_hook_active`
+makes the next attempt pass. It only reads: it never releases, renews or closes
+a claim, and any doubt allows the stop.
+
+**Agent configuration**:
+A host's configuration directory (for example `~/.claude`, `~/.claude-work` or a
+Codex home) into which lit installs skills, instructions, hooks and the status
+line. Two configurations are two independent installs.
+_Avoid_: profile (settings are a file inside a configuration)
+
+**Status line**:
+Claude Code's one-line bar, served by `lit hook --host claude statusline`: an
+original status line (a built-in default, or the user's own command wrapped with
+`--original`) followed by lit's part: project, claim count and workflow stage, or
+`not lit` when the server does not answer. It reads the server's state from a
+short-lived cache so that it answers within about 300 ms.
+_Avoid_: status bar, statusline (the event and flag keep that spelling)
+
 **Assignment**:
 The durable record of responsibility for an issue, independent of permission to
 work under an active claim.
@@ -177,3 +205,34 @@ finishing the window validates and applies the edits together.
 **workflow skills**:
 The collection of skills gathered from other sources and adapted to my coding
 workflows and preferences.
+
+**Workflow stage**:
+The outer workflow skill (planner, clarify, research, prototype, to-spec,
+to-tickets, triage, impl or orchestrate) that a logical client session is
+currently running, stored with the client by lit-server so the status line, the
+TUI and other agents can see what the session is doing. It is a display label
+set and cleared with `lit session set|unset --stage`; changing it is a session
+update, never issue history. Values are checked for shape only, not against the
+standard names, and a session starts without one.
+_Avoid_: phase, mode
+
+**Checkout**:
+The place on one machine a remembered project belongs to: the Git worktree root
+containing the current directory (a linked worktree or nested repository is its
+own checkout), or, outside Git, the exact current directory. Symlink aliases
+resolve to the same physical checkout, and a moved checkout is a different one.
+
+**Remembered project**:
+A user's explicit project choice for one checkout, kept as a machine-local
+preference holding the project ID and display title, the service ID and the
+endpoint. It carries project context only, never a client ID, claim token or
+session name, and is not validated until a command or new session checks it
+against the service. A fresh agent session adopts a valid one unless a project is
+named explicitly, and records which it did (its project selection); subagents
+never adopt it. The session-start hook asks `fresh` to adopt it and tells the agent
+whether it did; a preference that cannot be adopted creates no session, and the hook
+explains it (a warning in the hook log, not a failure). The installed lit skill teaches
+agents the same workflow with or without hooks: announce a validated adoption, ask the
+user to choose when nothing is remembered, and never infer a project from a directory,
+branch or checkout name.
+_Avoid_: default project, active project

@@ -35,7 +35,7 @@ func TestCommandRequirementsHelp(t *testing.T) {
 		{"claims renew", []string{"--all", "--for DURATION | --until RFC3339", "30m", "--project"}},
 		{"session unset", []string{"at least one", "cannot be unset", "--runtime-vendor"}},
 		{"transactions status", []string{"Required flags: none", "LIT_SESSION does not filter", "retained request"}},
-		{"setup-skills", []string{"Required flags: --scope and --agent", "Required with --scope custom", "--scope local|user", "--scope custom --path DIRECTORY"}},
+		{"setup-workflows", []string{"Required flags: --agent, and --scope or --config-dir", "Required unless --config-dir", "--scope local|user --agent codex|claude|both", "--agent codex|claude --config-dir DIRECTORY"}},
 		{"workflow-session subagent", []string{"Required flags: --host, --runtime-id and --parent-runtime-id", "distinct"}},
 		{"workflow-session checkout", []string{"Required flags: --host, --runtime-id, --repository and --path", "selected project"}},
 		{"grep", []string{"Required: one nonempty PATTERN", "--project REF | --all-projects"}},

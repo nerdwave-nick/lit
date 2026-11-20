@@ -317,6 +317,8 @@ func (a *App) patch(unset bool) map[string]any {
 			p["project_id"] = v
 		case "output-format":
 			p["output_format"] = v
+		case "stage":
+			p["stage"] = v
 		case "runtime-vendor":
 			runtime["vendor"] = v
 		case "runtime-session-id":
@@ -366,7 +368,7 @@ func (a *App) dispatch() (Result, error) {
 }
 func (a *App) clientItem(selection map[string][]string) map[string]any {
 	c := a.Client
-	all := map[string]any{"logical_session": a.LogicalSession, "schema_version": c.SchemaVersion, "client_id": c.ClientID, "service_id": a.Meta.ServiceID, "state_revision": c.StateRevision, "status": c.Status, "actor": c.Actor, "runtime": c.Runtime, "project_id": c.ProjectID, "output_format": c.OutputFormat}
+	all := map[string]any{"logical_session": a.LogicalSession, "schema_version": c.SchemaVersion, "client_id": c.ClientID, "service_id": a.Meta.ServiceID, "state_revision": c.StateRevision, "status": c.Status, "actor": c.Actor, "runtime": c.Runtime, "project_id": c.ProjectID, "output_format": c.OutputFormat, "stage": c.Stage}
 	v := map[string]any{}
 	for k := range selection {
 		switch k {
@@ -390,6 +392,8 @@ func (a *App) clientItem(selection map[string][]string) map[string]any {
 			v["project_id"] = c.ProjectID
 		case "output-format":
 			v["output_format"] = c.OutputFormat
+		case "stage":
+			v["stage"] = c.Stage
 		}
 	}
 	if len(v) == 0 {

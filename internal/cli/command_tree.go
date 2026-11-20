@@ -2,6 +2,7 @@ package cli
 
 import (
 	"io"
+	"os"
 	"strings"
 
 	"github.com/nerdwave-nick/lit/internal/nwcli"
@@ -20,6 +21,9 @@ func Run(argv []string, out, errOut io.Writer) int {
 	where := strings.Join(append([]string{grammar.Name}, r.Path...), " ")
 	switch {
 	case r.Unknown != "":
+		if code, ok := unknownHookEvent(argv, r, errOut); ok {
+			return code
+		}
 		return argumentError(argv, out, errOut, &nwcli.ParseError{Kind: nwcli.UnknownCommand, Command: where, Arg: r.Unknown})
 	case r.Help:
 		grammar.WriteHelp(out, r.Path...)
@@ -47,13 +51,25 @@ func Run(argv []string, out, errOut io.Writer) int {
 			return argumentError(argv, out, errOut, err)
 		}
 		return 0
-	case "setup-skills", "workflow-session":
+	case "context":
 		p, err := grammar.Parse(argv)
 		if err != nil {
 			return argumentError(argv, out, errOut, err)
 		}
-		if r.Path[0] == "setup-skills" {
-			return runSetupSkills(flagArgs(p, "scope", "agent", "path"), out, errOut)
+		return runContext(p, out, errOut)
+	case "hook":
+		p, err := grammar.Parse(argv)
+		if err != nil {
+			return argumentError(argv, out, errOut, err)
+		}
+		return runHook(p, os.Stdin, out, errOut)
+	case "setup-workflows", "workflow-session":
+		p, err := grammar.Parse(argv)
+		if err != nil {
+			return argumentError(argv, out, errOut, err)
+		}
+		if r.Path[0] == "setup-workflows" {
+			return runSetupWorkflows(p, out, errOut)
 		}
 		return runWorkflow(p, out, errOut)
 	}

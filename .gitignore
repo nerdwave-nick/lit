@@ -10,11 +10,11 @@ __pycache__/
 # Local agent files and lit session state; installed instructions and skills stay tracked
 /.claude/*
 !/.claude/CLAUDE.md
-!/.claude/.lit-skills.json
+!/.claude/.lit-workflows.json
 !/.claude/skills/
 /.codex/*
 !/.codex/AGENTS.md
-!/.codex/.lit-skills.json
+!/.codex/.lit-workflows.json
 !/.codex/skills/
 /.lit/
 
