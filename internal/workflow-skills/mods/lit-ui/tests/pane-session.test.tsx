@@ -101,7 +101,7 @@ describe('Home', () => {
     expect((await ui.find({ key: 'release-t1' }))?.text).toBe('press x again to release')
     await ui.press({ key: 'release-t1' })
     expect(seen.runs.filter(r => r.argv.includes('claims release')).map(r => r.argv)).toEqual([`${T} claims release t1`])
-    expect(seen.toasts.at(-1)).toBe('lit: claim released')
+    expect(seen.toasts.at(-1)).toBe('claim released')
   })
 
   test('renew from MY CLAIMS renews for 30 minutes; a failure shows once as a toast and a red ⚠ row until the next good refresh', async ($, on) => {
@@ -112,7 +112,7 @@ describe('Home', () => {
     await ui.press({ key: 'claim-t1' })
     await ui.press({ key: 'renew-t1' })
     expect(seen.runs.filter(r => r.argv.includes('claims renew')).map(r => r.argv)).toEqual([`${T} claims renew t1 --for 30m`])
-    expect(seen.toasts.filter(t => t.includes('failed'))).toEqual(['lit: renew failed: claim expired'])
+    expect(seen.toasts.filter(t => t.includes('failed'))).toEqual(['renew failed: claim expired'])
     const row = await ui.find({ type: 'Text', text: /^⚠/ })
     expect([row?.text, row?.props.color]).toEqual(['⚠ renew failed: claim expired', 'error'])
     await clock.advance(5000)
@@ -120,7 +120,7 @@ describe('Home', () => {
     w.renewFails = undefined
     await ui.press({ key: 'claim-t1' })
     await ui.press({ key: 'renew-t1' })
-    expect(seen.toasts.at(-1)).toBe('lit: claim renewed for 30m')
+    expect(seen.toasts.at(-1)).toBe('claim renewed for 30m')
     expect(await ui.find({ type: 'Text', text: /^⚠/ })).toBeUndefined()
   })
 

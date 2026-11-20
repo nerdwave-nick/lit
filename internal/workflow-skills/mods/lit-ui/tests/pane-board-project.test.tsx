@@ -96,7 +96,7 @@ describe('Project', () => {
     await ui.press({ key: 'tab-project' })
     await ui.press({ key: 'project-p2' })
     expect(seen.runs.filter(r => r.argv.includes('session set')).map(r => r.argv)).toEqual([`${T} session set --project p2`])
-    expect(seen.toasts).toContain('lit: selected feat/zeta')
+    expect(seen.toasts).toContain('selected feat/zeta')
     expect((await paneText(ui)).texts).toContain('NEXT STEP')
   })
 
@@ -152,7 +152,7 @@ describe('Project', () => {
     expect(seen.runs.filter(r => /projects create|session set/.test(r.argv)).map(r => [r.argv, r.cwd])).toEqual([
       [CREATE, '/wf/lit-ui'], [SELECT_NEW, '/wf/lit-ui']])
     expect([seen.fills, seen.closes]).toEqual([['/planner feat/new-thing'], ['plugin']])
-    expect(seen.toasts).toContain('lit: created and selected feat/new-thing')
+    expect(seen.toasts).toContain('created and selected feat/new-thing')
   })
 
   test('outside a repository the project is created without one', async ($, on) => {
@@ -177,7 +177,7 @@ describe('Project', () => {
     await ui.input({ key: 'new-title', text: 'feat/new-thing' })
     expect(seen.runs.some(r => r.argv.includes('session set'))).toBe(false)
     expect([seen.fills, seen.closes]).toEqual([[], []])
-    expect(seen.toasts).toContain('lit: create project failed: project title exists')
+    expect(seen.toasts).toContain('create project failed: project title exists')
     const row = await ui.find({ type: 'Text', text: /^⚠/ })
     expect([row?.text, row?.props.color]).toEqual(['⚠ create project failed: project title exists', 'error'])
   })

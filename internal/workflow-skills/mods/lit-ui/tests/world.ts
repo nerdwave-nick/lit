@@ -115,7 +115,7 @@ export function world(on: On, w: World) {
   return { clock, seen }
 }
 
-export const BAND = { plugin: 'lit-ui', surface: 'terminal', component: 'AbovePrompt' } as const
+export const BAND = { plugin: 'lit', surface: 'terminal', component: 'AbovePrompt' } as const
 export const bandProps = (isWorking = false) =>
   ({ hasSurvey: false, isWorking, maxRows: 4, bodyColumns: 120, scroll: { offset: 0, bodyRows: 4 }, view: {} })
 export async function start($: any, clock: { settle: () => Promise<void> }) {
@@ -130,7 +130,7 @@ export async function bandText($: any, isWorking = false) {
 }
 
 
-export const PANE = { plugin: 'lit-ui', surface: 'terminal', component: 'Pane', requestId: 'lit-ui' } as const
+export const PANE = { plugin: 'lit', surface: 'terminal', component: 'Pane', requestId: 'lit-ui' } as const
 export const paneProps = (bodyColumns = 100) =>
   ({ title: 'lit', isFocused: true, bodyColumns, placement: 'inline' as const, scroll: { offset: 0, bodyRows: 30 }, view: {} })
 // The pane as drawn: its text row by row is not kept, so the texts are joined with '|'.

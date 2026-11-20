@@ -6,7 +6,8 @@ the workflows by selection, toasts when a claim is about to lapse, and writes a
 status feed a user-defined status line can read. All tracker behavior stays in lit
 commands: the mod reads, presents and calls them. Its source is
 `internal/workflow-skills/mods/lit-ui/`; `lit setup-workflows` installs it next to
-`lit-hooks`.
+`lit-hooks`. Its plugin name is `lit`, which Claude Code puts before each of its
+toasts.
 
 ## The band
 
@@ -44,7 +45,7 @@ most of them); one ready ticket, impl on it. Ready tickets are open
 `decision` issues and open issues labelled `needs-info` or `ready-for-human`.
 
 Toasts: one when a claim of this conversation falls under 5 minutes
-(`lit: claim on "T" expires in 3m`) and one when it has expired. Timers, refreshes
+(`lit: claim on "T" expires in 3m`, the `lit:` added by Claude Code) and one when it has expired. Timers, refreshes
 and hooks never acquire, renew, reacquire, force or release a claim; only `3` renews.
 
 ## The pane

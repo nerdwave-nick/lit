@@ -84,7 +84,7 @@ func TestDefaultStatusInstallsTheModAndTheStatusLine(t *testing.T) {
 	if err != nil || readText(t, filepath.Join(modDir(target), "hooks", "register.tsx")) != string(src) {
 		t.Errorf("register.tsx is not the embedded source: %v", err)
 	}
-	if m := readObject(t, filepath.Join(modDir(target), ".claude-plugin", "plugin.json")); m["name"] != "lit-ui" {
+	if m := readObject(t, filepath.Join(modDir(target), ".claude-plugin", "plugin.json")); m["name"] != "lit" {
 		t.Errorf("plugin manifest %v", m)
 	}
 	wantModConfig(t, target, "both")

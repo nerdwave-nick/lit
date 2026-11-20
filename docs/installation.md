@@ -187,7 +187,7 @@ is `both`.
 The mod (Claude Code 2.1.287 or later; older versions do not load it, and the
 status line keeps working there) is the lit-owned plugin directory
 `skills/lit-ui/` next to `skills/lit-hooks/`: its manifest
-`.claude-plugin/plugin.json`, the hooks module `hooks/` and its type contract
+`.claude-plugin/plugin.json` (plugin name `lit`), the hooks module `hooks/` and its type contract
 `types/`, all embedded in `lit`, plus a generated `config.json` from which the mod
 reads its mode and the lit executable it runs:
 

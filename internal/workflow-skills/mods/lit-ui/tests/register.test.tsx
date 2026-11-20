@@ -37,14 +37,14 @@ describe('lit-ui in a session', () => {
     const { clock, seen } = world(on, w)
     await start($, clock)
     await clock.advance(15000)
-    expect(seen.toasts).toEqual(['lit: claim on "Ticket t1" expires in 4m'])
+    expect(seen.toasts).toEqual(['claim on "Ticket t1" expires in 4m'])
     expect(seen.runs.some(r => /claims (renew|acquire|release)/.test(r.argv))).toBe(false)
     const { ui, texts, buttons } = await bandText($)
     expect(texts).toBe('◷ Ticket t1 3m left · next /impl')
     expect(buttons).toEqual(['renew', 'lit'])
     await ui.press({ key: 'band-3' })
     expect(seen.runs.filter(r => r.argv.includes('claims renew')).map(r => r.argv)).toEqual([`${T} claims renew t1 --for 30m`])
-    expect(seen.toasts.at(-1)).toBe('lit: claim renewed for 30m')
+    expect(seen.toasts.at(-1)).toBe('claim renewed for 30m')
     expect((await bandText($)).buttons).toEqual(['impl', 'lit'])
   })
 
@@ -54,7 +54,7 @@ describe('lit-ui in a session', () => {
     await start($, clock)
     w.claimMinutes = null
     await clock.advance(10000)
-    expect(seen.toasts).toEqual(['lit: claim on "Ticket t1" expires in 3s', 'lit: claim on "Ticket t1" has expired'])
+    expect(seen.toasts).toEqual(['claim on "Ticket t1" expires in 3s', 'claim on "Ticket t1" has expired'])
   })
 
   test('buttons hide while a turn runs; the facts stay', async ($, on) => {
@@ -82,13 +82,13 @@ describe('lit-ui in a session', () => {
     expect([b.texts, b.buttons]).toEqual(['○ lit · connection pending', ['reconcile']])
     await b.ui.press({ key: 'band-1' })
     expect(seen.runs.some(r => r.argv === `lit workflow-session --host claude --runtime-id ${SID} reconcile`)).toBe(true)
-    expect(seen.toasts.at(-1)).toMatch(/^lit: reconcile failed: /)
+    expect(seen.toasts.at(-1)).toMatch(/^reconcile failed: /)
     w.show = { exitCode: 3, stdout: '{"error":{"code":"association_not_found","message":"none"}}' }
     b = await now()
     expect([b.texts, b.buttons]).toEqual(['○ lit · not connected in this conversation', ['connect']])
     await b.ui.press({ key: 'band-1' })
     expect(seen.runs.some(r => r.argv === `lit workflow-session --host claude --runtime-id ${SID} fresh`)).toBe(true)
-    expect(seen.toasts.at(-1)).toMatch(/^lit: connect failed: /)
+    expect(seen.toasts.at(-1)).toMatch(/^connect failed: /)
     w.meta = 503
     b = await now()
     expect([b.texts, b.buttons]).toEqual(['⚫ lit · tracker needs recovery (docs/recovery.md)', ['retry']])

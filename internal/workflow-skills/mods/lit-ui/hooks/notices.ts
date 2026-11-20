@@ -7,7 +7,7 @@ import type { ClaimView } from '../types'
 // The own claims seen so far, by issue ID: their expiry and which toasts they have had.
 export type Watched = Record<string, { title: string; expiresAt: number; warned: boolean; ended: boolean }>
 
-const expired = (title: string) => `lit: claim on "${title}" has expired`
+const expired = (title: string) => `claim on "${title}" has expired`
 
 export function claimNotices(watched: Watched, claims: ClaimView[] | null, now: number): { toasts: string[]; watched: Watched } {
   // Claims that could not be read say nothing about expiry or release.
@@ -25,7 +25,7 @@ export function claimNotices(watched: Watched, claims: ClaimView[] | null, now: 
       toasts.push(expired(c.title))
       ended = true
     } else if (remaining > 0 && remaining < WARN_MS && !warned) {
-      toasts.push(`lit: claim on "${c.title}" expires in ${duration(remaining)}`)
+      toasts.push(`claim on "${c.title}" expires in ${duration(remaining)}`)
       warned = true
     }
     next[c.issueId] = { title: c.title, expiresAt: c.expiresAt, warned, ended }

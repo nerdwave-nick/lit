@@ -35,9 +35,9 @@ const DEFAULT_ENDPOINT = 'http://127.0.0.1:7411'
 // Run now waits for the press to settle, then runs the command from a timer.
 const RUN_DELAY_MS = 50
 
-const viewAtom = atom({ plugin: 'lit-ui', key: 'view' } as const, null)
-const refreshAtom = atom({ plugin: 'lit-ui', key: 'refresh' } as const, null)
-const uiAtom = atom({ plugin: 'lit-ui', key: 'ui' } as const, EMPTY_UI)
+const viewAtom = atom({ plugin: 'lit', key: 'view' } as const, null)
+const refreshAtom = atom({ plugin: 'lit', key: 'refresh' } as const, null)
+const uiAtom = atom({ plugin: 'lit', key: 'ui' } as const, EMPTY_UI)
 const patchUi = ($: EngineInterface, fn: (ui: PaneUi) => PaneUi) => update($, uiAtom, fn)
 
 // Module state, fresh on every load. config.json is read once per load: setup rewrites it
@@ -145,7 +145,7 @@ async function refresh($: EngineInterface): Promise<void> {
       if ((await read($, uiAtom)).failure) await patchUi($, ui => ({ ...ui, failure: null }))
     } catch (err) {
       // A failure that persists is said once, not at every poll.
-      const message = `lit: refresh failed: ${(err as Error).message}`
+      const message = `refresh failed: ${(err as Error).message}`
       if (message !== lastFailure) $.ui.toast(message)
       lastFailure = message
     }
@@ -165,10 +165,10 @@ async function act($: EngineInterface, what: string, steps: (lit: string, sid: s
       const r = await io($, s.cwd, ADAPTER_TIMEOUT_MS).run(step.argv)
       if (r.exitCode !== 0) throw new Error(errorText(r))
     }
-    $.ui.toast(`lit: ${ok}`)
+    $.ui.toast(ok)
   } catch (err) {
     failure = `${doing} failed: ${(err as Error).message}`
-    $.ui.toast(`lit: ${failure}`)
+    $.ui.toast(failure)
   }
   await refresh($)
   if (failure) await patchUi($, ui => ({ ...ui, failure }))
@@ -207,7 +207,7 @@ function press($: EngineInterface, does: BandAction): void {
 // it as the person's request and below 144 columns leaves it unplaced.
 const OPEN = { id: PANE_ID, title: 'lit', focus: true, closeOnEscape: true } as const
 function openPane($: EngineInterface): void {
-  void $.ui.open(OPEN).then(r => r.isPlaced || $.ui.toast('lit: widen the terminal to see the lit pane'))
+  void $.ui.open(OPEN).then(r => r.isPlaced || $.ui.toast('widen the terminal to see the lit pane'))
   void patchUi($, () => EMPTY_UI)
 }
 
@@ -219,7 +219,7 @@ const acts = ($: EngineInterface): PaneActs => paneActs({
   close: () => $.ui.close({ id: PANE_ID }).catch(() => {}),
   fill: text => $.prompt.fill({ text }).then(() => refresh($)),
   runLater: (command, args) => void $.clock.after(RUN_DELAY_MS, () =>
-    void $.command.run({ command, args }).catch((err: Error) => $.ui.toast(`lit: /${command} failed: ${err.message}`))),
+    void $.command.run({ command, args }).catch((err: Error) => $.ui.toast(`/${command} failed: ${err.message}`))),
   renew: issueId => renew($, issueId),
   release: issueId => release($, issueId),
   press: does => press($, does),
@@ -228,8 +228,8 @@ const acts = ($: EngineInterface): PaneActs => paneActs({
 
 export const register: Register = on => {
   on('session.start', async ($, e, next) => {
-    await $.command.register({ name: 'lit-ui', description: 'lit: open the lit pane; /lit-ui debug shows the endpoint, status mode, session and last refresh' })
-    await $.command.register({ name: 'lit-refresh', description: 'lit: refresh the band and the status feed now' })
+    await $.command.register({ name: 'lit-ui', description: 'Open the lit pane; /lit-ui debug shows the endpoint, status mode, session and last refresh' })
+    await $.command.register({ name: 'lit-refresh', description: 'Refresh the lit band and the status feed now' })
     $.clock.every(POLL_MS, () => void refresh($))
     void refresh($)
     return next(e)

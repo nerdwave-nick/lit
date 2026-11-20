@@ -132,6 +132,6 @@ export type RefreshInfo = { at: string; ms: number; session: string | null }
 
 declare module 'claude-code' {
   interface PluginState {
-    'lit-ui': { view: View | null; refresh: RefreshInfo | null; ui: PaneUi }
+    lit: { view: View | null; refresh: RefreshInfo | null; ui: PaneUi }
   }
 }

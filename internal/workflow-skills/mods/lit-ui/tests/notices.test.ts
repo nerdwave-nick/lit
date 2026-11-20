@@ -29,12 +29,12 @@ describe('claim toasts', () => {
       [T0 + 7 * MIN, [c]],
       [T0 + 10 * MIN + 1000, []],
       [T0 + 11 * MIN, []],
-    ])).toEqual([[], [], ['lit: claim on "Add cart model" expires in 4m'], [], ['lit: claim on "Add cart model" has expired'], []])
+    ])).toEqual([[], [], ['claim on "Add cart model" expires in 4m'], [], ['claim on "Add cart model" has expired'], []])
   })
 
   test('a claim still listed after its expiry toasts once', async () => {
     const c = own('t1', 'A', T0 + MIN)
-    expect(run([[T0 + 2 * MIN, [c]], [T0 + 3 * MIN, [c]]])).toEqual([['lit: claim on "A" has expired'], []])
+    expect(run([[T0 + 2 * MIN, [c]], [T0 + 3 * MIN, [c]]])).toEqual([['claim on "A" has expired'], []])
   })
 
   test('a renewed claim can warn again; a released one never expires', async () => {
@@ -46,11 +46,11 @@ describe('claim toasts', () => {
       [T0 + 30 * MIN, [renewed]],
       [T0 + 31 * MIN, []],
       [T0 + 40 * MIN, []],
-    ])).toEqual([['lit: claim on "A" expires in 4m'], [], ['lit: claim on "A" expires in 4m'], [], []])
+    ])).toEqual([['claim on "A" expires in 4m'], [], ['claim on "A" expires in 4m'], [], []])
   })
 
   test('claims that could not be read change nothing', async () => {
     const c = own('t1', 'A', T0 + 10 * MIN)
-    expect(run([[T0, [c]], [T0 + 11 * MIN, null], [T0 + 12 * MIN, []]])).toEqual([[], [], ['lit: claim on "A" has expired']])
+    expect(run([[T0, [c]], [T0 + 11 * MIN, null], [T0 + 12 * MIN, []]])).toEqual([[], [], ['claim on "A" has expired']])
   })
 })
