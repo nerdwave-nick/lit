@@ -1,0 +1,7 @@
+{
+  "name": "lit",
+  "version": "0.1.0",
+  "description": "lit state above the prompt: project, claims, what waits for you and the next workflow. Installed by lit setup-workflows.",
+  "author": { "name": "lit setup-workflows" },
+  "types": "./types/index.d.ts"
+}

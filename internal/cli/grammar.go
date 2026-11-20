@@ -142,7 +142,7 @@ func newGrammar() *nwcli.Command {
 		group("transactions", &nwcli.Command{Name: "status", Flags: flags("file")}),
 		&nwcli.Command{Name: "grep", Operands: nwcli.Operands{Usage: "PATTERN", Max: 1},
 			Flags: join(flags("project limit cursor context n"), switches("case-sensitive all-projects"), flags("regex"))},
-		&nwcli.Command{Name: "setup-workflows", Flags: join(flags("scope agent config-dir"), switches("remove")), Without: strings.Fields(globals)},
+		&nwcli.Command{Name: "setup-workflows", Flags: join(flags("scope agent config-dir"), []nwcli.Flag{{Name: "status", Value: choice("line", "mod", "both")}}, switches("remove")), Without: strings.Fields(globals)},
 		&nwcli.Command{Name: "tui", Flags: flags("endpoint"), Without: []string{"session", "format", "timeout"}},
 		&nwcli.Command{Name: "search", Operands: nwcli.Operands{Usage: "QUERY", Max: 1},
 			Flags: join(flags("project state limit cursor"), switches("all-projects"))},
@@ -257,7 +257,8 @@ func recordFamily(family string) *nwcli.Command {
 
 // workflowSession declares the adapter. Its host flags belong to the group and
 // apply to every action; the adapter supplies session, format and timeout
-// itself, and only fresh and subagent accept --endpoint.
+// itself, and only fresh and subagent accept --endpoint. show only reads the
+// stored association.
 func workflowSession() *nwcli.Command {
 	bound := []string{"endpoint"}
 	g := group("workflow-session",
@@ -265,6 +266,7 @@ func workflowSession() *nwcli.Command {
 		&nwcli.Command{Name: "subagent", Flags: flags("project discussion-id parent-runtime-id")},
 		&nwcli.Command{Name: "resume", Without: bound},
 		&nwcli.Command{Name: "reconcile", Without: bound},
+		&nwcli.Command{Name: "show", Without: bound},
 		&nwcli.Command{Name: "run", Without: bound, Operands: nwcli.Operands{Usage: "-- COMMAND [ARGS...]", Max: nwcli.Unlimited}},
 		&nwcli.Command{Name: "checkout", Without: bound, Flags: with(flags("repository path"), "repository", free, nwcli.Once)},
 	)

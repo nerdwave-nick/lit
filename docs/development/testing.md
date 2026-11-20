@@ -68,6 +68,11 @@ example `cwd` with a temporary checkout (a Codex input is checked against the em
 schema again), because session start resolves the checkout of that directory.
 `internal/workflowsession/adapter_test.go` covers the adapter library API that
 `lit hook` shares with `workflow-session`.
+`internal/workflowsession/show_test.go` covers `workflow-session show`: the
+record it prints equals the one `fresh` printed, it sends no request to the
+service and leaves every workflow and client state file byte-identical, a
+runtime without an association exits 3 with `association_not_found` and creates
+nothing, and it answers while a separate process holds the runtime's lock.
 
 `internal/workflowsession/adopt_test.go` and `adopt_command_test.go` cover the
 adoption of a remembered project by `fresh` against an in-process service and the
@@ -180,6 +185,22 @@ install; and the transaction cut at each step of a removal (recovery restores th
 installation exactly, `Remove` and `Install` recover it themselves, foreign edits are
 never overwritten). The cli tests run `setup-workflows --remove` with `HOME` and the
 vendor overrides pointed at temporary directories.
+
+The Claude status surface (`internal/workflow-skills/mod_install_test.go`,
+`internal/cli/setup_workflows_status_test.go`) covers `--status line`, `mod`, `both`
+and the default: the installed mod files (the embedded source without tests,
+`tsconfig.json` or the engine's generated types, plus `config.json` with mode and
+absolute lit path) and their record; every switch between the modes (a wrapped
+status line restored verbatim, lit's own removed with the `settings.json` setup
+created, a changed one left with a warning, a foreign one untouched, the mod removed
+and reinstalled, `config.json` rewritten); stable reruns; an unowned or modified
+`skills/lit-ui`; Codex and the local scope installing no mod, with the receipt note
+for an explicit `--status`; `--remove` taking the mod away; malformed `mod` record
+entries; and each mode switch cut at every step of its transaction (recovery
+restores the earlier mode exactly, and a version-3 journal may not touch the mod).
+The existing recovery tests install the default mode, so the mod directory is in
+every interrupted installation and removal they cut. Loading the installed mod
+from `<config>/skills/lit-ui/` is a manual live check, recorded on the ticket.
 
 `internal/checkoutcontext` tests run against temporary directories and real Git
 repositories created with the `git` executable and no inherited configuration
@@ -596,6 +617,72 @@ existing sessions or the other worktree. The installs are then removed and the
 user's content must be intact. The walkthrough scripts commands; it does not show
 how a native model follows the guidance, and Codex's `/hooks` approval and live host
 hook firing are not exercised.
+
+The lit-ui Claude Code mod (`internal/workflow-skills/mods/lit-ui/`, see
+[lit-ui](../lit-ui.md)) has three checks, which `TestLitUIModChecks` in
+`internal/workflow-skills/mod_checks_test.go` runs as part of `go test ./...`:
+
+```sh
+claude plugin test internal/workflow-skills/mods/lit-ui      # its tests/*.test.ts(x)
+claude plugin validate internal/workflow-skills/mods/lit-ui  # must pass without warnings
+tsc -p <a tsconfig whose include names the API declarations, hooks/, types/ and tests/>
+```
+
+They need `claude` (Claude Code 2.1.296 or later) and `tsc` on PATH (or `LIT_TSC`),
+and the Claude Code API declarations: `LIT_CLAUDE_TYPES` names a `claude-code.d.ts`
+(Claude Code writes one under its `bundled-skills/<version>/…/plugin-authoring/types/`
+when its `plugin-authoring` skill loads), or the declarations the engine lays into
+the mod's `.claude-plugin/types/` (ignored by Git) once a session has loaded it with
+`claude --plugin-dir`. A missing tool or declaration skips its subtest;
+`LIT_REQUIRE_MOD_CHECKS=1` makes that a failure. CI has neither tool, so the mod
+checks run on developer machines:
+
+```sh
+LIT_REQUIRE_MOD_CHECKS=1 LIT_CLAUDE_TYPES=/path/to/claude-code.d.ts \
+  go test -count=1 -run TestLitUIModChecks -v ./internal/workflow-skills
+```
+
+The mod's tests run in Claude Code's own test kit, which answers every call the mod
+makes on the engine. The pure tests cover the six states and their precedence, the
+derived view (work tickets, ready, mine, blocked, claimed by others, waiting, the
+specification heading), every rule of the recommended next step and the exact
+command strings, the band in both status modes (zero counts and an empty stage
+left out, `3:renew` under five minutes), the claim toasts (under five minutes,
+expired, renewed, released, unreadable claims), the config file and its fallbacks,
+the workflow state directory, which Bash commands run lit, the feed, the refresh
+gate, the next-stage suggestion (each of the three stages, no repeat, nothing for
+other changes, without a project or for an unreadable stage), and the parsing of
+lit's JSON (malformed output is refused; claim tokens are dropped).
+`tests/register.test.tsx` runs the whole mod against a fake lit and
+tracker: the reads go through `workflow-session show` and the association's session
+and endpoint in the mod's own working directory, never `workflow-session run`; the
+band in each state and mode; `1` filling the prompt; `3` renewing for 30 minutes
+only when pressed (polls never acquire, renew or release); both toasts; the
+next-stage ghost text once, held through a turn until the prompt can show it;
+buttons hidden during a turn; a refresh after a Bash call that runs lit and none after
+other commands; the feed file and `/lit-ui debug`. Mutation checks (no refresh
+after Bash, another renewal lease, no toasts) fail these tests. The pane has three
+more files: `tests/pane.test.ts` (the Home model, the workflow list, each target
+step and the exact command text, the key hints), `tests/pane-acts.test.ts` (where
+the focus goes after each choice, Esc back from a target step, release only on the
+second `x`, fill and run now leaving the pane) and `tests/pane-session.test.tsx`
+(the pane drawn through the mod with the fake world of `tests/world.ts`: opening it
+from the band and `/lit-ui`, the tabs, Home and Launch, renew and release, the
+failure row, orchestrate without run now, the narrow layout). The Board and
+Project views add `tests/board.test.ts` (counts, one row per ticket, the last three
+done, the longest chain through closed, unknown and cyclic blockers, the bars),
+`tests/project.test.ts` (the canonical https form of git remotes, each title rule
+with its message, the order of CHOOSE A PROJECT and `more…`) and
+`tests/pane-board-project.test.tsx` (both views through the mod: the git origin
+read in the session's directory, selection only on a press, the title checked only
+after typing, `projects create` with the repository then `session set`, `/planner`
+in the prompt, and a refused create); `tests/pane-acts.test.ts` covers their focus
+moves and Esc folding `more…`. The kit's engine
+cannot raise the person's Esc (`ui.close`) or answer a plugin's `$.ui.focus`, so
+those are covered at the `pane-acts.ts` seam and in the live check. The live check
+of the band and the pane in a real Claude Code session is a manual step, recorded
+on the ticket: an isolated `lit-server` with synthetic data, `claude --plugin-dir` in a private
+tmux server, and the prototype's `lit-probe` mod answering model requests locally.
 
 `cmd/lit/deps_test.go` uses `go list -deps` to prove that only `lit-tui` links the
 Charm, Glamour and chroma packages.

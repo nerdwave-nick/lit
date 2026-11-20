@@ -23,7 +23,7 @@ func requirementsFor(path string) (string, string) {
 	case "hook statusline":
 		return "Required flag: --host claude (Codex has no custom status line; it prints nothing).\nThe host's status line JSON is read from stdin and the line is written to stdout; the host sets COLUMNS to the terminal width.\nNo tracker session is needed: the runtime ID is the input's session_id.\nlit's state is answered from a cache under the workflow state directory (hooks/statusline) and refreshed every few seconds.\nExits 0 whatever happens once the event is served; errors go to the hook log.", "lit hook --host claude statusline [--original COMMAND] < status-line-input.json"
 	case "setup-workflows":
-		return "Required flags: --agent, and --scope or --config-dir.\n--scope and --config-dir are mutually exclusive; --config-dir takes exactly one --agent (codex or claude).\nHooks and the Claude status line are installed for --scope user and --config-dir only, never for --scope local.\n--remove takes the same target flags and removes what the target's ownership record lists instead of installing; a target without an installation is reported, not an error.\nNo tracker session or service is needed.", prefix + " [--remove] --scope local|user --agent codex|claude|both\n" + prefix + " [--remove] --agent codex|claude --config-dir DIRECTORY"
+		return "Required flags: --agent, and --scope or --config-dir.\n--scope and --config-dir are mutually exclusive; --config-dir takes exactly one --agent (codex or claude).\nHooks, the Claude status line and the lit-ui mod are installed for --scope user and --config-dir only, never for --scope local.\n--status line|mod|both chooses the Claude status surface (default both); it is ignored for Codex and --scope local.\n--remove takes the same target flags (not --status) and removes what the target's ownership record lists instead of installing; a target without an installation is reported, not an error.\nNo tracker session or service is needed.", prefix + " --scope local|user --agent codex|claude|both [--status line|mod|both]\n" + prefix + " --agent codex|claude --config-dir DIRECTORY [--status line|mod|both]\n" + prefix + " --remove --scope local|user --agent codex|claude|both\n" + prefix + " --remove --agent codex|claude --config-dir DIRECTORY"
 	case "tui":
 		return "Required flags: none. No session is needed; lit-tui must be installed next to lit or on PATH.\nlit tui needs an interactive terminal; lit-tui refuses to start without one.", prefix + " [--endpoint URL]\nlit [--endpoint URL]  # on a terminal"
 	case "transactions status":
@@ -209,6 +209,8 @@ func workflowRequirements(action string) (string, string) {
 		req += "\n" + freshEndpointRule
 	case action == "subagent":
 		req += "\nEndpoint: --endpoint > LIT_ENDPOINT > http://127.0.0.1:7411."
+	case action == "show":
+		req += "\nReads the saved association only; --endpoint and --project do not apply."
 	default:
 		req += "\nUses the saved runtime binding and endpoint; --endpoint and --project do not apply."
 	}

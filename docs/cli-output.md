@@ -85,6 +85,9 @@ machine-readable result formats. The association record `workflow-session` print
 gains an optional `project_selection` object (`source` `explicit`, `remembered` or
 `none`, see [CLI help](cli-help.md#remembered-project-per-checkout)); the other
 fields are unchanged.
+`workflow-session show` prints that same record read-only, or exits 3 with an
+`association_not_found` error object when the runtime has no association (see
+[installation](installation.md#connect-a-client)).
 
 The `context` commands use these formats with no session preference: `--format`
 defaults to `cli`. Their single result item has `schema_version`, `checkout`

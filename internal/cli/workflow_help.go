@@ -42,8 +42,18 @@ const resumeDetails = `
 The association keeps the project_selection it was created with, kept as it was: resume does not read or validate the
 remembered project, and a later lit context set or clear neither redirects the session nor makes resume fail.`
 
+const showDetails = `
+
+show prints the runtime's stored association record in the JSON the lifecycle commands print (exit 0); a pending
+association prints with status "pending". It takes no adapter lock, runs no tracker command, never connects or contacts
+the service and writes no state, so it answers while another workflow-session call, such as run, holds the runtime's lock.
+
+A runtime without an association exits 3 and prints a JSON error object on stdout, with nothing on stderr:
+  {"error":{"code":"association_not_found","message":"...","details":{"host":"claude","runtime_id":"ID"}}}
+A record that cannot be read or validated exits 1 with the reason on stderr; it is left as it is.`
+
 // workflowDetails are appended to the description of a workflow-session action.
-var workflowDetails = map[string]string{"fresh": freshDetails, "subagent": subagentDetails, "resume": resumeDetails}
+var workflowDetails = map[string]string{"fresh": freshDetails, "subagent": subagentDetails, "resume": resumeDetails, "show": showDetails}
 
 const freshProjectUsage = "Select this project `REF`: title or UUID; the remembered project is then not adopted and stays untouched"
 

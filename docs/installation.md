@@ -116,7 +116,9 @@ problem and rerun for safe recovery. Setup does not start the service, establish
 tracker identity, or enable paid consultations. Setup writes a JSON installation
 receipt listing each target's `agent`, `scope` (`local`, `user` or `config-dir`),
 `directory`, whether it was `adopted`, whether it installed `hooks`, the Claude
-`status_line` outcome and its `warnings` and `notes`; it does not accept
+`status_line` outcome, the Claude `status` surface and what became of the lit-ui
+`mod` (see [Status surface](#status-surface-the-status-line-and-the-lit-ui-mod)),
+and its `warnings` and `notes`; it does not accept
 `--format`. The warnings and notes are also printed on stderr, so stdout stays
 the receipt. If writing that receipt fails, it exits nonzero and reports that
 workflows were installed. The completed installation stays
@@ -171,6 +173,46 @@ next to the user-level one, so setup never writes hooks into a repository's
 | Claude | The lit-owned plugin directory `skills/lit-hooks/` (`.claude-plugin/plugin.json`, `hooks/hooks.json`), which Claude loads as a skills-directory plugin; `settings.json` is not touched for hooks. | The `statusLine` member of `settings.json`: set when it is unset or already lit's; a foreign command is wrapped as `lit hook --host claude statusline --original 'COMMAND'` and recorded; a `refreshInterval` of 2 seconds is configured. A status line that is not a command (or has none) is left alone, with a note. |
 | Codex | lit's groups appended at the end of the `SessionStart`, `SubagentStart` and `Stop` lists of `hooks.json`; no other entry is touched. | none (Codex has only built-in status items) |
 
+#### Status surface: the status line and the lit-ui mod
+
+For Claude, `--status line|mod|both` chooses how lit's state is shown; the default
+is `both`.
+
+| `--status` | Status line | [lit-ui mod](lit-ui.md) |
+| --- | --- | --- |
+| `line` | installed as described above | not installed; one setup installed earlier is removed |
+| `mod` | not written; a status line setup installed is restored to the original it wrapped, or removed when lit had set its own (through the same path as `--remove`); a status line setup does not own is left untouched | installed |
+| `both` (default) | installed | installed |
+
+The mod (Claude Code 2.1.287 or later; older versions do not load it, and the
+status line keeps working there) is the lit-owned plugin directory
+`skills/lit-ui/` next to `skills/lit-hooks/`: its manifest
+`.claude-plugin/plugin.json` (plugin name `lit`), the hooks module `hooks/` and its type contract
+`types/`, all embedded in `lit`, plus a generated `config.json` from which the mod
+reads its mode and the lit executable it runs:
+
+```json
+{"schema_version": 1, "status": "both", "lit": "/home/alice/go/bin/lit"}
+```
+
+`lit` is the absolute path of the lit on PATH when that is the executable running
+setup (a link there survives upgrades), otherwise of the running executable. Claude
+Code loads the mod as a skills-directory plugin, like the hooks plugin, once the
+workspace is trusted. The receipt's `status` is the chosen surface and `mod` is
+`installed` when the mod is in place after the run or `removed` when this run took
+it away (`line` after `mod` or `both`); with `mod`, `status_line` is `restored`,
+`removed` or `left` (lit's status line was changed after setup wrote it, so it
+stays, with a warning), and absent when there was no status line of lit's.
+Rerunning with another `--status` converges: `line` → `mod` restores the status
+line and installs the mod, `mod` → `line` removes the mod and sets the status line,
+`mod` ↔ `both` rewrites `config.json`. A `settings.json` setup created is deleted
+when restoring leaves it empty.
+
+`--status` does not apply to Codex, which has neither: it is ignored for Codex
+targets with a note in that target's receipt, also with `--agent both`. The local
+scope installs neither mod nor status line, and an explicit `--status` there is
+noted the same way. `--remove` does not take `--status`.
+
 The hook commands are `lit hook --host claude|codex session-start|subagent-start|stop`
 with a backstop timeout of 10, 5 and 5 seconds (lit enforces its own, shorter
 budgets). They name `lit` when the lit on PATH is the executable that ran setup,
@@ -212,10 +254,12 @@ member changes), keeps their permissions, and writes a file only when its conten
 still what the plan was read from; recovery refuses rather than overwrites an edit
 made after an interruption. A file that is not a valid JSON object, a `hooks.json`
 whose `hooks` or event entries have another shape, a symlinked file, a modified
-`skills/lit-hooks` and an unowned `skills/lit-hooks` are refused with nothing changed.
-Hooks and status line sit in the same transaction as the skills: the journal is
-version 3 and covers `settings.json` or `hooks.json` and the plugin directory
-(version-1 and version-2 journals still recover). [Removal](#removing-the-installation)
+`skills/lit-hooks` or `skills/lit-ui` and an unowned `skills/lit-hooks` are refused
+with nothing changed; so is an unowned `skills/lit-ui` unless `--status line`, which
+leaves it alone. Hooks, status line and mod sit in the same transaction as the
+skills: the journal is version 4 and covers `settings.json` or `hooks.json`, the
+plugin directory and the mod directory (version-1 to version-3 journals still
+recover; only version 4 may touch the mod). [Removal](#removing-the-installation)
 writes the same journal.
 
 **Ownership record.** `.lit-workflows.json` lists everything setup owns, so a later
@@ -228,6 +272,7 @@ means a newer lit wrote it, and the file is refused):
   "host": "claude",
   "skills": {"lit": "<sha256 of the skill tree>"},
   "plugin": {"name": "lit-hooks", "fingerprint": "<sha256 of skills/lit-hooks>"},
+  "mod": {"name": "lit-ui", "fingerprint": "<sha256 of skills/lit-ui, config.json included>"},
   "status_line": {
     "installed": {"type": "command", "command": "lit hook --host claude statusline", "padding": 0, "refreshInterval": 2},
     "original": {"type": "command", "command": "~/.claude/statusline.sh"}
@@ -237,11 +282,13 @@ means a newer lit wrote it, and the file is refused):
 ```
 
 A Codex record has `"hooks": [{"event": "Stop", "group": {...}}, ...]` instead of
-`plugin` and `status_line`: each group exactly as appended, to be found again by
+`plugin`, `mod` and `status_line`: each group exactly as appended, to be found again by
 value. `original` is present only when lit wrapped a foreign status line, and is
 that status line as it was. `created_files` names the host file (`settings.json` or
 `hooks.json`) when setup created it, so removal can delete it again once only lit's
-content is left; it is absent when the file was the user's. A skills-only run (the
+content is left; it is absent when the file was the user's. `mod` is present
+while the lit-ui mod is installed (`--status mod` or `both`) and `status_line` while
+lit's status line is (`line` or `both`). A skills-only run (the
 local scope in a directory that also holds an agent configuration) leaves these
 sections as they are.
 
@@ -256,7 +303,8 @@ lit setup-workflows --remove --agent claude --config-dir ~/.claude-work
 `--config-dir`) and removes exactly what the target's ownership record lists:
 
 - the skills the record names, each checked against its recorded fingerprint first,
-  and the lit-owned `skills/lit-hooks` plugin directory (checked the same way);
+  the lit-owned `skills/lit-hooks` plugin directory and the `skills/lit-ui` mod
+  directory (both checked the same way);
 - the managed block of `CLAUDE.md` or `AGENTS.md`, with the line break that ends
   it; text around the block stays, and an instruction file that held nothing else
   is deleted;
@@ -283,7 +331,7 @@ directory) removes what that directory's record lists, hooks included: the recor
 decides, not the scope.
 
 Removal uses the same lock, backups, journal and recovery as installing (journal
-version 3; an interrupted removal is rolled back by the next `setup-workflows` run
+version 4; an interrupted removal is rolled back by the next `setup-workflows` run
 with or without `--remove`, which refuses rather than overwrites an edit made
 meanwhile) and the same guards for the files hosts also write. Both agents are
 preflighted first: a skill or plugin directory you modified, a record that cannot
@@ -299,8 +347,9 @@ way, and is deleted in the same transaction; it is not adopted first. A director
 holding both record files is refused as for installing.
 
 The receipt lists each target as `{"removed": [{"agent", "scope", "directory",
-"found", "skills", "hooks", "status_line", "warnings", "notes"}]}`. `skills` counts
-the skill directories removed, `hooks` says the lit hooks were removed and
+"found", "skills", "hooks", "mod", "status_line", "warnings", "notes"}]}`. `skills`
+counts the skill directories removed, `hooks` says the lit hooks were removed, `mod`
+(present only when true) that the lit-ui mod was removed and
 `status_line` is `restored`, `removed` or `left`. Warnings and notes are also
 printed on stderr.
 
@@ -474,6 +523,16 @@ remembered for the checkout (see [CLI help](cli-help.md#remembered-project-per-c
 inserts the endpoint saved with that project between `LIT_ENDPOINT` and the default.
 `resume`, `reconcile`, and `run` keep the endpoint and identity saved in their
 runtime association, even when the shell's `LIT_ENDPOINT` changes.
+
+`lit workflow-session --host claude|codex --runtime-id ID show` prints the
+runtime's stored association in the JSON the lifecycle commands print, and exits
+0. It is read-only: it takes no adapter lock, runs no tracker command, never
+connects or contacts lit-server and writes no state, so a status display can call
+it while the agent's own `run` holds the runtime's lock. A runtime without an
+association exits 3 and prints
+`{"error":{"code":"association_not_found","message":"...","details":{"host":"claude","runtime_id":"ID"}}}`
+on stdout, with nothing on stderr. A record that cannot be read or validated exits
+1 with the reason on stderr and is left untouched.
 
 A session can also carry a workflow stage (`lit session set --stage impl`, cleared
 with `lit session unset --stage`). lit-server stores it with the client, so it is

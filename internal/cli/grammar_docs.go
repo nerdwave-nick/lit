@@ -20,7 +20,7 @@ var topSummaries = map[string]string{
 	"session": "Inspect or change session preferences", "projects": "Create and discover project containers", "issues": "Track work, state and relationships",
 	"milestones": "Group project issues into named worksets", "comments": "Discuss issues with durable comments", "claims": "Reserve issues with expiring work claims",
 	"transactions": "Reconcile uncertain mutation outcomes", "grep": "Search current content using a literal substring",
-	"setup-workflows": "Install the workflow skills, hooks and Claude status line for Codex or Claude", "workflow-session": "Bind explicit agent runtime sessions to lit clients", "context": contextSummary,
+	"setup-workflows": "Install the workflow skills, hooks, Claude status line and lit-ui mod for Codex or Claude", "workflow-session": "Bind explicit agent runtime sessions to lit clients", "context": contextSummary,
 	"hook":       "Serve agent host hooks",
 	"completion": "Generate the autocompletion script for the specified shell",
 	"tui":        "Open the terminal UI (lit-tui)",
@@ -30,6 +30,7 @@ var topSummaries = map[string]string{
 var workflowSummaries = map[string]string{
 	"fresh": "Create an isolated logical client", "subagent": "Create an isolated child client", "resume": "Resume the recorded client",
 	"reconcile": "Inspect a pending session binding", "run": "Run a tracker command with the bound client", "checkout": "Record a repository checkout path",
+	"show": "Print the stored association without contacting the service",
 }
 
 // documentGrammar fills in every summary, description, example and flag usage.
@@ -92,7 +93,7 @@ func commandDocs(path []string, group bool) (summary, description, example strin
 		summary, description, example = commandSummary(name, path[1]), commandLong(name, path[1]), commandExample(name, path[1])
 	case name == "workflow-session":
 		summary = topSummaries[name]
-		description = "Bind explicit runtime identity to durable workflow state. Never starts a service.\nFresh sessions and subagents get isolated clients; resume reuses the recorded client.\nLifecycle commands output a JSON association record. run forwards tracker output with --format json;\n--format does not apply to this adapter."
+		description = "Bind explicit runtime identity to durable workflow state. Never starts a service.\nFresh sessions and subagents get isolated clients; resume reuses the recorded client.\nLifecycle commands and show output a JSON association record. run forwards tracker output with --format json;\n--format does not apply to this adapter."
 	case name == "grep":
 		summary = topSummaries[name]
 		description = "Search the selected project, or explicitly use --all-projects. Matching is case-insensitive by default.\n" +
@@ -109,7 +110,7 @@ func commandDocs(path []string, group bool) (summary, description, example strin
 		example = "  lit search --session my-session 'connection timeout'\n  lit search --session my-session --all-projects --state open '\"claim renewal\" -flaky'"
 	case name == "setup-workflows":
 		summary, description = topSummaries[name], setupWorkflowsHelp
-		example = "  lit setup-workflows --scope local --agent both\n  lit setup-workflows --agent claude --config-dir ~/.claude-work"
+		example = "  lit setup-workflows --scope local --agent both\n  lit setup-workflows --agent claude --config-dir ~/.claude-work\n  lit setup-workflows --scope user --agent claude --status mod"
 	default:
 		summary = topSummaries[name]
 		if !group {
@@ -176,6 +177,8 @@ func flagUsage(path []string, f nwcli.Flag) string {
 		u = "Page size `N` (default 20, maximum 100)"
 	case p == "search" && f.Name == "state":
 		u = "Only issues in `STATE`: open or closed"
+	case p == "setup-workflows" && f.Name == "status":
+		u = "Claude status `SURFACE`: line, mod or both (default both); ignored for Codex and --scope local, not with --remove"
 	case p == "tui" && f.Name == "endpoint":
 		u = "Service `URL` passed to lit-tui; flag > LIT_ENDPOINT > http://127.0.0.1:7411"
 	case strings.HasPrefix(p, "context"):

@@ -43,8 +43,14 @@ func (o Options) binary() string {
 // nothing and keeps whatever an earlier run installed.
 type hookPlan struct {
 	active bool
-	// plugin holds the files of the Claude plugin directory, by relative path.
-	plugin map[string][]byte
+	// plugin holds the files of the Claude plugin directory, by relative path;
+	// mod those of the lit-ui mod directory (nil: no mod after the run), and
+	// modRemoved that the run takes away the mod an earlier one installed.
+	plugin     map[string][]byte
+	mod        map[string][]byte
+	modRemoved bool
+	// status is the Claude status surface (line, mod or both).
+	status string
 	// file is the host file to write (settings.json or hooks.json); nil when the
 	// installation leaves it as it is.
 	file *fileChange
