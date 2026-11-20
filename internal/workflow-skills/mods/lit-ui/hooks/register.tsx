@@ -15,6 +15,8 @@ import { refreshGate } from './gate'
 import { derive } from './model'
 import { claimNotices } from './notices'
 import type { Watched } from './notices'
+import { stageReading, suggestionShown, watchStage } from './suggest'
+import type { StageWatch } from './suggest'
 import type { Config } from '../types'
 
 const POLL_MS = 5000
@@ -38,6 +40,7 @@ let watched: Watched = {}
 let watchedSid = ''
 let feedProblem: string | null = null
 let lastFailure: string | null = null
+let stageWatch: StageWatch = { seen: null, pending: null }
 
 async function settings($: EngineInterface): Promise<{ config: Config; stateDir: string | null; cwd: string }> {
   if (!config) {
@@ -90,11 +93,21 @@ async function refreshNow($: EngineInterface): Promise<void> {
   const notices = claimNotices(watched, raw.claims === null ? null : view.ownClaims, now)
   watched = notices.watched
   for (const text of notices.toasts) $.ui.toast(text)
+  stageWatch = watchStage(stageWatch, stageReading(raw, view))
+  void suggestNextStage($)
   if (s.stateDir) {
     feedProblem = await $.fs.write(feedPath(s.stateDir, sid), JSON.stringify(buildFeed(view, now), null, 2) + '\n')
       .then(() => null, (err: Error) => `status feed: ${err.message}`)
   }
   await update($, refreshAtom, () => ({ at: new Date(now).toISOString(), ms: now - started, session: raw.assoc?.local_session ?? null }))
+}
+
+// Offers the next stage's command as ghost text until the prompt box has shown it once.
+async function suggestNextStage($: EngineInterface): Promise<void> {
+  const text = stageWatch.pending
+  if (!text) return
+  const r = await $.prompt.suggest({ text }).catch(() => null)
+  if (r?.isShown) stageWatch = suggestionShown(stageWatch, text)
 }
 
 const gate = refreshGate()
@@ -187,6 +200,13 @@ export const register: Register = on => {
     if (invokesLit(e.command)) void refresh($)
     return result
   }).catch(($, e, next) => next(e))
+
+  // A stage cleared during a turn is suggested when the turn ends; no other turn end suggests.
+  on('turn.complete', async ($, e, next) => {
+    const result = await next(e)
+    if (!e.agentId) void suggestNextStage($)
+    return result
+  })
 
   on('ui.render', { component: 'AbovePrompt' }, async ($, e, next) => {
     const view = await read($, viewAtom)

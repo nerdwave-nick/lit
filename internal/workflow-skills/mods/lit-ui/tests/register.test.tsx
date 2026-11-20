@@ -20,12 +20,15 @@ type World = {
   claimMinutes: number | null
   config: string | null
   lit: Record<string, { exitCode?: number; stdout: string }>
+  // Whether the prompt box can show a suggestion now (no turn running, no text in it).
+  canSuggest: boolean
 }
 const ready = (): World => ({
   show: { exitCode: 0, stdout: JSON.stringify(ASSOC) },
   meta: 200,
   claimMinutes: null,
   config: null,
+  canSuggest: true,
   lit: {
     [`${T} session get`]: { stdout: items({ project_id: 'p1', stage: 'impl' }) },
     [`${T} projects list --all`]: { stdout: items({ id: 'p1', title: 'feat/demo', description: '# D', repository_refs: [] }) },
@@ -38,7 +41,7 @@ const ready = (): World => ({
 function world(on: On, w: World) {
   const clock = mock.clock(on, { now: NOW })
   mock.env(on, { HOME: '/home/u', LIT_WORKFLOW_STATE_DIR: '/wf' })
-  const seen = { runs: [] as { argv: string; cwd: string | undefined }[], files: {} as Record<string, string>, fills: [] as string[], toasts: [] as string[] }
+  const seen = { runs: [] as { argv: string; cwd: string | undefined }[], files: {} as Record<string, string>, fills: [] as string[], toasts: [] as string[], suggestions: [] as { text: string; isShown: boolean }[] }
   on('session.start', async ($, e) => ({ cwd: e.cwd }))
   on('session.id', async () => ({ value: SID }))
   on('command.register', async ($, e) => ({ value: { command: e.name } }))
@@ -76,6 +79,11 @@ function world(on: On, w: World) {
     seen.toasts.push(e.text)
     return { value: undefined }
   })
+  on('prompt.suggest', async ($, e) => {
+    seen.suggestions.push({ text: e.text, isShown: w.canSuggest })
+    return { isShown: w.canSuggest }
+  })
+  on('turn.complete', async () => ({ text: '' }))
   return { clock, seen }
 }
 
@@ -199,6 +207,41 @@ describe('lit-ui in a session', () => {
     await $.tool.call({ tool: 'Bash', command: 'lit claims list' } as any)
     await clock.settle()
     expect(reads()).toBe(before + 1)
+  })
+
+  test('a planning stage that clears suggests the following stage once, when the box can show it', async ($, on) => {
+    const w = ready()
+    const { clock, seen } = world(on, w)
+    const stage = (s: string | null) => { w.lit[`${T} session get`] = { stdout: items({ project_id: 'p1', stage: s }) } }
+    stage('planner')
+    await start($, clock)
+    await clock.advance(10000)
+    expect(seen.suggestions).toEqual([])
+    // Cleared during a turn: the box cannot show it yet, so it waits for the turn's end.
+    w.canSuggest = false
+    stage(null)
+    await clock.advance(5000)
+    expect(seen.suggestions).toEqual([{ text: '/to-spec feat/demo', isShown: false }])
+    w.canSuggest = true
+    await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't', reason: 'answer' })
+    await clock.settle()
+    expect(seen.suggestions.at(-1)).toEqual({ text: '/to-spec feat/demo', isShown: true })
+    const offers = seen.suggestions.length
+    // Neither later polls nor later turns suggest it again.
+    await clock.advance(20000)
+    await $.turn.complete({ answer: '', durationMs: 1, isAborted: false, turnId: 't2', reason: 'answer' })
+    await clock.settle()
+    expect(seen.suggestions.length).toBe(offers)
+    // impl clearing leads nowhere; to-tickets clearing suggests orchestrate.
+    stage('impl')
+    await clock.advance(5000)
+    stage(null)
+    await clock.advance(5000)
+    stage('to-tickets')
+    await clock.advance(5000)
+    stage(null)
+    await clock.advance(15000)
+    expect(seen.suggestions.slice(offers)).toEqual([{ text: '/orchestrate feat/demo', isShown: true }])
   })
 
   test('/lit-ui debug reports the session and the last refresh; no claim token anywhere', async ($, on) => {
