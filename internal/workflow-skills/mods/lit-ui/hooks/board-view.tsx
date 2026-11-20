@@ -10,7 +10,7 @@ const WIDE_BARS = 64
 export function Board(E: any, v: View, cols: number): Drawn {
   const { Box, Text } = E
   const b = board(v, cols >= WIDE_BARS ? 24 : 12)
-  const content: any[] = [<Text key="summary" dimColor wrap="truncate-end">{b.summary}</Text>]
+  const content: any[] = [<Text key="summary" dimColor wrap="wrap">{b.summary}</Text>]
   if (b.rows.length > 0) content.push(
     <Box key="rows" flexDirection="column">
       {b.rows.map((r, i) => row(E, 'r-' + i,

@@ -28,7 +28,7 @@ export function ProjectView(E: any, v: View, ui: PaneUi, acts: PaneActs, cols: n
     section(E, 'sec-choose', 'CHOOSE A PROJECT', choices.length > 0 ? choices : [<Text key="none" dimColor>No projects yet.</Text>]),
     section(E, 'sec-new', 'NEW PROJECT', [
       <Box key="new-row" gap={1}>
-        <Button key="new" plain hotkey="n" onPress={() => acts.focusTitle()}><Text color="claude" bold>n</Text></Button>
+        <Button key="new" plain hotkey="n" label="new" onPress={() => acts.focusTitle()} />
         <Box key="field" flexGrow={1}>
           <Input key="new-title" placeholder={`${v.prefixes[0] ?? 'feat'}/my-effort`} value={ui.draft} submitLabel="create"
             onInput={(text: string) => acts.setDraft(text)} onSubmit={(text: string) => acts.create(text)} />
@@ -36,7 +36,7 @@ export function ProjectView(E: any, v: View, ui: PaneUi, acts: PaneActs, cols: n
       </Box>,
       <Box key="new-note" paddingLeft={2}>
         {problem
-          ? <Text key="new-problem" color="error" wrap="truncate-end">{problem}</Text>
+          ? <Text key="new-problem" color="error" wrap="wrap">{problem}</Text>
           : <Text key="new-help" dimColor wrap="truncate-end">Creates it, selects it and puts /planner in the prompt.</Text>}
       </Box>,
     ]),

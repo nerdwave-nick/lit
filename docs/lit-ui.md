@@ -97,8 +97,8 @@ one action.
   origin's https form: `git@github.com:o/r.git` becomes `https://github.com/o/r`;
   without a git origin, no repository), selects it with `lit session set
   --project title:<title>`, puts `/planner <title>` in the prompt and closes the
-  pane. A refused create or select shows as the failure row and leaves the title
-  in the field.
+  pane. A refused create or select shows as the failure row; the reason stays
+  under the field (Claude Code empties the field on Enter).
 
 Putting a command in the prompt and running it now both close the pane.
 Orchestrate is never run from the pane: it always goes through the prompt. Run

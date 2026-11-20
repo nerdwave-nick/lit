@@ -101,11 +101,15 @@ describe('pane acts', () => {
   })
 
   test('Project: n focuses the title; more… lists all, Esc folds it back, then lets the pane close', async () => {
-    const { state, acts } = fake({ tab: 'project' })
+    const { state, acts } = fake({ tab: 'project' }, { projects: [
+      { id: 'p1', title: 'feat/demo', description: '', repository_refs: [] },
+      { id: 'p2', title: 'docs/b', description: '', repository_refs: [] },
+      { id: 'p3', title: 'docs/a', description: '', repository_refs: [] },
+    ] })
     acts.focusTitle()
     acts.more()
     await settled()
-    expect([state.calls, state.ui.allProjects]).toEqual([['focus new-title'], true])
+    expect([state.calls, state.ui.allProjects]).toEqual([['focus new-title', 'focus project-p3'], true])
     expect(await acts.escape()).toBe(true)
     expect(state.ui.allProjects).toBe(false)
     expect(await acts.escape()).toBe(false)

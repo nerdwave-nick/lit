@@ -1,7 +1,7 @@
 // What the Project view's presses do: select a project, list them all, and create one. The
 // tracker commands go through the PaneIo built in register.tsx; this file decides what follows.
 import type { PaneIo } from './pane-acts'
-import { canonicalRepo, validateTitle } from './project'
+import { canonicalRepo, projectChoices, validateTitle } from './project'
 import type { PaneUi } from '../types'
 
 export type ProjectActs = {
@@ -42,7 +42,12 @@ export function projectActs(io: PaneIo): ProjectActs {
   }
   return {
     selectProject: projectId => void select(projectId),
-    more: () => void io.patch(ui => ({ ...ui, allProjects: true })),
+    // The ring moves to the first project more… brought, where the more… row was.
+    more: () => void io.patch(ui => ({ ...ui, allProjects: true })).then(async () => {
+      const v = await io.view()
+      const first = v && projectChoices(v, true).rows.find(r => r.group === 'other')
+      if (first) io.focus(`project-${first.project.id}`)
+    }),
     focusTitle: () => io.focus('new-title'),
     setDraft: text => void io.patch(ui => ({ ...ui, draft: text, typed: true })),
     create: text => void create(text),
