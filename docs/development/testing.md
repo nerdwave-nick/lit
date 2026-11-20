@@ -642,9 +642,18 @@ band in each state and mode; `1` filling the prompt; `3` renewing for 30 minutes
 only when pressed (polls never acquire, renew or release); both toasts; buttons
 hidden during a turn; a refresh after a Bash call that runs lit and none after
 other commands; the feed file and `/lit-ui debug`. Mutation checks (no refresh
-after Bash, another renewal lease, no toasts) fail these tests. The live check of
-the band in a real Claude Code session is a manual step, recorded on the ticket:
-an isolated `lit-server` with synthetic data, `claude --plugin-dir` in a private
+after Bash, another renewal lease, no toasts) fail these tests. The pane has three
+more files: `tests/pane.test.ts` (the Home model, the workflow list, each target
+step and the exact command text, the key hints), `tests/pane-acts.test.ts` (where
+the focus goes after each choice, Esc back from a target step, release only on the
+second `x`, fill and run now leaving the pane) and `tests/pane-session.test.tsx`
+(the pane drawn through the mod with the fake world of `tests/world.ts`: opening it
+from the band and `/lit-ui`, the tabs, Home and Launch, renew and release, the
+failure row, orchestrate without run now, the narrow layout). The kit's engine
+cannot raise the person's Esc (`ui.close`) or answer a plugin's `$.ui.focus`, so
+those are covered at the `pane-acts.ts` seam and in the live check. The live check
+of the band and the pane in a real Claude Code session is a manual step, recorded
+on the ticket: an isolated `lit-server` with synthetic data, `claude --plugin-dir` in a private
 tmux server, and the prototype's `lit-probe` mod answering model requests locally.
 
 `cmd/lit/deps_test.go` uses `go list -deps` to prove that only `lit-tui` links the
