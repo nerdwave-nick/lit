@@ -116,7 +116,7 @@ func TestSetupWorkflowsRemoveReceiptShape(t *testing.T) {
 	_, home, _, _ := isolateSetup(t)
 	runSetup(t, "--scope", "user", "--agent", "claude")
 	_, code, stdout, _ := runRemoval(t, "--scope", "user", "--agent", "claude")
-	want := `{"removed":[{"agent":"claude","scope":"user","directory":"` + filepath.Join(home, ".claude") + `","found":true,"skills":16,"hooks":true,"status_line":"removed"}]}` + "\n"
+	want := `{"removed":[{"agent":"claude","scope":"user","directory":"` + filepath.Join(home, ".claude") + `","found":true,"skills":16,"hooks":true,"mod":true,"status_line":"removed"}]}` + "\n"
 	if code != 0 || stdout != want {
 		t.Errorf("receipt %q, want %q", stdout, want)
 	}
@@ -193,7 +193,7 @@ func TestSetupWorkflowsHelpDocumentsRemoval(t *testing.T) {
 	if code := Run([]string{"setup-workflows", "--help"}, &b, &b); code != 0 {
 		t.Fatal(code, &b)
 	}
-	for _, want := range []string{"--remove", "ownership record", "restor", "setup-workflows [--remove] --scope local|user --agent codex|claude|both"} {
+	for _, want := range []string{"--remove", "ownership record", "restor", "setup-workflows --remove --scope local|user --agent codex|claude|both"} {
 		if !strings.Contains(b.String(), want) {
 			t.Errorf("help lacks %q:\n%s", want, &b)
 		}

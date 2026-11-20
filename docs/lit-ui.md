@@ -63,6 +63,11 @@ while one runs is served by one more run after it.
 
 ## Configuration
 
+`lit setup-workflows --scope user --agent claude` (or `--config-dir`) installs the
+mod as `<config>/skills/lit-ui/` with `--status mod` or `both` (the default); see
+[Status surface](installation.md#status-surface-the-status-line-and-the-lit-ui-mod).
+Claude Code loads it once the workspace is trusted.
+
 Setup writes `config.json` in the mod's directory, beside `.claude-plugin/`:
 
 ```json

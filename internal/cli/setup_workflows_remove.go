@@ -22,6 +22,8 @@ type removedTarget struct {
 	Found  bool `json:"found"`
 	Skills int  `json:"skills"`
 	Hooks  bool `json:"hooks"`
+	// Mod reports that the lit-ui mod directory was removed.
+	Mod bool `json:"mod,omitempty"`
 	// StatusLine is "restored" (the wrapped original is back), "removed" or
 	// "left" (changed after setup wrote it).
 	StatusLine string   `json:"status_line,omitempty"`
@@ -38,7 +40,7 @@ func runRemoveWorkflows(targets []workflowskills.Target, out, errOut io.Writer) 
 	var r removalReceipt
 	for _, res := range results {
 		t := removedTarget{Agent: res.Target.Host, Scope: res.Target.Scope, Directory: res.Target.Dir, Found: res.Found, Skills: res.Skills,
-			Hooks: res.Hooks, StatusLine: res.StatusLine, Warnings: res.Warnings, Notes: res.Notes}
+			Hooks: res.Hooks, Mod: res.Mod, StatusLine: res.StatusLine, Warnings: res.Warnings, Notes: res.Notes}
 		r.Removed = append(r.Removed, t)
 		reportTarget(errOut, t.Agent, t.Directory, t.Warnings, t.Notes)
 	}

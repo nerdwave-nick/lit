@@ -142,7 +142,7 @@ func newGrammar() *nwcli.Command {
 		group("transactions", &nwcli.Command{Name: "status", Flags: flags("file")}),
 		&nwcli.Command{Name: "grep", Operands: nwcli.Operands{Usage: "PATTERN", Max: 1},
 			Flags: join(flags("project limit cursor context n"), switches("case-sensitive all-projects"), flags("regex"))},
-		&nwcli.Command{Name: "setup-workflows", Flags: join(flags("scope agent config-dir"), switches("remove")), Without: strings.Fields(globals)},
+		&nwcli.Command{Name: "setup-workflows", Flags: join(flags("scope agent config-dir"), []nwcli.Flag{{Name: "status", Value: choice("line", "mod", "both")}}, switches("remove")), Without: strings.Fields(globals)},
 		&nwcli.Command{Name: "tui", Flags: flags("endpoint"), Without: []string{"session", "format", "timeout"}},
 		&nwcli.Command{Name: "search", Operands: nwcli.Operands{Usage: "QUERY", Max: 1},
 			Flags: join(flags("project state limit cursor"), switches("all-projects"))},

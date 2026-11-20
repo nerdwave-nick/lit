@@ -163,8 +163,9 @@ lit setup-workflows --scope local --agent both
 Setup works offline without a checkout or tracker connection. Choose `--scope user`
 for your home, or name one agent configuration directory with
 `--agent claude --config-dir ~/.claude-work` (exactly one agent per directory).
-User scope and `--config-dir` also install the lit session hooks and the Claude
-status line; the local scope never does
+User scope and `--config-dir` also install the lit session hooks and, for Claude,
+the status line and the [lit-ui mod](docs/lit-ui.md) (`--status line|mod|both`,
+default `both`); the local scope never does
 ([details](docs/installation.md#hooks-and-the-status-line)).
 Rerun setup after a CLI upgrade to update managed skills; unrelated files and
 local modifications are protected. An install made by the removed `lit setup-skills`

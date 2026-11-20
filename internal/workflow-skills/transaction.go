@@ -31,17 +31,13 @@ func installHost(stage string, t Target, o Options) (res Result, e error) {
 			return res, e
 		}
 	}
-	var plugin *pluginRecord
-	if hp.plugin != nil {
-		dir := filepath.Join(hostStage, pluginName)
-		if e = writeFiles(dir, hp.plugin); e != nil {
-			return res, e
-		}
-		fp, e := fingerprint(dir)
-		if e != nil {
-			return res, e
-		}
-		plugin = &pluginRecord{Name: pluginName, Fingerprint: fp}
+	plugin, e := stageTree(hostStage, pluginName, hp.plugin)
+	if e != nil {
+		return res, e
+	}
+	mod, e := stageTree(hostStage, modName, hp.mod)
+	if e != nil {
+		return res, e
 	}
 	crashAt("planned")
 	touched := append([]string{}, suite...)
@@ -54,7 +50,13 @@ func installHost(stage string, t Target, o Options) (res Result, e error) {
 	if plugin != nil {
 		installed = append(installed, pluginName)
 	}
+	if mod != nil {
+		installed = append(installed, modName)
+	}
 	touched = append(touched, installed[len(suite):]...)
+	if mod == nil && hp.modRemoved {
+		touched = append(touched, modName)
+	}
 	sort.Strings(touched)
 	x, e := beginTxn(root, p.instruction, touched)
 	if e != nil {
@@ -83,13 +85,15 @@ func installHost(stage string, t Target, o Options) (res Result, e error) {
 		m.Skills[n] = v
 		x.j.AfterSkills[n] = ptr(v)
 	}
-	if plugin != nil {
-		x.j.AfterSkills[pluginName] = ptr(plugin.Fingerprint)
+	for _, r := range []*pluginRecord{plugin, mod} {
+		if r != nil {
+			x.j.AfterSkills[r.Name] = ptr(r.Fingerprint)
+		}
 	}
 	// A local scope leaves the hooks an earlier run installed as they are.
-	m.Plugin, m.Hooks, m.StatusLine, m.CreatedFiles = p.previous.plugin, p.previous.hooks, p.previous.statusLine, p.previous.created
+	m.Plugin, m.Mod, m.Hooks, m.StatusLine, m.CreatedFiles = p.previous.plugin, p.previous.mod, p.previous.hooks, p.previous.statusLine, p.previous.created
 	if hp.active {
-		m.Plugin, m.Hooks, m.StatusLine, m.CreatedFiles = plugin, hp.hooks, hp.statusLine, hp.created
+		m.Plugin, m.Mod, m.Hooks, m.StatusLine, m.CreatedFiles = plugin, mod, hp.hooks, hp.statusLine, hp.created
 	}
 	// Files are written in this order and the setup-skills ownership file is
 	// removed last; the journal covers every one of them.
@@ -123,18 +127,44 @@ func installHost(stage string, t Target, o Options) (res Result, e error) {
 	if e != nil {
 		return res, e
 	}
-	res = Result{Target: t, Adopted: p.previous.legacy, Hooks: hp.active, StatusLine: hp.state, Warnings: hp.warnings, Notes: hp.notes}
+	res = Result{Target: t, Adopted: p.previous.legacy, Hooks: hp.active, StatusLine: hp.state, Status: hp.status, Warnings: hp.warnings, Notes: hp.notes}
+	switch {
+	case mod != nil:
+		res.Mod = "installed"
+	case hp.modRemoved:
+		res.Mod = "removed"
+	}
 	return res, x.finish()
 }
 
+// stageTree writes the files of a lit-owned directory below skills/ (the hooks
+// plugin or the mod) into the stage and returns its record; nil files stage
+// nothing.
+func stageTree(stage, name string, files map[string][]byte) (*pluginRecord, error) {
+	if files == nil {
+		return nil, nil
+	}
+	dir := filepath.Join(stage, name)
+	if e := writeFiles(dir, files); e != nil {
+		return nil, e
+	}
+	fp, e := fingerprint(dir)
+	if e != nil {
+		return nil, e
+	}
+	return &pluginRecord{Name: name, Fingerprint: fp}, nil
+}
+
 // tree returns the recorded fingerprint of a directory below skills/ that the
-// earlier installation owns: a skill or the hooks plugin.
+// earlier installation owns: a skill, the hooks plugin or the mod.
 func (o owned) tree(name string) (string, bool) {
-	if name == pluginName {
-		if o.plugin == nil {
-			return "", false
+	for n, r := range map[string]*pluginRecord{pluginName: o.plugin, modName: o.mod} {
+		if name == n {
+			if r == nil {
+				return "", false
+			}
+			return r.Fingerprint, true
 		}
-		return o.plugin.Fingerprint, true
 	}
 	v, ok := o.skills[name]
 	return v, ok

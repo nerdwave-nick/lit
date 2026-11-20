@@ -14,12 +14,13 @@ type removal struct {
 	found       bool
 	instruction string
 	// trees maps the owned directories below skills/ that exist (skills and the
-	// hooks plugin) to their verified fingerprints; skills counts the skills.
+	// hooks plugin and the mod) to their verified fingerprints; skills counts
+	// the skills.
 	trees  map[string]string
 	skills int
 	// changes are the file writes, the ownership record last.
 	changes         []fileChange
-	hooks           bool
+	hooks, mod      bool
 	statusLine      string
 	warnings, notes []string
 }
@@ -62,6 +63,7 @@ func inspectRemoval(root string, t Target) (r removal, err error) {
 		return r, err
 	}
 	r.hooks = prev.plugin != nil || len(prev.hooks) > 0
+	r.mod = prev.mod != nil
 	r.statusLine = hr.statusLine
 	r.warnings, r.notes = append(r.warnings, hr.warnings...), append(r.notes, hr.notes...)
 	r.changes = []fileChange{ic}
@@ -76,7 +78,7 @@ func inspectRemoval(root string, t Target) (r removal, err error) {
 	return r, nil
 }
 
-// planTrees verifies the skills and the hooks plugin the record lists: one
+// planTrees verifies the skills, the hooks plugin and the mod the record lists: one
 // that is gone needs no removal, one the user changed is refused.
 func (r *removal) planTrees(root string, prev owned) error {
 	names := []string{}
@@ -90,11 +92,14 @@ func (r *removal) planTrees(root string, prev owned) error {
 	if prev.plugin != nil {
 		names = append(names, pluginName)
 	}
+	if prev.mod != nil {
+		names = append(names, modName)
+	}
 	for _, n := range names {
 		want, _ := prev.tree(n)
-		kind := "skill"
-		if n == pluginName {
-			kind = "hooks plugin"
+		kind := map[string]string{pluginName: "hooks plugin", modName: "mod"}[n]
+		if kind == "" {
+			kind = "skill"
 		}
 		dir := filepath.Join(root, "skills", n)
 		if !exists(dir) {
@@ -109,7 +114,7 @@ func (r *removal) planTrees(root string, prev owned) error {
 			return fmt.Errorf("managed %s modified: %s; setup does not remove files you changed (restore or delete it yourself, then rerun)", kind, n)
 		}
 		r.trees[n] = want
-		if n != pluginName {
+		if n != pluginName && n != modName {
 			r.skills++
 		}
 	}

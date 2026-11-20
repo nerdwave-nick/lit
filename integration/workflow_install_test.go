@@ -301,8 +301,10 @@ func (v *variant) uninstall() {
 	if read(t, filepath.Join(v.config, "skills", "mine", "SKILL.md")) != "my own skill\n" {
 		t.Error("removal changed the user's own skill")
 	}
-	if _, err := os.Stat(filepath.Join(v.config, "skills", "lit")); !os.IsNotExist(err) {
-		t.Errorf("the lit skill is still installed after removal: %v", err)
+	for _, name := range []string{"lit", "lit-hooks", "lit-ui"} {
+		if _, err := os.Stat(filepath.Join(v.config, "skills", name)); !os.IsNotExist(err) {
+			t.Errorf("%s is still installed after removal: %v", name, err)
+		}
 	}
 	instruction := "CLAUDE.md"
 	if v.host == "codex" {

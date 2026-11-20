@@ -35,6 +35,13 @@ type Options struct {
 	// (other agent configurations, the project's .claude and .codex); they
 	// default to the user's home directory and the current directory.
 	Home, WorkDir string
+	// Status chooses the Claude status surface of an agent configuration:
+	// "line" (the status line), "mod" (the lit-ui mod) or "both", the default
+	// when empty. It does not apply to Codex or to a local scope.
+	Status string
+	// LitPath is the absolute path of the lit executable the mod runs, written
+	// to the mod's config.json; it defaults to Binary.
+	LitPath string
 }
 
 // Install is InstallWith with the default Options.
@@ -48,6 +55,9 @@ func Install(bundle fs.FS, targets []Target) ([]Result, error) {
 // commits separately.
 func InstallWith(bundle fs.FS, targets []Target, opt Options) ([]Result, error) {
 	if e := checkTargets(targets); e != nil {
+		return nil, e
+	}
+	if e := opt.checkStatus(); e != nil {
 		return nil, e
 	}
 	stage, e := os.MkdirTemp("", "lit-skills-")
